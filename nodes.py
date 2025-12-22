@@ -5,22 +5,27 @@ from pocketflow import Node
 # Ideally, import your actual utility here
 # from utils.call_llm import call_llm 
 
-# Mock LLM for demonstration so this code runs immediately
-def call_llm(prompt):
-    return f"Mock response to: {prompt[:30]}..."
+# Use the real LLM from utils
+from utils.call_llm import call_llm
 
 class LoadData(Node):
     def prep(self, shared):
-        # In a real app, scan a directory. Here we mock data.
-        return None
+        # Scan the CSV directory
+        csv_dir = "CSV"
+        return csv_dir
 
-    def exec(self, _):
-        # Mocking 3 relational CSVs
-        data = {
-            "players": pd.DataFrame({"player_id": [1, 2], "name": ["Jordan", "Pippen"], "team_id": [101, 101]}),
-            "teams": pd.DataFrame({"team_id": [101, 102], "city": ["Chicago", "Detroit"]}),
-            "stats": pd.DataFrame({"player_id": [1, 2], "points": [30, 20], "year": [1996, 1996]})
-        }
+    def exec(self, csv_dir):
+        # Read all CSV files from the CSV folder
+        data = {}
+        if os.path.exists(csv_dir):
+            for filename in os.listdir(csv_dir):
+                if filename.endswith(".csv"):
+                    filepath = os.path.join(csv_dir, filename)
+                    try:
+                        table_name = filename.replace(".csv", "")
+                        data[table_name] = pd.read_csv(filepath)
+                    except Exception as e:
+                        print(f"Error loading {filename}: {e}")
         return data
 
     def post(self, shared, prep_res, exec_res):

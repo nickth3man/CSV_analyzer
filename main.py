@@ -5,7 +5,7 @@ def main():
     # We start with the user's question.
     # 'dfs' and 'schema_str' will be populated by the LoadData and SchemaInference nodes.
     shared = {
-        "question": "What is the average points scored by players on the Chicago team?",
+        "question": "what do the CSV files have in common",
 
         # Optional: Initialize state variables for clarity, though Nodes will create them if missing.
         "retry_count": 0,
