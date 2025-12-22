@@ -1,11 +1,9 @@
 from openai import OpenAI
 import os
 
-# Using Replit AI Integrations for OpenRouter access (no API key needed)
-# See blueprint: python_openrouter_ai_integrations
 def call_llm(prompt):    
-    api_key = os.environ.get("AI_INTEGRATIONS_OPENROUTER_API_KEY", "your-api-key")
-    base_url = os.environ.get("AI_INTEGRATIONS_OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+    api_key = os.environ.get("OPENROUTER_API_KEY", "")
+    base_url = "https://openrouter.ai/api/v1"
     
     client = OpenAI(api_key=api_key, base_url=base_url)
     model = os.environ.get("LLM_MODEL", "meta-llama/llama-3.3-70b-instruct")
