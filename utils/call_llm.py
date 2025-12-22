@@ -1,11 +1,17 @@
 from openai import OpenAI
 import os
 
-# Learn more about calling the LLM: https://the-pocket.github.io/PocketFlow/utility_function/llm.html
+# Using Replit AI Integrations for OpenRouter access (no API key needed)
+# See blueprint: python_openrouter_ai_integrations
 def call_llm(prompt):    
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY", "your-api-key"))
+    api_key = os.environ.get("AI_INTEGRATIONS_OPENROUTER_API_KEY", "your-api-key")
+    base_url = os.environ.get("AI_INTEGRATIONS_OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+    
+    client = OpenAI(api_key=api_key, base_url=base_url)
+    model = os.environ.get("LLM_MODEL", "meta-llama/llama-3.3-70b-instruct")
+    
     r = client.chat.completions.create(
-        model="gpt-4o",
+        model=model,
         messages=[{"role": "user", "content": prompt}]
     )
     return r.choices[0].message.content
