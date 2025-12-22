@@ -78,8 +78,18 @@ class Planner(Node):
         return shared["question"], shared["schema_str"]
 
     def exec(self, inputs):
-        # Call LLM to generate plan
-        return ["1. Merge players and stats", "2. Group by name"]
+        question, schema = inputs
+        prompt = f"""You are a data analyst. Given the following database schema and user question, create a brief analysis plan.
+
+DATABASE SCHEMA:
+{schema}
+
+USER QUESTION: {question}
+
+Provide a concise step-by-step plan (2-4 steps) to answer the question using the available tables. Just list the steps, no code."""
+        
+        plan = call_llm(prompt)
+        return plan
 
     def post(self, shared, prep_res, exec_res):
         shared["plan_steps"] = exec_res
@@ -90,24 +100,48 @@ class CodeGenerator(Node):
         return {
             "plan": shared["plan_steps"],
             "schema": shared["schema_str"],
-            "error": shared.get("exec_error") # Context from previous failures
+            "question": shared["question"],
+            "error": shared.get("exec_error"),
+            "previous_code": shared.get("code_snippet")
         }
 
     def exec(self, inputs):
-        # In reality, prompt LLM to write code based on plan/error
-        # Here we simulate generating valid code
         if inputs.get("error"):
             print("Fixing code based on error...")
+            prompt = f"""You are a Python data analyst. Your previous code had an error. Fix it.
 
-        # Valid code simulation
-        code = """
-import pandas as pd
-df_p = dfs['players']
-df_s = dfs['stats']
-merged = pd.merge(df_p, df_s, on='player_id')
-final_result = merged['points'].mean()
-"""
-        return code.strip()
+DATABASE SCHEMA (available as dfs dictionary):
+{inputs['schema']}
+
+USER QUESTION: {inputs['question']}
+
+PREVIOUS CODE:
+{inputs.get('previous_code', 'None')}
+
+ERROR: {inputs['error']}
+
+Write ONLY the corrected Python code. The dataframes are in a dict called 'dfs' where keys are table names.
+You must store your final answer in a variable called 'final_result'.
+Do NOT include markdown code blocks. Just raw Python code."""
+        else:
+            prompt = f"""You are a Python data analyst. Write code to answer the user's question.
+
+DATABASE SCHEMA (available as dfs dictionary):
+{inputs['schema']}
+
+USER QUESTION: {inputs['question']}
+
+PLAN: {inputs['plan']}
+
+Write Python code to answer the question. The dataframes are in a dict called 'dfs' where keys are table names (matching the table names in the schema).
+You must store your final answer in a variable called 'final_result'.
+Do NOT include markdown code blocks. Just raw Python code.
+Only use pandas (pd) which is already imported."""
+
+        code = call_llm(prompt)
+        # Clean up any markdown code blocks if LLM added them
+        code = code.replace("```python", "").replace("```", "").strip()
+        return code
 
     def post(self, shared, prep_res, exec_res):
         shared["code_snippet"] = exec_res
@@ -162,9 +196,9 @@ class Executor(Node):
         local_scope = {"dfs": dfs, "pd": pd}
 
         try:
-
-            # execute the code string
-            exec(code, {}, local_scope)
+            # execute the code string - use local_scope for both globals and locals
+            # so that dfs/pd are accessible in the executed code
+            exec(code, local_scope, local_scope)
 
             # Check if the code defined 'final_result'
             if "final_result" not in local_scope:
@@ -187,17 +221,24 @@ class Executor(Node):
         return "success"
 
 class ErrorFixer(Node):
+    MAX_RETRIES = 3
+    
     def prep(self, shared):
-        return shared["exec_error"], shared["code_snippet"]
+        return shared["exec_error"], shared["code_snippet"], shared.get("retry_count", 0)
 
     def exec(self, inputs):
-        # Call LLM to explain the fix
-        # In this demo, we just pass through
-        return "Add check for column existence"
+        error, code, retry_count = inputs
+        if retry_count >= self.MAX_RETRIES:
+            return "max_retries_exceeded"
+        return "try_again"
 
     def post(self, shared, prep_res, exec_res):
-        # We append the hint to the plan or error context so CodeGen sees it
-        # The flow loops back to CodeGenerator automatically
+        if exec_res == "max_retries_exceeded":
+            shared["final_text"] = f"Unable to answer the question after multiple attempts. Last error: {shared.get('exec_error', 'Unknown')}"
+            print(f"\nMax retries exceeded. Stopping.")
+            return "give_up"
+        
+        shared["retry_count"] = shared.get("retry_count", 0) + 1
         return "fix"
 
 class Visualizer(Node):
@@ -217,11 +258,18 @@ class Visualizer(Node):
 
 class ResponseFormatter(Node):
     def prep(self, shared):
-        return shared["exec_result"]
+        # Check if we have a result or if we came from give_up path
+        if "exec_result" in shared:
+            return shared["exec_result"]
+        # Coming from give_up - final_text already set by ErrorFixer
+        return None
 
     def exec(self, result):
+        if result is None:
+            return None  # Skip - final_text already set
         return f"The calculated answer is {result}."
 
     def post(self, shared, prep_res, exec_res):
-        shared["final_text"] = exec_res
-        print(f"\nFINAL ANSWER: {exec_res}")
+        if exec_res is not None:
+            shared["final_text"] = exec_res
+        print(f"\nFINAL ANSWER: {shared.get('final_text', 'No answer')}")

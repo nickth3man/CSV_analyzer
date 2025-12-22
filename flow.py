@@ -59,6 +59,7 @@ def create_analyst_flow():
     # If Execution Succeeds: Proceed to Visualization
     executor - "error"   >> fixer
     fixer    - "fix"     >> code_gen
+    fixer    - "give_up" >> formatter  # Exit gracefully after max retries
     executor - "success" >> viz
 
     # --- 7. Wire the Output Phase ---
