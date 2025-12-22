@@ -3,6 +3,18 @@ node_modules/
 vendor/
 .pnp/
 .pnp.js
+.pythonlibs/
+
+# Python
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
 
 # Build outputs
 dist/
