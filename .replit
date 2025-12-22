@@ -34,4 +34,4 @@ outputType = "console"
 
 [userenv.shared]
 OPENROUTER_API_KEY = "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"
-LLM_MODEL = "Gjkmn"
+LLM_MODEL = "mistralai/devstral-2512:free"
