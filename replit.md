@@ -35,11 +35,20 @@ The core of Pocket Flow is modeled as a **Graph + Shared Store**.
 - **File Structure**:
     - `my_project/`
         - `main.py`: Entry point.
-        - `nodes.py`: Node definitions.
+        - `nodes.py`: Node definitions (14 nodes including EntityResolver, DeepAnalyzer, ResponseSynthesizer).
         - `flow.py`: Flow creation and connections.
-        - `utils/`: Utility functions (e.g., `call_llm.py`, `search_web.py`).
+        - `utils/`: Utility functions (e.g., `call_llm.py`, `knowledge_store.py`).
         - `requirements.txt`: Project dependencies.
         - `docs/design.md`: High-level, no-code design documentation.
+
+## Recent Changes (December 2024)
+- Added **EntityResolver** node for discovering entities across tables using first_name/last_name matching
+- Added **DeepAnalyzer** node for comprehensive statistical analysis with data validation
+- Added **ResponseSynthesizer** node for generating narrative responses with honest data gap warnings
+- Added **KnowledgeStore** utility for persistent entity mappings and query patterns (JSON-based)
+- Added pre-built comparison template in CodeGenerator to prevent merge/dtype errors
+- Improved data integrity: system honestly reports missing data instead of fabricating facts
+- Successfully tested complex comparative queries ("Compare LeBron James and Tracy McGrady")
 
 ### Feature Specifications
 - **Fault Tolerance**: Nodes can retry `exec()` method upon exceptions and provide fallback mechanisms.
