@@ -222,98 +222,39 @@ Be thorough - this is for deep analysis, not just a simple lookup."""
         print("Plan generated.")
 
 class CodeGenerator(Node):
-    PLAYER_COMPARISON_TEMPLATE = '''
-# PROVEN TEMPLATE FOR PLAYER COMPARISON - COPY AND ADAPT THIS PATTERN
+    DYNAMIC_GUIDANCE = """
+CRITICAL CODE GENERATION RULES:
+1. ALWAYS convert values to str() before comparing or storing to avoid type errors
+2. DO NOT try to convert string values like 'Y', 'N', flags to int
+3. Query each table SEPARATELY - avoid complex multi-table merges
+4. Use .astype(str) on columns before string matching
+5. When extracting row values, wrap with str(row.get('col', 'N/A')) to prevent type issues
+6. For comparisons: loop through each entity, query each table separately, combine results
+
+DYNAMIC QUERY PATTERN (adapt to actual tables in schema):
+```python
 final_result = {}
-players_to_compare = {players_list}
+entities_to_compare = ['Entity1', 'Entity2']  # from user question
 
-for player_name in players_to_compare:
-    player_data = {{'name': player_name, 'found_in_tables': []}}
-    parts = player_name.lower().split()
-    first_part = parts[0] if parts else ''
-    last_part = parts[-1] if parts else ''
+for entity_name in entities_to_compare:
+    entity_data = {'name': entity_name, 'found_in_tables': []}
+    parts = entity_name.lower().split()
     
-    # Query common_player_info
-    if 'common_player_info' in dfs:
-        df = dfs['common_player_info']
-        mask = (df['first_name'].astype(str).str.lower().str.contains(first_part, na=False)) & \
-               (df['last_name'].astype(str).str.lower().str.contains(last_part, na=False))
-        matches = df[mask]
-        if not matches.empty:
-            player_data['found_in_tables'].append('common_player_info')
-            row = matches.iloc[0]
-            player_data['basic_info'] = {{
-                'height': str(row.get('height', 'N/A')),
-                'weight': str(row.get('weight', 'N/A')),
-                'position': str(row.get('position', 'N/A')),
-                'birthdate': str(row.get('birthdate', 'N/A')),
-                'country': str(row.get('country', 'N/A')),
-                'season_exp': str(row.get('season_exp', 'N/A')),
-                'from_year': str(row.get('from_year', 'N/A')),
-                'to_year': str(row.get('to_year', 'N/A')),
-                'draft_year': str(row.get('draft_year', 'N/A')),
-                'draft_round': str(row.get('draft_round', 'N/A')),
-                'draft_number': str(row.get('draft_number', 'N/A')),
-                'team_name': str(row.get('team_name', 'N/A'))
-            }}
+    # For each table where entity was found (from ENTITY LOCATIONS above):
+    for table_name in dfs.keys():
+        df = dfs[table_name]
+        # Check if table has name columns and search
+        name_cols = [c for c in df.columns if 'name' in c.lower() or 'first' in c.lower() or 'last' in c.lower()]
+        if name_cols:
+            # Build dynamic mask based on available columns
+            # Extract relevant data from matches
+            pass
     
-    # Query player table
-    if 'player' in dfs:
-        df = dfs['player']
-        mask = (df['first_name'].astype(str).str.lower().str.contains(first_part, na=False)) & \
-               (df['last_name'].astype(str).str.lower().str.contains(last_part, na=False))
-        matches = df[mask]
-        if not matches.empty:
-            player_data['found_in_tables'].append('player')
-            row = matches.iloc[0]
-            player_data['player_id'] = str(row.get('id', 'N/A'))
-            player_data['is_active'] = str(row.get('is_active', 'N/A'))
-    
-    # Query draft_history
-    if 'draft_history' in dfs:
-        df = dfs['draft_history']
-        mask = df['player_name'].astype(str).str.lower().str.contains(player_name.lower(), na=False)
-        matches = df[mask]
-        if not matches.empty:
-            player_data['found_in_tables'].append('draft_history')
-            row = matches.iloc[0]
-            player_data['draft_info'] = {{
-                'season': str(row.get('season', 'N/A')),
-                'round_number': str(row.get('round_number', 'N/A')),
-                'overall_pick': str(row.get('overall_pick', 'N/A')),
-                'team_name': str(row.get('team_name', 'N/A')),
-                'organization': str(row.get('organization', 'N/A'))
-            }}
-    
-    # Query inactive_players for team history
-    if 'inactive_players' in dfs:
-        df = dfs['inactive_players']
-        mask = (df['first_name'].astype(str).str.lower().str.contains(first_part, na=False)) & \
-               (df['last_name'].astype(str).str.lower().str.contains(last_part, na=False))
-        matches = df[mask]
-        if not matches.empty:
-            player_data['found_in_tables'].append('inactive_players')
-            teams = matches['team_name'].unique().tolist()
-            player_data['teams_played_for'] = [str(t) for t in teams]
-            player_data['games_inactive'] = len(matches)
-    
-    final_result[player_name] = player_data
+    final_result[entity_name] = entity_data
+```
 
-# Add comparison summary
-final_result['comparison_summary'] = {{
-    'players_compared': players_to_compare,
-    'data_available': {{name: len(final_result[name].get('found_in_tables', [])) > 0 for name in players_to_compare}}
-}}
-'''
-    
-    JOIN_HINTS = """
-IMPORTANT GUIDANCE:
-- ALWAYS convert values to str() before comparing or storing to avoid type errors
-- DO NOT try to convert string values like 'Y', 'N', flags to int
-- For player comparisons, USE THE TEMPLATE PROVIDED BELOW - it is tested and working
-- Query each table separately - avoid complex merges
-- Use .astype(str) on columns before string matching
-- When extracting values, wrap with str() to prevent type issues
+IMPORTANT: Use the ENTITY LOCATIONS section to know exactly which tables contain each entity.
+Only query tables listed there - don't assume tables exist.
 """
 
     def prep(self, shared):
@@ -339,11 +280,10 @@ IMPORTANT GUIDANCE:
         comparison_hint = ""
         if is_comparison:
             entities = inputs["entities"]
-            players_list_str = str(entities)
-            template = self.PLAYER_COMPARISON_TEMPLATE.replace("{players_list}", players_list_str)
             comparison_hint = f"""
-PLAYER COMPARISON - USE THIS EXACT WORKING CODE TEMPLATE:
-{template}
+COMPARISON QUERY: You are comparing these entities: {entities}
+For each entity, query ONLY the tables listed in ENTITY LOCATIONS above.
+Loop through each entity, gather data from their respective tables, then combine into final_result.
 """
         
         if inputs.get("error"):
@@ -355,11 +295,11 @@ PLAYER COMPARISON - USE THIS EXACT WORKING CODE TEMPLATE:
 FIX APPROACH: The error is likely due to incompatible dtypes or merge keys.
 - AVOID complex multi-table merges. Instead, query tables separately.
 - If you must merge, convert keys to same dtype first: df['key'] = df['key'].astype(str)
-- For player comparisons, just loop through entities and gather data from each table separately.
+- Loop through entities and gather data from each table separately.
 """
             
             prompt = f"""You are a Python data analyst. Your previous code had an error. Fix it.
-{self.JOIN_HINTS}
+{self.DYNAMIC_GUIDANCE}
 {error_fix_hint}
 DATABASE SCHEMA (available as dfs dictionary):
 {inputs['schema']}
@@ -378,7 +318,7 @@ Store your final answer in a variable called 'final_result' (a dictionary).
 Do NOT include markdown code blocks. Just raw Python code."""
         else:
             prompt = f"""You are a Python data analyst. Write comprehensive code to answer the user's question.
-{self.JOIN_HINTS}
+{self.DYNAMIC_GUIDANCE}
 DATABASE SCHEMA (available as dfs dictionary):
 {inputs['schema']}
 {entity_info}
@@ -389,9 +329,9 @@ PLAN: {inputs['plan']}
 
 Write Python code to thoroughly analyze and answer the question. 
 - The dataframes are in a dict called 'dfs' where keys are table names
-- Use the ENTITY LOCATIONS above to find the right columns for filtering
+- Use the ENTITY LOCATIONS above to find the right tables and columns for filtering
+- ONLY query tables that are mentioned in ENTITY LOCATIONS - don't assume tables exist
 - AVOID complex multi-table merges - query tables separately and combine in Python
-- Filter by name using string matching on first_name/last_name columns
 - Store your final answer in a variable called 'final_result' (a dictionary)
 - Make final_result a dictionary with all relevant data for deep analysis
 - Do NOT include markdown code blocks. Just raw Python code.
