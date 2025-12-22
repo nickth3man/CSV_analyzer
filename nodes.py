@@ -285,6 +285,18 @@ for player_name in players_to_compare:
                 'organization': str(row.get('organization', 'N/A'))
             }}
     
+    # Query inactive_players for team history
+    if 'inactive_players' in dfs:
+        df = dfs['inactive_players']
+        mask = (df['first_name'].astype(str).str.lower().str.contains(first_part, na=False)) & \
+               (df['last_name'].astype(str).str.lower().str.contains(last_part, na=False))
+        matches = df[mask]
+        if not matches.empty:
+            player_data['found_in_tables'].append('inactive_players')
+            teams = matches['team_name'].unique().tolist()
+            player_data['teams_played_for'] = [str(t) for t in teams]
+            player_data['games_inactive'] = len(matches)
+    
     final_result[player_name] = player_data
 
 # Add comparison summary
