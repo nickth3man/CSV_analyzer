@@ -11,16 +11,23 @@ The Relational Data Analyst Agent is an LLM-powered system that allows users to 
 
 1. **Loads CSV files** from a designated folder (`CSV/`)
 2. **Infers schemas** from the loaded dataframes
-3. **Plans and generates code** to answer user questions
-4. **Executes code safely** in a sandboxed environment
-5. **Handles errors gracefully** with automatic retry and error correction
+3. **Resolves entities** mentioned in queries across all tables
+4. **Plans and generates code** to answer user questions
+5. **Executes code safely** in a sandboxed environment
+6. **Performs deep analysis** with statistical comparisons
+7. **Synthesizes narrative responses** from analysis results
+8. **Learns from queries** via persistent KnowledgeStore
+9. **Handles errors gracefully** with automatic retry and error correction
 
 ### User Stories
 
 - As a user, I want to ask questions about my data in plain English
+- As a user, I want to compare entities (e.g., "Compare LeBron James and Tracy McGrady careers")
 - As a user, I want the system to automatically understand my CSV file structures
+- As a user, I want deep statistical analysis, not just simple lookups
+- As a user, I want narrative responses that tell a story about the data
 - As a user, I want safe code execution that prevents malicious operations
-- As a user, I want helpful error messages if my query cannot be answered
+- As a user, I want the system to learn and improve from previous queries
 
 ## Flow Design
 
@@ -33,19 +40,23 @@ The Relational Data Analyst Agent is an LLM-powered system that allows users to 
 1. **Workflow Pattern**: A sequential pipeline of nodes with conditional branching for error handling
 2. **Agent Pattern**: LLM-driven planning and code generation based on context (schema + question)
 3. **Error Correction Loop**: Automatic retry mechanism with max attempts
+4. **Memory Pattern**: KnowledgeStore for persistent learning across queries
 
 ### Flow High-Level Design:
 
 1. **LoadData**: Scans CSV folder and loads all CSV files as pandas DataFrames
 2. **SchemaInference**: Extracts column names from each DataFrame to build schema
 3. **ClarifyQuery**: Validates the user's question against available schema
-4. **Planner**: Uses LLM to create analysis plan
-5. **CodeGenerator**: Uses LLM to generate Python/pandas code
-6. **SafetyCheck**: AST-based security check to block dangerous imports
-7. **Executor**: Runs generated code in sandboxed environment
-8. **ErrorFixer**: Handles execution errors with retry logic (max 3 attempts)
-9. **Visualizer**: Creates visualizations for DataFrame results
-10. **ResponseFormatter**: Formats final answer for user
+4. **EntityResolver**: Discovers which tables contain data about entities mentioned in query
+5. **Planner**: Uses LLM to create analysis plan, informed by entity resolution and KnowledgeStore hints
+6. **CodeGenerator**: Uses LLM to generate Python/pandas code
+7. **SafetyCheck**: AST-based security check to block dangerous imports
+8. **Executor**: Runs generated code in sandboxed environment
+9. **ErrorFixer**: Handles execution errors with retry logic (max 3 attempts)
+10. **DeepAnalyzer**: Performs comprehensive statistical analysis on execution results
+11. **Visualizer**: Creates visualizations for DataFrame results
+12. **ResponseSynthesizer**: Uses LLM to generate narrative response from analysis
+13. **KnowledgeUpdater**: Stores successful patterns and learnings for future queries
 
 ```mermaid
 flowchart TD
@@ -53,8 +64,9 @@ flowchart TD
     schema --> clarify[ClarifyQuery]
     
     clarify -->|ambiguous| askUser[AskUser]
-    clarify -->|clear| plan[Planner]
+    clarify -->|clear| entityRes[EntityResolver]
     
+    entityRes --> plan[Planner]
     plan --> codeGen[CodeGenerator]
     codeGen --> safety[SafetyCheck]
     
@@ -63,10 +75,11 @@ flowchart TD
     
     executor -->|error| fixer[ErrorFixer]
     fixer -->|fix| codeGen
-    fixer -->|give_up| formatter[ResponseFormatter]
-    executor -->|success| viz[Visualizer]
+    fixer -->|give_up| synthesizer[ResponseSynthesizer]
+    executor -->|success| deepAnalyzer[DeepAnalyzer]
     
-    viz --> formatter
+    deepAnalyzer --> viz[Visualizer]
+    viz --> synthesizer[ResponseSynthesizer]
 ```
 
 ## Utility Functions
@@ -82,7 +95,19 @@ flowchart TD
    - *Environment Variables*:
      - `OPENROUTER_API_KEY`: API key for OpenRouter
      - `LLM_MODEL`: Model to use (default: meta-llama/llama-3.3-70b-instruct)
-   - Used by: Planner, CodeGenerator nodes
+   - Used by: Planner, CodeGenerator, EntityResolver, DeepAnalyzer, ResponseSynthesizer nodes
+
+2. **KnowledgeStore** (`utils/knowledge_store.py`)
+   - *Purpose*: Persistent memory for learned patterns and entity mappings
+   - *Storage*: JSON file (`knowledge_store.json`)
+   - *Methods*:
+     - `load()`: Load knowledge from disk
+     - `save()`: Persist knowledge to disk
+     - `get_entity_hints(entity_name)`: Get known table/column mappings for an entity
+     - `add_entity_mapping(entity, table, columns)`: Store new entity discovery
+     - `get_successful_patterns(query_type)`: Get past successful query patterns
+     - `add_successful_pattern(query_type, pattern)`: Store successful pattern
+   - *Important*: Knowledge is used as hints/guides, never as absolute facts
 
 ## Node Design
 
@@ -101,6 +126,11 @@ shared = {
     "dfs": dict,                  # {"table_name": pd.DataFrame, ...}
     "schema_str": str,            # Human-readable schema description
     
+    # Entity Resolution
+    "entities": list,             # Entities extracted from question
+    "entity_map": dict,           # {entity: {table: [columns], ...}, ...}
+    "knowledge_hints": dict,      # Hints from KnowledgeStore
+    
     # Planning and code
     "plan_steps": str,            # LLM-generated analysis plan
     "code_snippet": str,          # Generated Python code
@@ -109,6 +139,9 @@ shared = {
     "exec_result": Any,           # Result from successful code execution
     "exec_error": str,            # Error message if execution failed
     "retry_count": int,           # Number of retry attempts (max 3)
+    
+    # Deep Analysis
+    "deep_analysis": dict,        # Comprehensive analysis results
     
     # Output
     "chart_path": str,            # Path to generated visualization (if any)
@@ -148,23 +181,32 @@ shared = {
    - *Purpose*: Terminal node for ambiguous queries
    - *Type*: Regular Node (terminal)
 
-5. **Planner**
-   - *Purpose*: Generate analysis plan using LLM
+5. **EntityResolver** (NEW)
+   - *Purpose*: Discover all tables/columns containing data about entities in the query
    - *Type*: Regular Node
    - *Steps*:
-     - *prep*: Read question and schema
-     - *exec*: Call LLM with planning prompt
+     - *prep*: Read question, schema, dfs, and load KnowledgeStore hints
+     - *exec*: Use LLM to extract entities from question, then search all tables for matches
+     - *post*: Store entity_map and knowledge_hints in shared store
+   - *Output*: Map of entity → {table → [matching_columns]}
+
+6. **Planner**
+   - *Purpose*: Generate analysis plan using LLM, informed by entity resolution
+   - *Type*: Regular Node
+   - *Steps*:
+     - *prep*: Read question, schema, entity_map, and knowledge_hints
+     - *exec*: Call LLM with enhanced planning prompt including entity locations
      - *post*: Store plan in `shared["plan_steps"]`
 
-6. **CodeGenerator**
+7. **CodeGenerator**
    - *Purpose*: Generate Python/pandas code using LLM
    - *Type*: Regular Node
    - *Steps*:
-     - *prep*: Read plan, schema, question, and any previous errors
-     - *exec*: Call LLM to generate code (or fix code if error exists)
+     - *prep*: Read plan, schema, question, entity_map, and any previous errors
+     - *exec*: Call LLM to generate code with awareness of entity locations
      - *post*: Store code in `shared["code_snippet"]`
 
-7. **SafetyCheck**
+8. **SafetyCheck**
    - *Purpose*: AST-based security validation
    - *Type*: Regular Node
    - *Steps*:
@@ -172,7 +214,7 @@ shared = {
      - *exec*: Parse AST and check for forbidden imports (os, subprocess, sys, shutil)
      - *post*: Return "safe" or "unsafe" action
 
-8. **Executor**
+9. **Executor**
    - *Purpose*: Execute generated code in sandboxed environment
    - *Type*: Regular Node
    - *Steps*:
@@ -180,16 +222,30 @@ shared = {
      - *exec*: Execute code with only `dfs` and `pd` in scope, extract `final_result`
      - *post*: Store result or error, return "success" or "error" action
 
-9. **ErrorFixer**
-   - *Purpose*: Handle execution errors with retry limit
-   - *Type*: Regular Node
-   - *Config*: MAX_RETRIES = 3
-   - *Steps*:
-     - *prep*: Read error, code, and retry count
-     - *exec*: Check if max retries exceeded
-     - *post*: Increment retry count, return "fix" or "give_up" action
+10. **ErrorFixer**
+    - *Purpose*: Handle execution errors with retry limit
+    - *Type*: Regular Node
+    - *Config*: MAX_RETRIES = 3
+    - *Steps*:
+      - *prep*: Read error, code, and retry count
+      - *exec*: Check if max retries exceeded
+      - *post*: Increment retry count, return "fix" or "give_up" action
 
-10. **Visualizer**
+11. **DeepAnalyzer** (NEW)
+    - *Purpose*: Perform comprehensive statistical analysis on execution results
+    - *Type*: Regular Node
+    - *Steps*:
+      - *prep*: Read exec_result, question, entity_map
+      - *exec*: Use LLM to perform deeper analysis (comparisons, trends, rankings, insights)
+      - *post*: Store deep_analysis in shared store
+    - *Analysis Types*:
+      - Career comparisons (for player queries)
+      - Statistical rankings and percentiles
+      - Trend analysis over time
+      - Peak performance identification
+      - Head-to-head comparisons
+
+12. **Visualizer**
     - *Purpose*: Create charts for DataFrame results
     - *Type*: Regular Node
     - *Steps*:
@@ -197,29 +253,32 @@ shared = {
       - *exec*: Generate plot if result is a DataFrame
       - *post*: Store chart path in `shared["chart_path"]`
 
-11. **ResponseFormatter**
-    - *Purpose*: Format final answer for user
+13. **ResponseSynthesizer** (NEW - replaces ResponseFormatter)
+    - *Purpose*: Generate narrative response using LLM
     - *Type*: Regular Node
     - *Steps*:
-      - *prep*: Read execution result (or None if from give_up path)
-      - *exec*: Format result as human-readable string
-      - *post*: Store in `shared["final_text"]`
+      - *prep*: Read exec_result, deep_analysis, question, entity_map
+      - *exec*: Use LLM to synthesize a coherent narrative response
+      - *post*: Store in `shared["final_text"]`, update KnowledgeStore with learnings
+    - *Output*: Rich narrative with sections, insights, and comparisons
 
 ## File Structure
 
 ```
 project/
-├── main.py              # Entry point - runs the flow
-├── nodes.py             # All 11 node class definitions
-├── flow.py              # Flow creation and node wiring
+├── main.py                    # Entry point - runs the flow
+├── nodes.py                   # All node class definitions
+├── flow.py                    # Flow creation and node wiring
 ├── utils/
 │   ├── __init__.py
-│   └── call_llm.py      # OpenRouter LLM wrapper
-├── CSV/                 # User's CSV data files go here
+│   ├── call_llm.py            # OpenRouter LLM wrapper
+│   └── knowledge_store.py     # Persistent memory system
+├── knowledge_store.json       # Persisted learnings (auto-created)
+├── CSV/                       # User's CSV data files go here
 ├── docs/
-│   └── design.md        # This design document
-├── .env.example         # Environment variable template
-└── requirements.txt     # Python dependencies
+│   └── design.md              # This design document
+├── .env.example               # Environment variable template
+└── requirements.txt           # Python dependencies
 ```
 
 ## Configuration
@@ -242,3 +301,10 @@ project/
 1. Place CSV files in the `CSV/` directory
 2. Edit the question in `main.py`
 3. Run: `python main.py`
+
+### Example Queries
+
+- "Compare the careers of LeBron James and Tracy McGrady"
+- "Who had the highest scoring season in NBA history?"
+- "What is the average points scored by players on the Chicago team?"
+- "Show me the draft history of players from Duke University"

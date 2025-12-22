@@ -1,0 +1,38 @@
+{
+  "entity_mappings": {
+    "LeBron James": {
+      "common_player_info": [
+        "first_name",
+        "last_name"
+      ],
+      "inactive_players": [
+        "first_name",
+        "last_name"
+      ],
+      "player": [
+        "first_name",
+        "last_name"
+      ]
+    },
+    "Tracy McGrady": {
+      "inactive_players": [
+        "first_name",
+        "last_name"
+      ],
+      "player": [
+        "first_name",
+        "last_name"
+      ]
+    }
+  },
+  "successful_patterns": {
+    "comparison": [
+      "Compare the careers of LeBron James and Tracy McGrady"
+    ],
+    "lookup": [
+      "What information do we have about LeBron James?"
+    ]
+  },
+  "column_hints": {},
+  "join_patterns": []
+}

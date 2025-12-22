@@ -1,12 +1,10 @@
 import os
 import ast
+import json
 import pandas as pd
 from pocketflow import Node
-# Ideally, import your actual utility here
-# from utils.call_llm import call_llm 
-
-# Use the real LLM from utils
 from utils.call_llm import call_llm
+from utils.knowledge_store import knowledge_store
 
 class LoadData(Node):
     def prep(self, shared):
@@ -67,26 +65,154 @@ class ClarifyQuery(Node):
 
 class AskUser(Node):
     def exec(self, _):
-        # Terminal node for this flow
         pass
 
     def post(self, shared, prep_res, exec_res):
         print(f"System: {shared.get('final_text', 'Ends')}")
 
-class Planner(Node):
+class EntityResolver(Node):
     def prep(self, shared):
-        return shared["question"], shared["schema_str"]
+        return {
+            "question": shared["question"],
+            "schema": shared["schema_str"],
+            "dfs": shared["dfs"]
+        }
 
     def exec(self, inputs):
-        question, schema = inputs
-        prompt = f"""You are a data analyst. Given the following database schema and user question, create a brief analysis plan.
+        question = inputs["question"]
+        schema = inputs["schema"]
+        dfs = inputs["dfs"]
+        
+        knowledge_hints = knowledge_store.get_all_hints()
+        
+        extract_prompt = f"""Extract all named entities (people, teams, places, specific items) from this question.
+Return a JSON array of entity names only.
+
+Question: {question}
+
+Example output: ["LeBron James", "Tracy McGrady", "Chicago Bulls"]
+Return ONLY the JSON array, nothing else."""
+        
+        try:
+            entities_response = call_llm(extract_prompt)
+            entities_response = entities_response.strip()
+            if entities_response.startswith("```"):
+                entities_response = entities_response.split("```")[1]
+                if entities_response.startswith("json"):
+                    entities_response = entities_response[4:]
+            entities = json.loads(entities_response)
+        except (json.JSONDecodeError, Exception):
+            entities = []
+        
+        entity_map = {}
+        for entity in entities:
+            entity_map[entity] = {}
+            entity_lower = entity.lower()
+            entity_parts = entity_lower.split()
+            
+            for table_name, df in dfs.items():
+                matching_cols = []
+                name_cols = []
+                
+                for col in df.columns:
+                    col_lower = col.lower()
+                    if any(x in col_lower for x in ['first_name', 'last_name', 'player_name', 'full_name', 'display']):
+                        name_cols.append(col)
+                
+                if len(name_cols) >= 2 and len(entity_parts) >= 2:
+                    first_name_cols = [c for c in name_cols if 'first' in c.lower()]
+                    last_name_cols = [c for c in name_cols if 'last' in c.lower()]
+                    
+                    if first_name_cols and last_name_cols:
+                        try:
+                            fc = first_name_cols[0]
+                            lc = last_name_cols[0]
+                            first_match = df[fc].astype(str).str.lower().str.contains(entity_parts[0], na=False)
+                            last_match = df[lc].astype(str).str.lower().str.contains(entity_parts[-1], na=False)
+                            if (first_match & last_match).any():
+                                matching_cols.extend([fc, lc])
+                        except Exception:
+                            pass
+                
+                for col in df.columns:
+                    if col in matching_cols:
+                        continue
+                    try:
+                        if df[col].dtype == 'object':
+                            sample = df[col].dropna().head(1000)
+                            matches = sample.astype(str).str.lower().str.contains(entity_lower, na=False)
+                            if matches.any():
+                                matching_cols.append(col)
+                    except Exception:
+                        continue
+                
+                if matching_cols:
+                    entity_map[entity][table_name] = list(set(matching_cols))
+                    knowledge_store.add_entity_mapping(entity, table_name, matching_cols)
+        
+        return {
+            "entities": entities,
+            "entity_map": entity_map,
+            "knowledge_hints": knowledge_hints
+        }
+
+    def post(self, shared, prep_res, exec_res):
+        shared["entities"] = exec_res["entities"]
+        shared["entity_map"] = exec_res["entity_map"]
+        shared["knowledge_hints"] = exec_res["knowledge_hints"]
+        print(f"Resolved {len(exec_res['entities'])} entities across tables.")
+        if exec_res["entity_map"]:
+            for entity, tables in exec_res["entity_map"].items():
+                if tables:
+                    print(f"  - {entity}: found in {list(tables.keys())}")
+                else:
+                    print(f"  - {entity}: NOT FOUND in any table")
+        return "default"
+
+class Planner(Node):
+    def prep(self, shared):
+        return {
+            "question": shared["question"],
+            "schema": shared["schema_str"],
+            "entity_map": shared.get("entity_map", {}),
+            "knowledge_hints": shared.get("knowledge_hints", {})
+        }
+
+    def exec(self, inputs):
+        question = inputs["question"]
+        schema = inputs["schema"]
+        entity_map = inputs["entity_map"]
+        knowledge_hints = inputs["knowledge_hints"]
+        
+        entity_info = ""
+        if entity_map:
+            entity_info = "\n\nENTITY LOCATIONS (where entities were found in the data):\n"
+            for entity, tables in entity_map.items():
+                if tables:
+                    for table, cols in tables.items():
+                        entity_info += f"  - '{entity}' found in table '{table}' columns: {cols}\n"
+        
+        hints_info = ""
+        if knowledge_hints.get("join_patterns"):
+            hints_info = "\n\nHINTS FROM PREVIOUS QUERIES (use as guidance):\n"
+            for pattern in knowledge_hints["join_patterns"][:3]:
+                hints_info += f"  - Tables {pattern['tables']} can be joined on {pattern['keys']}\n"
+        
+        prompt = f"""You are a data analyst. Given the database schema, user question, and entity locations, create a comprehensive analysis plan.
 
 DATABASE SCHEMA:
 {schema}
-
+{entity_info}
+{hints_info}
 USER QUESTION: {question}
 
-Provide a concise step-by-step plan (2-4 steps) to answer the question using the available tables. Just list the steps, no code."""
+Create a detailed step-by-step plan (4-6 steps) to thoroughly answer the question. Include:
+1. Which tables to query and how to join them
+2. What filters to apply for the specific entities
+3. What aggregations or comparisons to perform
+4. What insights to extract
+
+Be thorough - this is for deep analysis, not just a simple lookup."""
         
         plan = call_llm(prompt)
         return plan
@@ -96,23 +222,137 @@ Provide a concise step-by-step plan (2-4 steps) to answer the question using the
         print("Plan generated.")
 
 class CodeGenerator(Node):
+    PLAYER_COMPARISON_TEMPLATE = '''
+# PROVEN TEMPLATE FOR PLAYER COMPARISON - COPY AND ADAPT THIS PATTERN
+final_result = {}
+players_to_compare = {players_list}
+
+for player_name in players_to_compare:
+    player_data = {{'name': player_name, 'found_in_tables': []}}
+    parts = player_name.lower().split()
+    first_part = parts[0] if parts else ''
+    last_part = parts[-1] if parts else ''
+    
+    # Query common_player_info
+    if 'common_player_info' in dfs:
+        df = dfs['common_player_info']
+        mask = (df['first_name'].astype(str).str.lower().str.contains(first_part, na=False)) & \
+               (df['last_name'].astype(str).str.lower().str.contains(last_part, na=False))
+        matches = df[mask]
+        if not matches.empty:
+            player_data['found_in_tables'].append('common_player_info')
+            row = matches.iloc[0]
+            player_data['basic_info'] = {{
+                'height': str(row.get('height', 'N/A')),
+                'weight': str(row.get('weight', 'N/A')),
+                'position': str(row.get('position', 'N/A')),
+                'birthdate': str(row.get('birthdate', 'N/A')),
+                'country': str(row.get('country', 'N/A')),
+                'season_exp': str(row.get('season_exp', 'N/A')),
+                'from_year': str(row.get('from_year', 'N/A')),
+                'to_year': str(row.get('to_year', 'N/A')),
+                'draft_year': str(row.get('draft_year', 'N/A')),
+                'draft_round': str(row.get('draft_round', 'N/A')),
+                'draft_number': str(row.get('draft_number', 'N/A')),
+                'team_name': str(row.get('team_name', 'N/A'))
+            }}
+    
+    # Query player table
+    if 'player' in dfs:
+        df = dfs['player']
+        mask = (df['first_name'].astype(str).str.lower().str.contains(first_part, na=False)) & \
+               (df['last_name'].astype(str).str.lower().str.contains(last_part, na=False))
+        matches = df[mask]
+        if not matches.empty:
+            player_data['found_in_tables'].append('player')
+            row = matches.iloc[0]
+            player_data['player_id'] = str(row.get('id', 'N/A'))
+            player_data['is_active'] = str(row.get('is_active', 'N/A'))
+    
+    # Query draft_history
+    if 'draft_history' in dfs:
+        df = dfs['draft_history']
+        mask = df['player_name'].astype(str).str.lower().str.contains(player_name.lower(), na=False)
+        matches = df[mask]
+        if not matches.empty:
+            player_data['found_in_tables'].append('draft_history')
+            row = matches.iloc[0]
+            player_data['draft_info'] = {{
+                'season': str(row.get('season', 'N/A')),
+                'round_number': str(row.get('round_number', 'N/A')),
+                'overall_pick': str(row.get('overall_pick', 'N/A')),
+                'team_name': str(row.get('team_name', 'N/A')),
+                'organization': str(row.get('organization', 'N/A'))
+            }}
+    
+    final_result[player_name] = player_data
+
+# Add comparison summary
+final_result['comparison_summary'] = {{
+    'players_compared': players_to_compare,
+    'data_available': {{name: len(final_result[name].get('found_in_tables', [])) > 0 for name in players_to_compare}}
+}}
+'''
+    
+    JOIN_HINTS = """
+IMPORTANT GUIDANCE:
+- ALWAYS convert values to str() before comparing or storing to avoid type errors
+- DO NOT try to convert string values like 'Y', 'N', flags to int
+- For player comparisons, USE THE TEMPLATE PROVIDED BELOW - it is tested and working
+- Query each table separately - avoid complex merges
+- Use .astype(str) on columns before string matching
+- When extracting values, wrap with str() to prevent type issues
+"""
+
     def prep(self, shared):
         return {
             "plan": shared["plan_steps"],
             "schema": shared["schema_str"],
             "question": shared["question"],
+            "entity_map": shared.get("entity_map", {}),
+            "entities": shared.get("entities", []),
             "error": shared.get("exec_error"),
             "previous_code": shared.get("code_snippet")
         }
 
     def exec(self, inputs):
+        entity_info = ""
+        if inputs.get("entity_map"):
+            entity_info = "\n\nENTITY LOCATIONS:\n"
+            for entity, tables in inputs["entity_map"].items():
+                for table, cols in tables.items():
+                    entity_info += f"  - '{entity}' is in table '{table}', columns: {cols}\n"
+        
+        is_comparison = len(inputs.get("entities", [])) > 1
+        comparison_hint = ""
+        if is_comparison:
+            entities = inputs["entities"]
+            players_list_str = str(entities)
+            template = self.PLAYER_COMPARISON_TEMPLATE.replace("{players_list}", players_list_str)
+            comparison_hint = f"""
+PLAYER COMPARISON - USE THIS EXACT WORKING CODE TEMPLATE:
+{template}
+"""
+        
         if inputs.get("error"):
             print("Fixing code based on error...")
+            error_fix_hint = ""
+            error = inputs['error']
+            if "merge" in error.lower() or "key" in error.lower() or "dtype" in error.lower():
+                error_fix_hint = """
+FIX APPROACH: The error is likely due to incompatible dtypes or merge keys.
+- AVOID complex multi-table merges. Instead, query tables separately.
+- If you must merge, convert keys to same dtype first: df['key'] = df['key'].astype(str)
+- For player comparisons, just loop through entities and gather data from each table separately.
+"""
+            
             prompt = f"""You are a Python data analyst. Your previous code had an error. Fix it.
-
+{self.JOIN_HINTS}
+{error_fix_hint}
 DATABASE SCHEMA (available as dfs dictionary):
 {inputs['schema']}
-
+{entity_info}
+{comparison_hint}
 USER QUESTION: {inputs['question']}
 
 PREVIOUS CODE:
@@ -120,26 +360,32 @@ PREVIOUS CODE:
 
 ERROR: {inputs['error']}
 
-Write ONLY the corrected Python code. The dataframes are in a dict called 'dfs' where keys are table names.
-You must store your final answer in a variable called 'final_result'.
+Write ONLY the corrected Python code. AVOID complex merges - query tables separately instead.
+The dataframes are in a dict called 'dfs' where keys are table names.
+Store your final answer in a variable called 'final_result' (a dictionary).
 Do NOT include markdown code blocks. Just raw Python code."""
         else:
-            prompt = f"""You are a Python data analyst. Write code to answer the user's question.
-
+            prompt = f"""You are a Python data analyst. Write comprehensive code to answer the user's question.
+{self.JOIN_HINTS}
 DATABASE SCHEMA (available as dfs dictionary):
 {inputs['schema']}
-
+{entity_info}
+{comparison_hint}
 USER QUESTION: {inputs['question']}
 
 PLAN: {inputs['plan']}
 
-Write Python code to answer the question. The dataframes are in a dict called 'dfs' where keys are table names (matching the table names in the schema).
-You must store your final answer in a variable called 'final_result'.
-Do NOT include markdown code blocks. Just raw Python code.
-Only use pandas (pd) which is already imported."""
+Write Python code to thoroughly analyze and answer the question. 
+- The dataframes are in a dict called 'dfs' where keys are table names
+- Use the ENTITY LOCATIONS above to find the right columns for filtering
+- AVOID complex multi-table merges - query tables separately and combine in Python
+- Filter by name using string matching on first_name/last_name columns
+- Store your final answer in a variable called 'final_result' (a dictionary)
+- Make final_result a dictionary with all relevant data for deep analysis
+- Do NOT include markdown code blocks. Just raw Python code.
+- Only use pandas (pd) which is already imported."""
 
         code = call_llm(prompt)
-        # Clean up any markdown code blocks if LLM added them
         code = code.replace("```python", "").replace("```", "").strip()
         return code
 
@@ -241,14 +487,132 @@ class ErrorFixer(Node):
         shared["retry_count"] = shared.get("retry_count", 0) + 1
         return "fix"
 
+class DeepAnalyzer(Node):
+    def prep(self, shared):
+        return {
+            "exec_result": shared.get("exec_result"),
+            "question": shared["question"],
+            "entity_map": shared.get("entity_map", {}),
+            "entities": shared.get("entities", [])
+        }
+
+    def _check_data_completeness(self, exec_result, entities):
+        missing_entities = []
+        data_warnings = []
+        
+        if isinstance(exec_result, dict):
+            for entity in entities:
+                entity_lower = entity.lower()
+                found = False
+                for key, value in exec_result.items():
+                    if entity_lower in str(key).lower():
+                        if isinstance(value, dict):
+                            if not value or all(v is None or v == {} or v == [] for v in value.values()):
+                                missing_entities.append(entity)
+                                data_warnings.append(f"Data for '{entity}' appears incomplete or empty")
+                            else:
+                                found = True
+                        elif value is not None and value != {} and value != []:
+                            found = True
+                if not found and entity not in missing_entities:
+                    for key, value in exec_result.items():
+                        if entity_lower in str(value).lower():
+                            found = True
+                            break
+                    if not found:
+                        missing_entities.append(entity)
+                        data_warnings.append(f"Could not find data for '{entity}' in results")
+        
+        return missing_entities, data_warnings
+
+    def exec(self, inputs):
+        exec_result = inputs["exec_result"]
+        question = inputs["question"]
+        entities = inputs["entities"]
+        
+        if exec_result is None:
+            return None
+        
+        missing_entities, data_warnings = self._check_data_completeness(exec_result, entities)
+        
+        result_str = str(exec_result)
+        if len(result_str) > 5000:
+            result_str = result_str[:5000] + "... [truncated]"
+        
+        entities_str = ", ".join(entities) if entities else "the data"
+        
+        warning_note = ""
+        if data_warnings:
+            warning_note = f"\n\nDATA QUALITY WARNING:\n" + "\n".join(f"- {w}" for w in data_warnings)
+            warning_note += "\nIMPORTANT: Only analyze data that is actually present. Do NOT make up statistics for missing entities."
+        
+        prompt = f"""You are a sports data analyst. Analyze the following data results and provide insights.
+
+ORIGINAL QUESTION: {question}
+
+ENTITIES BEING ANALYZED: {entities_str}
+{warning_note}
+RAW DATA RESULTS:
+{result_str}
+
+Provide analysis based ONLY on data that is actually present:
+1. KEY STATISTICS: Summarize the most important numbers (only from actual data)
+2. COMPARISONS: Compare only entities with complete data
+3. INSIGHTS: What insights can we draw from the available data
+4. DATA GAPS: Clearly note which entities have incomplete data
+
+CRITICAL: Do NOT fabricate or hallucinate statistics. If data is missing, say so clearly.
+
+Return your analysis as a structured JSON object with these keys:
+- "key_stats": dict of important statistics (from actual data only)
+- "comparison": summary of comparisons (null if insufficient data)
+- "insights": list of insights (based on actual data)
+- "data_gaps": list of entities or data points that were not found
+- "narrative_points": list of points to include in final response
+
+Return ONLY valid JSON."""
+
+        try:
+            analysis_response = call_llm(prompt)
+            analysis_response = analysis_response.strip()
+            if analysis_response.startswith("```"):
+                analysis_response = analysis_response.split("```")[1]
+                if analysis_response.startswith("json"):
+                    analysis_response = analysis_response[4:]
+            deep_analysis = json.loads(analysis_response)
+            deep_analysis["_missing_entities"] = missing_entities
+            deep_analysis["_data_warnings"] = data_warnings
+        except (json.JSONDecodeError, Exception):
+            deep_analysis = {
+                "key_stats": {"raw_result": str(exec_result)[:500]},
+                "comparison": None,
+                "insights": ["Analysis completed with available data"],
+                "data_gaps": missing_entities,
+                "_missing_entities": missing_entities,
+                "_data_warnings": data_warnings
+            }
+        
+        return deep_analysis
+
+    def post(self, shared, prep_res, exec_res):
+        shared["deep_analysis"] = exec_res
+        if exec_res:
+            if exec_res.get("_data_warnings"):
+                print(f"Deep analysis completed with warnings: {exec_res['_data_warnings']}")
+            else:
+                print("Deep analysis completed.")
+        return "default"
+
 class Visualizer(Node):
     def prep(self, shared):
-        return shared["exec_result"]
+        if "exec_result" in shared:
+            return shared["exec_result"]
+        return None
 
     def exec(self, result):
-        # Check if result is a DataFrame suitable for plotting
+        if result is None:
+            return None
         if isinstance(result, pd.DataFrame):
-            # Generate plot code...
             return "plot_generated.png"
         return None
 
@@ -256,20 +620,93 @@ class Visualizer(Node):
         shared["chart_path"] = exec_res
         return "default"
 
-class ResponseFormatter(Node):
+class ResponseSynthesizer(Node):
     def prep(self, shared):
-        # Check if we have a result or if we came from give_up path
-        if "exec_result" in shared:
-            return shared["exec_result"]
-        # Coming from give_up - final_text already set by ErrorFixer
-        return None
+        return {
+            "exec_result": shared.get("exec_result"),
+            "deep_analysis": shared.get("deep_analysis"),
+            "question": shared["question"],
+            "entities": shared.get("entities", []),
+            "entity_map": shared.get("entity_map", {}),
+            "from_error": "exec_result" not in shared
+        }
 
-    def exec(self, result):
-        if result is None:
-            return None  # Skip - final_text already set
-        return f"The calculated answer is {result}."
+    def exec(self, inputs):
+        if inputs["from_error"]:
+            return None
+        
+        exec_result = inputs["exec_result"]
+        deep_analysis = inputs["deep_analysis"]
+        question = inputs["question"]
+        entities = inputs["entities"]
+        
+        result_str = str(exec_result)
+        if len(result_str) > 3000:
+            result_str = result_str[:3000] + "... [truncated]"
+        
+        missing_entities = deep_analysis.get("_missing_entities", []) if deep_analysis else []
+        data_warnings = deep_analysis.get("_data_warnings", []) if deep_analysis else []
+        
+        safe_analysis = {k: v for k, v in (deep_analysis or {}).items() if not k.startswith("_")}
+        analysis_str = json.dumps(safe_analysis, indent=2, default=str) if safe_analysis else "No deep analysis available"
+        if len(analysis_str) > 2000:
+            analysis_str = analysis_str[:2000] + "... [truncated]"
+        
+        entities_str = " and ".join(entities) if entities else "the requested data"
+        
+        data_quality_note = ""
+        if missing_entities or data_warnings:
+            data_quality_note = f"""
+
+DATA QUALITY NOTICE:
+The following entities had incomplete or missing data: {', '.join(missing_entities) if missing_entities else 'None identified'}
+Warnings: {'; '.join(data_warnings) if data_warnings else 'None'}
+
+CRITICAL INSTRUCTION: Do NOT fabricate or hallucinate any statistics or facts for entities with missing data.
+If data is incomplete, clearly state what data was found and what was not available.
+Be honest about the limitations of the analysis."""
+        
+        prompt = f"""You are a sports analyst writing a response to a user's question.
+
+QUESTION: {question}
+
+ENTITIES: {entities_str}
+{data_quality_note}
+RAW DATA (from actual CSV analysis):
+{result_str}
+
+ANALYSIS:
+{analysis_str}
+
+Write a well-structured response that:
+1. Directly addresses the user's question based on ACTUAL DATA ONLY
+2. Provides key statistics from the data that was found
+3. CLEARLY STATES if data for any entity was not found or incomplete
+4. Uses clear sections/headers for readability
+5. Does NOT make up statistics - only report what was actually found
+
+If data for some entities is missing, explicitly state:
+"Note: Complete data for [entity] was not found in the available datasets."
+
+Write in a professional tone. Use markdown formatting.
+Be honest about data limitations - do not fabricate facts."""
+
+        response = call_llm(prompt)
+        
+        if entities:
+            for entity in entities:
+                if entity not in missing_entities:
+                    for table, cols in inputs["entity_map"].get(entity, {}).items():
+                        knowledge_store.add_entity_mapping(entity, table, cols)
+            if not missing_entities:
+                knowledge_store.add_successful_pattern("comparison" if len(entities) > 1 else "lookup", question[:100])
+        
+        return response
 
     def post(self, shared, prep_res, exec_res):
         if exec_res is not None:
             shared["final_text"] = exec_res
-        print(f"\nFINAL ANSWER: {shared.get('final_text', 'No answer')}")
+        print(f"\n{'='*60}")
+        print("FINAL RESPONSE:")
+        print('='*60)
+        print(shared.get('final_text', 'No answer'))

@@ -5,12 +5,9 @@ def main():
     # We start with the user's question.
     # 'dfs' and 'schema_str' will be populated by the LoadData and SchemaInference nodes.
     shared = {
-        "question": "what do the CSV files have in common",
-
-        # Optional: Initialize state variables for clarity, though Nodes will create them if missing.
+        "question": "Compare the careers of LeBron James and Tracy McGrady",
         "retry_count": 0,
         "exec_error": None,
-        "history": [] 
     }
 
     # 2. Create the Flow
