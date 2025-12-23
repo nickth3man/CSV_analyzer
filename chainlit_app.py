@@ -6,6 +6,7 @@ import shutil
 import requests
 from flow import create_analyst_flow
 from utils.knowledge_store import knowledge_store
+from utils.file_sanitizer import sanitize_csv_filename
 
 DEFAULT_MODELS = [
     "meta-llama/llama-3.3-70b-instruct",
@@ -278,12 +279,9 @@ async def on_upload_action(action: cl.Action):
 
         uploaded = []
         for file in files:
-            # SECURITY: Only use basename to prevent path traversal
-            filename = os.path.basename(file.name)
-            if not filename.endswith('.csv'):
-                filename += '.csv'
-            # Validate filename doesn't contain path separators or start with dot
-            if '/' in filename or '\\' in filename or filename.startswith('.') or not filename:
+            # SECURITY: sanitize filenames to prevent path traversal
+            filename = sanitize_csv_filename(file.name)
+            if not filename:
                 continue  # Skip invalid filenames
             dest = os.path.join(csv_dir, filename)
             shutil.copy(file.path, dest)
@@ -348,12 +346,9 @@ async def handle_command(message_content: str) -> bool:
 
             uploaded = []
             for file in files:
-                # SECURITY: Only use basename to prevent path traversal
-                filename = os.path.basename(file.name)
-                if not filename.endswith('.csv'):
-                    filename += '.csv'
-                # Validate filename doesn't contain path separators or start with dot
-                if '/' in filename or '\\' in filename or filename.startswith('.') or not filename:
+                # SECURITY: sanitize filenames to prevent path traversal
+                filename = sanitize_csv_filename(file.name)
+                if not filename:
                     continue  # Skip invalid filenames
                 dest = os.path.join(csv_dir, filename)
                 shutil.copy(file.path, dest)
@@ -475,12 +470,10 @@ async def on_message(message: cl.Message):
         uploaded = []
         for element in message.elements:
             if hasattr(element, 'path') and element.path:
-                # SECURITY: Only use basename to prevent path traversal
-                filename = os.path.basename(element.name if hasattr(element, 'name') else element.path)
-                if not filename.endswith('.csv'):
-                    filename += '.csv'
-                # Validate filename doesn't contain path separators or start with dot
-                if '/' in filename or '\\' in filename or filename.startswith('.') or not filename:
+                # SECURITY: sanitize filenames to prevent path traversal
+                raw_name = element.name if hasattr(element, 'name') else element.path
+                filename = sanitize_csv_filename(raw_name)
+                if not filename:
                     continue  # Skip invalid filenames
                 dest = os.path.join(csv_dir, filename)
                 shutil.copy(element.path, dest)

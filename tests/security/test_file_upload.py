@@ -4,6 +4,7 @@ import pytest
 import os
 import tempfile
 from pathlib import Path
+from utils.file_sanitizer import sanitize_csv_filename
 
 
 class TestFileUploadSecurity:
@@ -22,15 +23,10 @@ class TestFileUploadSecurity:
 
         for malicious_path in malicious_paths:
             # Apply the same security logic as in the app
-            filename = os.path.basename(malicious_path)
-            if not filename.endswith('.csv'):
-                filename += '.csv'
-
-            # Validate filename doesn't contain path separators or start with dot
-            is_valid = not ('/' in filename or '\\' in filename or filename.startswith('.') or not filename)
+            filename = sanitize_csv_filename(malicious_path)
 
             # The basename should be safe
-            assert is_valid, f"Should have sanitized {malicious_path}"
+            assert filename is not None, f"Should have sanitized {malicious_path}"
             assert '/' not in filename
             assert '\\' not in filename
 
@@ -107,8 +103,8 @@ class TestFileUploadSecurity:
         ]
 
         for malicious, expected_basename in traversal_attempts:
-            result = os.path.basename(malicious)
-            assert result == expected_basename
+            result = sanitize_csv_filename(malicious)
+            assert result == f"{expected_basename}.csv"
             # The basename should not contain any path separators
             assert '/' not in result
             assert '\\' not in result
@@ -141,10 +137,8 @@ class TestFileUploadSecurity:
 
         for malicious in malicious_inputs:
             # Apply the same security logic
-            filename = os.path.basename(malicious)
-            if not filename.endswith('.csv'):
-                filename += '.csv'
-
+            filename = sanitize_csv_filename(malicious)
+            assert filename is not None
             dest = os.path.join(csv_dir, filename)
 
             # The destination should still be within csv_dir
@@ -221,8 +215,7 @@ class TestFilenameSanitization:
         ]
 
         for filename in unicode_names:
-            # os.path.basename should handle unicode
-            result = os.path.basename(filename)
+            result = sanitize_csv_filename(filename)
             assert result == filename
 
     def test_special_characters_in_filename(self):
@@ -249,12 +242,10 @@ class TestFilenameSanitization:
         malicious = "safe.csv\x00.exe"
 
         # Python's os.path.basename should handle this
-        result = os.path.basename(malicious)
+        result = sanitize_csv_filename(malicious)
 
         # The result should not contain null bytes in modern Python
-        # (Python 3.x raises ValueError for null bytes in paths)
-        # This is OS-dependent, but we should be safe
-        assert '\x00' not in result or result == malicious.split('\x00')[0]
+        assert result == malicious.split('\x00')[0]
 
     def test_very_long_filename(self):
         """Test handling of very long filenames."""
@@ -263,8 +254,8 @@ class TestFilenameSanitization:
 
         # The app should handle this gracefully (truncate or reject)
         # At minimum, it shouldn't crash
-        result = os.path.basename(long_name)
-        assert len(result) > 0
+        result = sanitize_csv_filename(long_name)
+        assert result is not None
 
     def test_windows_reserved_names(self):
         """Test handling of Windows reserved filenames."""
@@ -276,7 +267,8 @@ class TestFilenameSanitization:
         # These are valid basenames, but may cause issues on Windows
         # The app should ideally reject or sanitize these
         for filename in reserved_names:
-            result = os.path.basename(filename)
+            result = sanitize_csv_filename(filename)
+            assert result is not None
             # At minimum, should not contain path separators
             assert '/' not in result
             assert '\\' not in result
