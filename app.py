@@ -273,7 +273,7 @@ EXAMPLE_QUESTIONS = [
 ]
 
 def create_app():
-    with gr.Blocks(css=CSS, title="Data Analyst Agent", theme=gr.themes.Soft()) as app:
+    with gr.Blocks(title="Data Analyst Agent") as app:
         gr.Markdown("""
         # Data Analyst Agent
         Ask questions about your data in plain English. The agent will analyze your CSV files and provide insights.
@@ -286,7 +286,6 @@ def create_app():
                         chatbot = gr.Chatbot(
                             label="Conversation",
                             height=450,
-                            show_copy_button=True,
                             render_markdown=True
                         )
                         
@@ -473,4 +472,4 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
-    app.launch(server_name="0.0.0.0", server_port=5000, share=False)
+    app.launch(server_name="0.0.0.0", server_port=5000, share=False, css=CSS)

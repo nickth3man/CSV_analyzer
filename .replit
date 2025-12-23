@@ -17,21 +17,26 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Run Q&A Flow"
+args = "Gradio App"
 
 [[workflows.workflow]]
-name = "Run Q&A Flow"
+name = "Gradio App"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python main.py"
+args = "python app.py"
+waitForPort = 5000
 
 [workflows.workflow.metadata]
-outputType = "console"
+outputType = "webview"
 
 [userenv]
 
 [userenv.shared]
 OPENROUTER_API_KEY = "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"
 LLM_MODEL = "mistralai/devstral-2512:free"
+
+[[ports]]
+localPort = 5000
+externalPort = 80

@@ -14,8 +14,13 @@ This project, "Pocket Flow," is a minimalist LLM framework designed for agentic 
 The core of Pocket Flow is modeled as a **Graph + Shared Store**.
 
 ### UI/UX Decisions
-- Not explicitly detailed in the provided document, but the framework emphasizes clear, high-level design documentation (`docs/design.md`) as a critical step before implementation, implying a focus on human-readable specifications for AI agents.
-- Mermaid diagrams are used for visualizing workflow.
+- **Gradio Web Interface** (`app.py`): Mobile-first responsive design running on port 5000
+  - Tabbed interface: Chat, Data, History, Help
+  - Example questions for easy onboarding
+  - Real-time status updates during analysis
+  - Chart display for visualizations
+  - Collapsible Settings and Data Profile sections
+- Mermaid diagrams are used for visualizing workflow in documentation.
 
 ### Technical Implementations
 - **Core Abstractions**:
@@ -34,14 +39,26 @@ The core of Pocket Flow is modeled as a **Graph + Shared Store**.
     - **Structured Output**: Guides LLMs to produce specific data structures (e.g., YAML) using prompt engineering and validation. YAML is preferred over JSON for better handling of escaping and newlines.
 - **File Structure**:
     - `my_project/`
-        - `main.py`: Entry point.
-        - `nodes.py`: Node definitions (14 nodes including EntityResolver, DeepAnalyzer, ResponseSynthesizer).
+        - `app.py`: Gradio web interface (main entry point).
+        - `main.py`: CLI entry point for running analysis without GUI.
+        - `nodes.py`: Node definitions (18 nodes including EntityResolver, DeepAnalyzer, ResponseSynthesizer).
         - `flow.py`: Flow creation and connections.
-        - `utils/`: Utility functions (e.g., `call_llm.py`, `knowledge_store.py`).
-        - `requirements.txt`: Project dependencies.
+        - `utils/`: Utility functions
+          - `call_llm.py`: Standard LLM calls
+          - `call_llm_streaming.py`: Streaming LLM calls for Gradio
+          - `knowledge_store.py`: Persistent learning storage
+        - `CSV/`: Data directory for CSV files
+        - `requirements.txt`: Project dependencies (pocketflow, openai, gradio, matplotlib, pandas).
         - `docs/design.md`: High-level, no-code design documentation.
 
 ## Recent Changes (December 2024)
+- Added **Gradio Frontend** (`app.py`) - comprehensive mobile-responsive web interface with:
+  - **Chat Tab**: Streaming chat interface with status updates and chart display
+  - **Data Tab**: CSV file upload, preview, and management
+  - **History Tab**: Knowledge store viewer with learned patterns
+  - **Help Tab**: Usage documentation and examples
+  - **Settings**: Model selection (Llama, Claude, GPT-4, Gemini, DeepSeek)
+- Added **Streaming LLM utility** (`utils/call_llm_streaming.py`) for real-time token streaming
 - Added **EntityResolver** node for discovering entities across tables using first_name/last_name matching
 - Added **DeepAnalyzer** node for comprehensive statistical analysis with data validation
 - Added **ResponseSynthesizer** node for generating narrative responses with honest data gap warnings
