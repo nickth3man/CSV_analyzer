@@ -27,7 +27,7 @@ def call_llm(prompt, max_retries=3):
                 raise RuntimeError(f"LLM call failed after {max_retries} attempts: {str(e)}") from e
             print(f"LLM call failed (attempt {attempt+1}/{max_retries}): {e}")
             # Exponential backoff: 2s, 4s, 8s
-            time.sleep(2 ** attempt)
+            time.sleep(2 ** (attempt + 1))
     
 if __name__ == "__main__":
     prompt = "What is the meaning of life?"

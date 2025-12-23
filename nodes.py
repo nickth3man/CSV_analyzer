@@ -56,20 +56,41 @@ class SchemaInference(Node):
 
 class ClarifyQuery(Node):
     def prep(self, shared):
-        return shared["question"], shared["schema_str"]
+        return shared["question"], shared["schema_str"], list(shared["dfs"].keys())
 
     def exec(self, prep_res):
-        q, schema = prep_res
-        # Logic: If query references columns not in schema, return ambiguous
-        # Simulating a check...
-        if "bad_column" in q:
-            return "ambiguous"
-        return "clear"
+        q, schema, table_names = prep_res
+        question_lower = q.lower()
+
+        # Check if user is asking about tables/columns that don't exist
+        # Look for patterns like "from X table" or "X column" that don't match schema
+        suspicious_patterns = []
+
+        # Check for explicit column/table references that don't exist
+        words = question_lower.split()
+        for i, word in enumerate(words):
+            # Check if word looks like a column reference with underscore
+            if '_' in word and len(word) > 3:
+                # This looks like a column name - verify it exists in schema
+                if word not in schema.lower():
+                    suspicious_patterns.append(word)
+
+        # If suspicious patterns found and they don't appear anywhere in schema, flag as ambiguous
+        if suspicious_patterns:
+            # Double check - maybe it's a partial match
+            schema_lower = schema.lower()
+            truly_missing = [p for p in suspicious_patterns if p not in schema_lower]
+            if truly_missing:
+                return "ambiguous", truly_missing
+
+        return "clear", None
 
     def post(self, shared, prep_res, exec_res):
-        if exec_res == "ambiguous":
-            shared["final_text"] = "Your query references unknown columns. Please clarify."
-        return exec_res
+        status, missing = exec_res
+        if status == "ambiguous":
+            shared["final_text"] = f"Your query references unknown columns or tables: {missing}. Please clarify or check available schema."
+            return "ambiguous"
+        return "clear"
 
 class AskUser(Node):
     def exec(self, prep_res):
@@ -228,8 +249,10 @@ Create a detailed step-by-step plan (4-6 steps) to thoroughly answer the questio
 4. What insights to extract
 
 Be thorough - this is for deep analysis, not just a simple lookup."""
-        
+
         plan = call_llm(prompt)
+        if not plan:
+            raise ValueError("LLM returned empty plan - retrying")
         return plan
 
     def post(self, shared, prep_res, exec_res):
@@ -371,6 +394,8 @@ Write Python code to thoroughly analyze and answer the question.
 
         code = call_llm(prompt)
         code = (code or "").replace("```python", "").replace("```", "").strip()
+        if not code:
+            raise ValueError("LLM returned empty code - retrying")
         return code
 
     def post(self, shared, prep_res, exec_res):
@@ -379,8 +404,25 @@ Write Python code to thoroughly analyze and answer the question.
 
 class SafetyCheck(Node):
     """
-    Parses code using AST to ensure no malicious imports.
+    Parses code using AST to ensure no malicious imports or dangerous operations.
     """
+    FORBIDDEN_MODULES = {
+        'os', 'subprocess', 'sys', 'shutil', 'socket', 'requests',
+        'urllib', 'http', 'ftplib', 'smtplib', 'ctypes', 'importlib',
+        'builtins', 'code', 'codeop', 'compile', 'pickletools'
+    }
+
+    FORBIDDEN_FUNCTIONS = {
+        '__import__', 'eval', 'exec', 'compile', 'open', 'input',
+        'breakpoint', 'getattr', 'setattr', 'delattr', 'globals', 'locals',
+        'vars', 'dir', 'type', 'object'
+    }
+
+    FORBIDDEN_ATTRIBUTES = {
+        '__builtins__', '__globals__', '__code__', '__class__',
+        '__bases__', '__subclasses__', '__mro__', '__dict__'
+    }
+
     def prep(self, shared):
         return shared["code_snippet"]
 
@@ -388,19 +430,41 @@ class SafetyCheck(Node):
         code = prep_res
         try:
             tree = ast.parse(code)
-        except SyntaxError:
-            return "unsafe", "Syntax Error"
+        except SyntaxError as e:
+            return "unsafe", f"Syntax Error: {e}"
 
         for node in ast.walk(tree):
-            # Block 'import os', 'import subprocess', etc.
+            # Block forbidden imports
             if isinstance(node, ast.Import):
-                for name in node.names:
-                    if name.name in ['os', 'subprocess', 'sys', 'shutil']:
-                        return "unsafe", f"Forbidden import: {name.name}"
-            # Block 'from os import ...'
+                for alias in node.names:
+                    module_root = alias.name.split('.')[0]
+                    if module_root in self.FORBIDDEN_MODULES:
+                        return "unsafe", f"Forbidden import: {alias.name}"
+
+            # Block 'from X import ...'
             elif isinstance(node, ast.ImportFrom):
-                if node.module in ['os', 'subprocess', 'sys', 'shutil']:
-                    return "unsafe", f"Forbidden from-import: {node.module}"
+                if node.module:
+                    module_root = node.module.split('.')[0]
+                    if module_root in self.FORBIDDEN_MODULES:
+                        return "unsafe", f"Forbidden from-import: {node.module}"
+
+            # Block forbidden function calls like __import__, eval, exec
+            elif isinstance(node, ast.Call):
+                if isinstance(node.func, ast.Name):
+                    if node.func.id in self.FORBIDDEN_FUNCTIONS:
+                        return "unsafe", f"Forbidden function call: {node.func.id}"
+
+            # Block access to forbidden attributes like __builtins__, __globals__
+            elif isinstance(node, ast.Attribute):
+                if node.attr in self.FORBIDDEN_ATTRIBUTES:
+                    return "unsafe", f"Forbidden attribute access: {node.attr}"
+
+            # Block string-based attribute access that could be evasion
+            elif isinstance(node, ast.Subscript):
+                if isinstance(node.slice, ast.Constant):
+                    if isinstance(node.slice.value, str):
+                        if node.slice.value in self.FORBIDDEN_ATTRIBUTES:
+                            return "unsafe", f"Forbidden subscript access: {node.slice.value}"
 
         return "safe", None
 
@@ -619,13 +683,14 @@ class Visualizer(Node):
 
             matplotlib.use("Agg")
             import matplotlib.pyplot as plt
+            import time
             output_dir = "assets"
             os.makedirs(output_dir, exist_ok=True)
 
             # Clean up old chart files (keep only last 10)
             try:
                 chart_files = sorted(
-                    [f for f in os.listdir(output_dir) if f.startswith("generated_chart")],
+                    [f for f in os.listdir(output_dir) if f.startswith("chart_")],
                     key=lambda x: os.path.getmtime(os.path.join(output_dir, x))
                 )
                 # Remove oldest files if more than 10
@@ -634,7 +699,9 @@ class Visualizer(Node):
             except (OSError, IOError):
                 pass  # Cleanup is best-effort
 
-            output_path = os.path.join(output_dir, "generated_chart.png")
+            # Use timestamp in filename so cleanup logic works correctly
+            timestamp = int(time.time())
+            output_path = os.path.join(output_dir, f"chart_{timestamp}.png")
 
             plot_df = prep_res[numeric_cols].head(10)
             plt.figure(figsize=(8, 4))
@@ -725,7 +792,9 @@ Write in a professional tone. Use markdown formatting.
 Be honest about data limitations - do not fabricate facts."""
 
         response = call_llm(prompt)
-        
+        if not response:
+            response = "Unable to generate a response. Please try again."
+
         if entities:
             for entity in entities:
                 if entity not in missing_entities:
@@ -733,11 +802,11 @@ Be honest about data limitations - do not fabricate facts."""
                         knowledge_store.add_entity_mapping(entity, table, cols)
             if not missing_entities:
                 knowledge_store.add_successful_pattern("comparison" if len(entities) > 1 else "lookup", question[:100])
-        
+
         return response
 
     def post(self, shared, prep_res, exec_res):
-        if exec_res is not None:
+        if exec_res:
             shared["final_text"] = exec_res
         print(f"\n{'='*60}")
         print("FINAL RESPONSE:")
