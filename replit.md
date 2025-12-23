@@ -57,7 +57,10 @@ The core of Pocket Flow is modeled as a **Graph + Shared Store**.
   - **Data Tab**: CSV file upload, preview, and management
   - **History Tab**: Knowledge store viewer with learned patterns
   - **Help Tab**: Usage documentation and examples
-  - **Settings**: Model selection (Llama, Claude, GPT-4, Gemini, DeepSeek)
+  - **Settings**: 
+    - API key input field for users to enter their OpenRouter API key
+    - Dynamic model dropdown that fetches available models from OpenRouter API
+    - "Refresh Models" button to update model list
 - Added **Streaming LLM utility** (`utils/call_llm_streaming.py`) for real-time token streaming
 - Added **EntityResolver** node for discovering entities across tables using first_name/last_name matching
 - Added **DeepAnalyzer** node for comprehensive statistical analysis with data validation

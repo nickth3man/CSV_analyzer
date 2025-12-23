@@ -3,8 +3,50 @@ import pandas as pd
 import os
 import json
 import shutil
+import requests
 from flow import create_analyst_flow
 from utils.knowledge_store import knowledge_store
+
+DEFAULT_MODELS = [
+    "meta-llama/llama-3.3-70b-instruct",
+    "anthropic/claude-3.5-sonnet",
+    "openai/gpt-4o",
+    "google/gemini-2.0-flash-001",
+    "deepseek/deepseek-chat-v3-0324"
+]
+
+def fetch_openrouter_models(api_key=None):
+    if not api_key:
+        api_key = os.environ.get("OPENROUTER_API_KEY", "")
+    
+    if not api_key:
+        return DEFAULT_MODELS
+    
+    try:
+        response = requests.get(
+            "https://openrouter.ai/api/v1/models",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=10
+        )
+        if response.status_code == 200:
+            data = response.json()
+            models = []
+            for model in data.get("data", []):
+                model_id = model.get("id", "")
+                if model_id:
+                    models.append(model_id)
+            models.sort()
+            return models if models else DEFAULT_MODELS
+    except Exception:
+        pass
+    
+    return DEFAULT_MODELS
+
+def refresh_models(api_key):
+    if api_key:
+        os.environ["OPENROUTER_API_KEY"] = api_key
+    models = fetch_openrouter_models(api_key)
+    return gr.Dropdown(choices=models, value=models[0] if models else None)
 
 CSS = """
 .container { max-width: 100% !important; }
@@ -133,9 +175,13 @@ def get_data_profile():
 """)
     return "\n".join(profile_text)
 
-def run_analysis(question, history, model_choice):
+def run_analysis(question, history, model_choice, api_key):
     if not question.strip():
         yield history, "Please enter a question.", None
+        return
+    
+    if not api_key and not os.environ.get("OPENROUTER_API_KEY"):
+        yield history, "Please enter your OpenRouter API key in Settings.", None
         return
     
     dfs = load_dataframes()
@@ -156,6 +202,8 @@ def run_analysis(question, history, model_choice):
         "exec_error": None,
     }
     
+    if api_key:
+        os.environ["OPENROUTER_API_KEY"] = api_key
     if model_choice:
         os.environ["LLM_MODEL"] = model_choice
     
@@ -330,28 +378,37 @@ def create_app():
                         refresh_schema_btn.click(get_schema_info, outputs=schema_display)
                 
                 with gr.Accordion("Settings", open=False):
-                    model_choice = gr.Dropdown(
-                        choices=[
-                            "meta-llama/llama-3.3-70b-instruct",
-                            "anthropic/claude-3.5-sonnet",
-                            "openai/gpt-4o",
-                            "google/gemini-2.0-flash-001",
-                            "deepseek/deepseek-chat-v3-0324"
-                        ],
-                        value="meta-llama/llama-3.3-70b-instruct",
-                        label="LLM Model"
+                    api_key_input = gr.Textbox(
+                        label="OpenRouter API Key",
+                        placeholder="Enter your OpenRouter API key (sk-or-v1-...)",
+                        type="password"
                     )
+                    with gr.Row():
+                        model_choice = gr.Dropdown(
+                            choices=fetch_openrouter_models(),
+                            value="meta-llama/llama-3.3-70b-instruct",
+                            label="LLM Model",
+                            scale=3
+                        )
+                        refresh_models_btn = gr.Button("Refresh Models", size="sm", scale=1)
+                    
+                    refresh_models_btn.click(
+                        refresh_models,
+                        inputs=[api_key_input],
+                        outputs=[model_choice]
+                    )
+                    
                     clear_chat_btn = gr.Button("Clear Chat")
                     clear_chat_btn.click(lambda: ([], "Ready", None), outputs=[chatbot, status_display, chart_display])
                 
                 submit_btn.click(
                     run_analysis,
-                    inputs=[question_input, chatbot, model_choice],
+                    inputs=[question_input, chatbot, model_choice, api_key_input],
                     outputs=[chatbot, status_display, chart_display]
                 )
                 question_input.submit(
                     run_analysis,
-                    inputs=[question_input, chatbot, model_choice],
+                    inputs=[question_input, chatbot, model_choice, api_key_input],
                     outputs=[chatbot, status_display, chart_display]
                 )
             

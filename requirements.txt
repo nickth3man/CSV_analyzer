@@ -3,3 +3,4 @@ openai
 pandas
 gradio
 matplotlib
+requests
