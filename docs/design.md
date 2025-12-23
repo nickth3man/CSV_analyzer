@@ -11,13 +11,17 @@ The Relational Data Analyst Agent is an LLM-powered system that allows users to 
 
 1. **Loads CSV files** from a designated folder (`CSV/`)
 2. **Infers schemas** from the loaded dataframes
-3. **Resolves entities** mentioned in queries across all tables
-4. **Plans and generates code** to answer user questions
-5. **Executes code safely** in a sandboxed environment
-6. **Performs deep analysis** with statistical comparisons
-7. **Synthesizes narrative responses** from analysis results
-8. **Learns from queries** via persistent KnowledgeStore
-9. **Handles errors gracefully** with automatic retry and error correction
+3. **Profiles data** to analyze table statistics, data quality, and identify key columns
+4. **Resolves entities** mentioned in queries across all tables
+5. **Expands search** to discover entity cross-references and IDs across tables
+6. **Aggregates context** to collect insights and pass enriched context between nodes
+7. **Plans and generates code** to answer user questions
+8. **Executes code safely** in a sandboxed environment
+9. **Validates results** to verify execution matches the original question
+10. **Performs deep analysis** with statistical comparisons
+11. **Synthesizes narrative responses** from analysis results
+12. **Learns from queries** via persistent KnowledgeStore
+13. **Handles errors gracefully** with automatic retry and error correction
 
 ### User Stories
 
@@ -28,6 +32,7 @@ The Relational Data Analyst Agent is an LLM-powered system that allows users to 
 - As a user, I want narrative responses that tell a story about the data
 - As a user, I want safe code execution that prevents malicious operations
 - As a user, I want the system to learn and improve from previous queries
+- As a user, I want honest reporting when data is incomplete or missing
 
 ## Flow Design
 
@@ -41,32 +46,41 @@ The Relational Data Analyst Agent is an LLM-powered system that allows users to 
 2. **Agent Pattern**: LLM-driven planning and code generation based on context (schema + question)
 3. **Error Correction Loop**: Automatic retry mechanism with max attempts
 4. **Memory Pattern**: KnowledgeStore for persistent learning across queries
+5. **Context Enrichment Pattern**: Multiple nodes progressively enrich context for better analysis
 
-### Flow High-Level Design:
+### Flow High-Level Design (18 Nodes):
 
 1. **LoadData**: Scans CSV folder and loads all CSV files as pandas DataFrames
 2. **SchemaInference**: Extracts column names from each DataFrame to build schema
-3. **ClarifyQuery**: Validates the user's question against available schema
-4. **EntityResolver**: Discovers which tables contain data about entities mentioned in query
-5. **Planner**: Uses LLM to create analysis plan, informed by entity resolution and KnowledgeStore hints
-6. **CodeGenerator**: Uses LLM to generate Python/pandas code
-7. **SafetyCheck**: AST-based security check to block dangerous imports
-8. **Executor**: Runs generated code in sandboxed environment
-9. **ErrorFixer**: Handles execution errors with retry logic (max 3 attempts)
-10. **DeepAnalyzer**: Performs comprehensive statistical analysis on execution results
-11. **Visualizer**: Creates visualizations for DataFrame results
-12. **ResponseSynthesizer**: Uses LLM to generate narrative response from analysis
-13. **KnowledgeUpdater**: Stores successful patterns and learnings for future queries
+3. **DataProfiler**: Analyzes table statistics, data quality, and identifies name/ID/numeric columns
+4. **ClarifyQuery**: Validates the user's question against available schema
+5. **EntityResolver**: Discovers which tables contain data about entities mentioned in query
+6. **SearchExpander**: Finds entity cross-references and IDs across tables (e.g., person_id, player_id)
+7. **ContextAggregator**: Collects insights and passes enriched context with recommended tables and join keys
+8. **Planner**: Uses LLM to create analysis plan, informed by entity resolution and KnowledgeStore hints
+9. **CodeGenerator**: Uses LLM to generate Python/pandas code with dynamic table discovery
+10. **SafetyCheck**: AST-based security check to block dangerous imports
+11. **Executor**: Runs generated code in sandboxed environment
+12. **ErrorFixer**: Handles execution errors with retry logic (max 3 attempts)
+13. **ResultValidator**: Verifies execution results match the original question and entity map
+14. **DeepAnalyzer**: Performs comprehensive statistical analysis on execution results
+15. **Visualizer**: Creates visualizations for DataFrame results
+16. **ResponseSynthesizer**: Uses LLM to generate narrative response from analysis
+17. **KnowledgeUpdater**: Stores successful patterns and learnings for future queries
+18. **AskUser**: Terminal node for ambiguous queries
 
 ```mermaid
 flowchart TD
     load[LoadData] --> schema[SchemaInference]
-    schema --> clarify[ClarifyQuery]
+    schema --> profiler[DataProfiler]
+    profiler --> clarify[ClarifyQuery]
     
     clarify -->|ambiguous| askUser[AskUser]
     clarify -->|clear| entityRes[EntityResolver]
     
-    entityRes --> plan[Planner]
+    entityRes --> searchExp[SearchExpander]
+    searchExp --> contextAgg[ContextAggregator]
+    contextAgg --> plan[Planner]
     plan --> codeGen[CodeGenerator]
     codeGen --> safety[SafetyCheck]
     
@@ -76,8 +90,9 @@ flowchart TD
     executor -->|error| fixer[ErrorFixer]
     fixer -->|fix| codeGen
     fixer -->|give_up| synthesizer[ResponseSynthesizer]
-    executor -->|success| deepAnalyzer[DeepAnalyzer]
+    executor -->|success| validator[ResultValidator]
     
+    validator --> deepAnalyzer[DeepAnalyzer]
     deepAnalyzer --> viz[Visualizer]
     viz --> synthesizer[ResponseSynthesizer]
 ```
@@ -126,10 +141,20 @@ shared = {
     "dfs": dict,                  # {"table_name": pd.DataFrame, ...}
     "schema_str": str,            # Human-readable schema description
     
+    # Data Profiling
+    "data_profile": dict,         # Table statistics, data quality info, key columns
+    
     # Entity Resolution
     "entities": list,             # Entities extracted from question
     "entity_map": dict,           # {entity: {table: [columns], ...}, ...}
     "knowledge_hints": dict,      # Hints from KnowledgeStore
+    
+    # Search Expansion
+    "entity_cross_refs": dict,    # {entity: {table.column: id_value, ...}, ...}
+    "expanded_tables": list,      # Tables discovered through cross-references
+    
+    # Context Aggregation
+    "aggregated_context": dict,   # Combined insights, recommended tables, join keys
     
     # Planning and code
     "plan_steps": str,            # LLM-generated analysis plan
@@ -139,6 +164,9 @@ shared = {
     "exec_result": Any,           # Result from successful code execution
     "exec_error": str,            # Error message if execution failed
     "retry_count": int,           # Number of retry attempts (max 3)
+    
+    # Validation
+    "validation_result": dict,    # Verification that results match question
     
     # Deep Analysis
     "deep_analysis": dict,        # Comprehensive analysis results
@@ -169,7 +197,16 @@ shared = {
      - *exec*: Build schema string with table names and column lists
      - *post*: Store schema in `shared["schema_str"]`
 
-3. **ClarifyQuery**
+3. **DataProfiler** (NEW)
+   - *Purpose*: Analyze table statistics, data quality, and identify key columns
+   - *Type*: Regular Node
+   - *Steps*:
+     - *prep*: Read `dfs` from shared store
+     - *exec*: For each table, identify name columns, ID columns, numeric columns, row counts
+     - *post*: Store profile in `shared["data_profile"]`
+   - *Output*: `{table: {name_cols, id_cols, numeric_cols, row_count, data_quality}}`
+
+4. **ClarifyQuery**
    - *Purpose*: Validate if user question can be answered with available data
    - *Type*: Regular Node
    - *Steps*:
@@ -177,11 +214,11 @@ shared = {
      - *exec*: Check for ambiguous references
      - *post*: Return "clear" or "ambiguous" action
 
-4. **AskUser**
+5. **AskUser**
    - *Purpose*: Terminal node for ambiguous queries
    - *Type*: Regular Node (terminal)
 
-5. **EntityResolver** (NEW)
+6. **EntityResolver**
    - *Purpose*: Discover all tables/columns containing data about entities in the query
    - *Type*: Regular Node
    - *Steps*:
@@ -190,39 +227,59 @@ shared = {
      - *post*: Store entity_map and knowledge_hints in shared store
    - *Output*: Map of entity → {table → [matching_columns]}
 
-6. **Planner**
+7. **SearchExpander** (NEW)
+   - *Purpose*: Find entity cross-references and IDs across tables
+   - *Type*: Regular Node
+   - *Steps*:
+     - *prep*: Read entity_map, data_profile, dfs
+     - *exec*: For each entity, search ID columns to find cross-references (person_id, player_id, team_id)
+     - *post*: Store cross-references in `shared["entity_cross_refs"]`
+   - *Output*: `{entity: {table.column: id_value, ...}}`
+   - *Example*: `{"LeBron James": {"common_player_info.person_id": "2544", "draft_history.person_id": "2544"}}`
+
+8. **ContextAggregator** (NEW)
+   - *Purpose*: Collect insights and pass enriched context between nodes
+   - *Type*: Regular Node
+   - *Steps*:
+     - *prep*: Read entity_map, entity_cross_refs, data_profile, question
+     - *exec*: Combine all context: entity locations, join keys, recommended tables, data quality notes
+     - *post*: Store aggregated context in `shared["aggregated_context"]`
+   - *Output*: Unified context object with recommendations for Planner/CodeGenerator
+
+9. **Planner**
    - *Purpose*: Generate analysis plan using LLM, informed by entity resolution
    - *Type*: Regular Node
    - *Steps*:
-     - *prep*: Read question, schema, entity_map, and knowledge_hints
-     - *exec*: Call LLM with enhanced planning prompt including entity locations
+     - *prep*: Read question, schema, entity_map, aggregated_context, and knowledge_hints
+     - *exec*: Call LLM with enhanced planning prompt including entity locations and cross-references
      - *post*: Store plan in `shared["plan_steps"]`
 
-7. **CodeGenerator**
-   - *Purpose*: Generate Python/pandas code using LLM
-   - *Type*: Regular Node
-   - *Steps*:
-     - *prep*: Read plan, schema, question, entity_map, and any previous errors
-     - *exec*: Call LLM to generate code with awareness of entity locations
-     - *post*: Store code in `shared["code_snippet"]`
+10. **CodeGenerator**
+    - *Purpose*: Generate Python/pandas code using LLM with dynamic table discovery
+    - *Type*: Regular Node
+    - *Steps*:
+      - *prep*: Read plan, schema, question, entity_map, aggregated_context, and any previous errors
+      - *exec*: Call LLM to generate code with awareness of entity locations and cross-references
+      - *post*: Store code in `shared["code_snippet"]`
+    - *Design*: Uses DYNAMIC_GUIDANCE with safe patterns but NO hardcoded table names
 
-8. **SafetyCheck**
-   - *Purpose*: AST-based security validation
-   - *Type*: Regular Node
-   - *Steps*:
-     - *prep*: Read code snippet
-     - *exec*: Parse AST and check for forbidden imports (os, subprocess, sys, shutil)
-     - *post*: Return "safe" or "unsafe" action
+11. **SafetyCheck**
+    - *Purpose*: AST-based security validation
+    - *Type*: Regular Node
+    - *Steps*:
+      - *prep*: Read code snippet
+      - *exec*: Parse AST and check for forbidden imports (os, subprocess, sys, shutil)
+      - *post*: Return "safe" or "unsafe" action
 
-9. **Executor**
-   - *Purpose*: Execute generated code in sandboxed environment
-   - *Type*: Regular Node
-   - *Steps*:
-     - *prep*: Read code and dataframes
-     - *exec*: Execute code with only `dfs` and `pd` in scope, extract `final_result`
-     - *post*: Store result or error, return "success" or "error" action
+12. **Executor**
+    - *Purpose*: Execute generated code in sandboxed environment
+    - *Type*: Regular Node
+    - *Steps*:
+      - *prep*: Read code and dataframes
+      - *exec*: Execute code with only `dfs` and `pd` in scope, extract `final_result`
+      - *post*: Store result or error, return "success" or "error" action
 
-10. **ErrorFixer**
+13. **ErrorFixer**
     - *Purpose*: Handle execution errors with retry limit
     - *Type*: Regular Node
     - *Config*: MAX_RETRIES = 3
@@ -231,11 +288,20 @@ shared = {
       - *exec*: Check if max retries exceeded
       - *post*: Increment retry count, return "fix" or "give_up" action
 
-11. **DeepAnalyzer** (NEW)
-    - *Purpose*: Perform comprehensive statistical analysis on execution results
+14. **ResultValidator** (NEW)
+    - *Purpose*: Verify execution results match the original question and entity map
     - *Type*: Regular Node
     - *Steps*:
       - *prep*: Read exec_result, question, entity_map
+      - *exec*: Check that all queried entities appear in results, flag missing data
+      - *post*: Store validation_result, provide data gap warnings
+    - *Output*: `{entities_found: [], entities_missing: [], suggestions: []}`
+
+15. **DeepAnalyzer**
+    - *Purpose*: Perform comprehensive statistical analysis on execution results
+    - *Type*: Regular Node
+    - *Steps*:
+      - *prep*: Read exec_result, question, entity_map, validation_result
       - *exec*: Use LLM to perform deeper analysis (comparisons, trends, rankings, insights)
       - *post*: Store deep_analysis in shared store
     - *Analysis Types*:
@@ -245,7 +311,7 @@ shared = {
       - Peak performance identification
       - Head-to-head comparisons
 
-12. **Visualizer**
+16. **Visualizer**
     - *Purpose*: Create charts for DataFrame results
     - *Type*: Regular Node
     - *Steps*:
@@ -253,21 +319,21 @@ shared = {
       - *exec*: Generate plot if result is a DataFrame
       - *post*: Store chart path in `shared["chart_path"]`
 
-13. **ResponseSynthesizer** (NEW - replaces ResponseFormatter)
-    - *Purpose*: Generate narrative response using LLM
+17. **ResponseSynthesizer**
+    - *Purpose*: Generate narrative response using LLM with honest data gap reporting
     - *Type*: Regular Node
     - *Steps*:
-      - *prep*: Read exec_result, deep_analysis, question, entity_map
+      - *prep*: Read exec_result, deep_analysis, question, entity_map, validation_result
       - *exec*: Use LLM to synthesize a coherent narrative response
       - *post*: Store in `shared["final_text"]`, update KnowledgeStore with learnings
-    - *Output*: Rich narrative with sections, insights, and comparisons
+    - *Output*: Rich narrative with sections, insights, comparisons, and data limitation notes
 
 ## File Structure
 
 ```
 project/
 ├── main.py                    # Entry point - runs the flow
-├── nodes.py                   # All node class definitions
+├── nodes.py                   # All node class definitions (18 nodes)
 ├── flow.py                    # Flow creation and node wiring
 ├── utils/
 │   ├── __init__.py
@@ -308,3 +374,11 @@ project/
 - "Who had the highest scoring season in NBA history?"
 - "What is the average points scored by players on the Chicago team?"
 - "Show me the draft history of players from Duke University"
+
+## Key Design Principles
+
+1. **Dynamic Table Discovery**: No hardcoded table names - system adapts to any CSV structure
+2. **Entity Cross-Referencing**: Automatically discovers entity IDs across tables for richer joins
+3. **Context Enrichment**: Multiple nodes progressively build richer context for better analysis
+4. **Data Integrity**: Honestly reports missing data instead of hallucinating facts
+5. **Self-Healing**: Automatic error detection and code fixing with retry logic
