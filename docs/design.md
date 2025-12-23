@@ -214,8 +214,13 @@ shared = {
      - *post*: Return "clear" or "ambiguous" action
 
 5. **AskUser**
-   - *Purpose*: Terminal node for ambiguous queries
-   - *Type*: Regular Node (terminal)
+   - *Purpose*: Handle ambiguous queries with interactive clarification (CLI) or termination (Web UI)
+   - *Type*: Regular Node (conditional terminal)
+   - *Steps*:
+     - *prep*: Read final_text, question, schema_str, and is_cli flag
+     - *exec*: In CLI mode, prompt user for clarification via input(). Return action and clarified question.
+     - *post*: If clarified, update shared["question"] and return "clarified" to re-enter flow at EntityResolver. Otherwise terminate.
+   - *Actions*: "clarified" (re-enter flow), "quit" (user exit), "default" (web UI termination)
 
 6. **EntityResolver**
    - *Purpose*: Discover all tables/columns containing data about entities in the query
@@ -271,12 +276,14 @@ shared = {
       - *post*: Return "safe" or "unsafe" action
 
 12. **Executor**
-    - *Purpose*: Execute generated code in sandboxed environment
+    - *Purpose*: Execute generated code in sandboxed environment with timeout protection
     - *Type*: Regular Node
+    - *Config*: EXECUTION_TIMEOUT = 30 seconds
     - *Steps*:
       - *prep*: Read code and dataframes
-      - *exec*: Execute code with only `dfs` and `pd` in scope, extract `final_result`
+      - *exec*: Execute code in a separate thread with timeout. Only `dfs` and `pd` in scope.
       - *post*: Store result or error, return "success" or "error" action
+    - *Safety*: Code that runs longer than EXECUTION_TIMEOUT is terminated with a timeout error
 
 13. **ErrorFixer**
     - *Purpose*: Handle execution errors with retry limit

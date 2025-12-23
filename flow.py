@@ -41,6 +41,10 @@ def create_analyst_flow():
     clarify - "ambiguous" >> ask_user
     clarify - "clear"     >> entity_resolver
 
+    # AskUser can re-enter the flow with a clarified question (CLI mode)
+    ask_user - "clarified" >> entity_resolver
+    # Other AskUser actions ("default", "quit") terminate the flow
+
     entity_resolver >> search_expander >> context_aggregator >> plan >> code_gen
 
     code_gen >> safety
