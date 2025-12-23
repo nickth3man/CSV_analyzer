@@ -4,10 +4,19 @@ def main():
     # 1. Initialize the Shared Store
     # We start with the user's question.
     # 'dfs' and 'schema_str' will be populated by the LoadData and SchemaInference nodes.
+    
+    # Get question from command line or use default
+    import sys
+    if len(sys.argv) > 1:
+        question = " ".join(sys.argv[1:])
+    else:
+        question = "Compare the careers of LeBron James and Tracy McGrady"
+    
     shared = {
-        "question": "Compare the careers of LeBron James and Tracy McGrady",
+        "question": question,
         "retry_count": 0,
         "exec_error": None,
+        "is_cli": True,  # Enable CLI mode for interactive ambiguity resolution
     }
 
     # 2. Create the Flow

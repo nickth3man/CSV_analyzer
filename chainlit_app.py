@@ -82,19 +82,71 @@ def fetch_openrouter_models(api_key=None):
     
     return DEFAULT_MODELS
 
-def get_csv_files():
-    csv_dir = "CSV"
-    if not os.path.exists(csv_dir):
-        os.makedirs(csv_dir)
-    return [f.replace(".csv", "") for f in os.listdir(csv_dir) if f.endswith('.csv')]
-
-def load_dataframes():
-    csv_dir = "CSV"
-    dfs = {}
-    if os.path.exists(csv_dir):
-        for filename in os.listdir(csv_dir):
+class DataFrameCache:
+    """
+    Cache for loaded dataframes to avoid re-reading CSV files on each command.
+    Implements cache invalidation based on directory modification time.
+    """
+    def __init__(self, csv_dir="CSV"):
+        self.csv_dir = csv_dir
+        self._cache = {}
+        self._last_mtime = None
+        self._file_mtimes = {}
+    
+    def _get_dir_state(self):
+        """Get the current state of the CSV directory (files and their mtimes)."""
+        if not os.path.exists(self.csv_dir):
+            return None, {}
+        
+        dir_mtime = os.path.getmtime(self.csv_dir)
+        file_mtimes = {}
+        for filename in os.listdir(self.csv_dir):
             if filename.endswith(".csv"):
-                filepath = os.path.join(csv_dir, filename)
+                filepath = os.path.join(self.csv_dir, filename)
+                try:
+                    file_mtimes[filename] = os.path.getmtime(filepath)
+                except OSError:
+                    pass
+        return dir_mtime, file_mtimes
+    
+    def _is_cache_valid(self):
+        """Check if the cache is still valid based on directory state."""
+        dir_mtime, file_mtimes = self._get_dir_state()
+        
+        # Invalid if directory doesn't exist or was modified
+        if dir_mtime is None:
+            return False
+        if self._last_mtime is None or dir_mtime != self._last_mtime:
+            return False
+        
+        # Invalid if any file was modified or files changed
+        if set(file_mtimes.keys()) != set(self._file_mtimes.keys()):
+            return False
+        for filename, mtime in file_mtimes.items():
+            if self._file_mtimes.get(filename) != mtime:
+                return False
+        
+        return True
+    
+    def invalidate(self):
+        """Force cache invalidation (e.g., after upload/delete)."""
+        self._cache = {}
+        self._last_mtime = None
+        self._file_mtimes = {}
+    
+    def get_dataframes(self):
+        """Get cached dataframes, reloading if cache is invalid."""
+        if self._is_cache_valid() and self._cache:
+            return self._cache
+        
+        # Reload dataframes
+        dfs = {}
+        if not os.path.exists(self.csv_dir):
+            os.makedirs(self.csv_dir)
+        
+        for filename in os.listdir(self.csv_dir):
+            if filename.endswith(".csv"):
+                filepath = os.path.join(self.csv_dir, filename)
                 try:
                     table_name = filename.replace(".csv", "")
                     dfs[table_name] = pd.read_csv(filepath)
@@ -102,7 +154,31 @@ def load_dataframes():
                     print(f"Warning: Could not parse {filename}: {e}")
                 except Exception as e:
                     print(f"Warning: Unexpected error loading {filename}: {e}")
-    return dfs
+        
+        # Update cache state
+        self._cache = dfs
+        self._last_mtime, self._file_mtimes = self._get_dir_state()
+        
+        return dfs
+
+
+# Global dataframe cache instance
+_df_cache = DataFrameCache()
+
+
+def get_csv_files():
+    csv_dir = "CSV"
+    if not os.path.exists(csv_dir):
+        os.makedirs(csv_dir)
+    return [f.replace(".csv", "") for f in os.listdir(csv_dir) if f.endswith('.csv')]
+
+def load_dataframes():
+    """Load dataframes using cache to avoid redundant disk reads."""
+    return _df_cache.get_dataframes()
+
+def invalidate_dataframe_cache():
+    """Invalidate the dataframe cache after file changes."""
+    _df_cache.invalidate()
 
 def get_schema_info():
     dfs = load_dataframes()
@@ -287,6 +363,8 @@ async def on_upload_action(action: cl.Action):
             shutil.copy(file.path, dest)
             uploaded.append(filename.replace('.csv', ''))
 
+        # Invalidate cache after upload
+        invalidate_dataframe_cache()
         await cl.Message(content=f"✅ Uploaded: {', '.join(uploaded)}\n\nYou can now ask questions about your data!").send()
 
     return "Upload complete"
@@ -354,6 +432,8 @@ async def handle_command(message_content: str) -> bool:
                 shutil.copy(file.path, dest)
                 uploaded.append(filename.replace('.csv', ''))
 
+            # Invalidate cache after upload
+            invalidate_dataframe_cache()
             await cl.Message(content=f"✅ Uploaded: {', '.join(uploaded)}").send()
         return True
     
@@ -377,6 +457,8 @@ async def handle_command(message_content: str) -> bool:
         filepath = os.path.join("CSV", f"{table_name}.csv")
         if os.path.exists(filepath):
             os.remove(filepath)
+            # Invalidate cache after delete
+            invalidate_dataframe_cache()
             await cl.Message(content=f"✅ Deleted table: {table_name}").send()
         else:
             await cl.Message(content=f"❌ Table not found: {table_name}").send()
@@ -480,6 +562,8 @@ async def on_message(message: cl.Message):
                 uploaded.append(filename.replace('.csv', ''))
 
         if uploaded:
+            # Invalidate cache after upload
+            invalidate_dataframe_cache()
             await cl.Message(content=f"✅ Uploaded: {', '.join(uploaded)}\n\nYou can now ask questions about your data!").send()
             return
     

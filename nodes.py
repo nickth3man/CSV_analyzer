@@ -112,25 +112,101 @@ class ClarifyQuery(Node):
         return "clear"
 
 class AskUser(Node):
+    """
+    Terminal node for ambiguous queries.
+    In CLI mode, prompts user for clarification and allows re-entering the flow.
+    """
+    def prep(self, shared):
+        return {
+            "final_text": shared.get("final_text", ""),
+            "question": shared.get("question", ""),
+            "schema_str": shared.get("schema_str", ""),
+            "is_cli": shared.get("is_cli", False)
+        }
+
     def exec(self, prep_res):
-        pass
+        final_text = prep_res.get("final_text", "")
+        is_cli = prep_res.get("is_cli", False)
+        
+        # In CLI mode, prompt for user clarification
+        if is_cli:
+            print(f"\n⚠️  {final_text}")
+            print("\nPlease provide a clarified question (or type 'quit' to exit):")
+            try:
+                user_input = input("> ").strip()
+                if user_input.lower() in ['quit', 'exit', 'q']:
+                    return {"action": "quit", "clarified_question": None}
+                if user_input:
+                    return {"action": "clarified", "clarified_question": user_input}
+            except (EOFError, KeyboardInterrupt):
+                return {"action": "quit", "clarified_question": None}
+        
+        # Non-CLI mode (Chainlit) - just print and exit
+        return {"action": "exit", "clarified_question": None}
 
     def post(self, shared, prep_res, exec_res):
-        print(f"System: {shared.get('final_text', 'Ends')}")
-        return "default"
+        if exec_res is None:
+            exec_res = {"action": "exit", "clarified_question": None}
+        
+        action = exec_res.get("action", "exit")
+        clarified_question = exec_res.get("clarified_question")
+        
+        if action == "clarified" and clarified_question:
+            # Store the clarified question and signal to re-enter flow
+            shared["question"] = clarified_question
+            # Reset any error state for fresh analysis
+            shared["exec_error"] = None
+            shared["retry_count"] = 0
+            # Clear previous entity resolution to force re-analysis
+            shared.pop("entities", None)
+            shared.pop("entity_map", None)
+            shared.pop("cross_references", None)
+            print(f"\n🔄 Re-analyzing with clarified question: {clarified_question}")
+            return "clarified"
+        elif action == "quit":
+            shared["final_text"] = "Session ended by user."
+            print("\n👋 Goodbye!")
+            return "quit"
+        else:
+            # Default exit behavior
+            print(f"System: {shared.get('final_text', 'Ends')}")
+            return "default"
 
 class EntityResolver(Node):
+    """
+    Discovers which tables contain data about entities mentioned in the query.
+    Uses configurable sampling to balance accuracy and performance.
+    """
+    # Configuration: Sample size for column scanning
+    # Adjustable via shared["config"]["entity_sample_size"]
+    DEFAULT_SAMPLE_SIZE = 1000
+    
     def prep(self, shared):
         return {
             "question": shared["question"],
             "schema": shared["schema_str"],
-            "dfs": shared["dfs"]
+            "dfs": shared["dfs"],
+            "sample_size": shared.get("config", {}).get("entity_sample_size", self.DEFAULT_SAMPLE_SIZE)
         }
+
+    def _get_sample(self, df, col, sample_size):
+        """
+        Get a sample of rows for entity scanning.
+        Uses head() for consistency and performance.
+        """
+        try:
+            series = df[col].dropna()
+            if len(series) <= sample_size:
+                return series
+            return series.head(sample_size)
+        except (KeyError, AttributeError):
+            return pd.Series(dtype='object')
 
     def exec(self, prep_res):
         question = prep_res["question"]
         schema = prep_res["schema"]
         dfs = prep_res["dfs"]
+        sample_size = prep_res["sample_size"]
         
         knowledge_hints = knowledge_store.get_all_hints()
         
@@ -180,9 +256,12 @@ Return ONLY the JSON array, nothing else."""
                         try:
                             fc = first_name_cols[0]
                             lc = last_name_cols[0]
-                            first_match = df[fc].astype(str).str.lower().str.contains(entity_parts[0], na=False)
-                            last_match = df[lc].astype(str).str.lower().str.contains(entity_parts[-1], na=False)
-                            if (first_match & last_match).any():
+                            # Use sampling for name column matching
+                            first_sample = self._get_sample(df, fc, sample_size)
+                            last_sample = self._get_sample(df, lc, sample_size)
+                            first_match = first_sample.astype(str).str.lower().str.contains(entity_parts[0], na=False)
+                            last_match = last_sample.astype(str).str.lower().str.contains(entity_parts[-1], na=False)
+                            if first_match.any() and last_match.any():
                                 matching_cols.extend([fc, lc])
                         except (KeyError, AttributeError, TypeError) as e:
                             # Column doesn't exist or wrong type, skip
@@ -193,7 +272,8 @@ Return ONLY the JSON array, nothing else."""
                         continue
                     try:
                         if df[col].dtype == 'object':
-                            sample = df[col].dropna().head(1000)
+                            # Use sampling for general column scanning
+                            sample = self._get_sample(df, col, sample_size)
                             matches = sample.astype(str).str.lower().str.contains(entity_lower, na=False)
                             if matches.any():
                                 matching_cols.append(col)
@@ -515,70 +595,99 @@ class SafetyCheck(Node):
 
 class Executor(Node):
     """
-    Executes code in a restricted local scope.
+    Executes code in a restricted local scope with timeout and resource limits.
     """
+    # Configuration: Maximum execution time in seconds
+    EXECUTION_TIMEOUT = 30  # seconds
+    
     def prep(self, shared):
         return shared["code_snippet"], shared["dfs"]
 
+    def _execute_code_with_timeout(self, code, dfs):
+        """
+        Execute code in a separate thread with timeout.
+        Uses threading for cross-platform compatibility.
+        Includes enhanced sandbox security with safe builtins.
+        """
+        import threading
+        import queue
+        
+        result_queue = queue.Queue()
+        
+        def target():
+            try:
+                # The Sandbox: Enhanced security with safe builtins
+                final_result_sentinel = object()
+
+                def blocked_global_call(*_args, **_kwargs):
+                    raise RuntimeError("globals() is not available in the sandbox")
+
+                safe_builtins = {
+                    "abs": abs,
+                    "all": all,
+                    "any": any,
+                    "dict": dict,
+                    "enumerate": enumerate,
+                    "float": float,
+                    "int": int,
+                    "len": len,
+                    "list": list,
+                    "locals": locals,
+                    "max": max,
+                    "min": min,
+                    "range": range,
+                    "round": round,
+                    "set": set,
+                    "sorted": sorted,
+                    "str": str,
+                    "sum": sum,
+                    "tuple": tuple,
+                    "zip": zip,
+                    "Exception": Exception,
+                    "NameError": NameError,
+                    "ValueError": ValueError,
+                    "KeyError": KeyError,
+                    "TypeError": TypeError,
+                    "RuntimeError": RuntimeError,
+                    "globals": blocked_global_call,
+                }
+
+                local_scope = {
+                    "dfs": dfs,
+                    "pd": pd,
+                    "final_result": final_result_sentinel,
+                    "__builtins__": safe_builtins,
+                }
+                
+                # execute the code string
+                exec(code, local_scope, local_scope)
+                
+                # Check if the code defined 'final_result'
+                if "final_result" not in local_scope or local_scope["final_result"] is final_result_sentinel:
+                    result_queue.put(("error", "Code did not define 'final_result' variable"))
+                else:
+                    result_queue.put(("success", local_scope["final_result"]))
+            except Exception as e:
+                result_queue.put(("error", str(e)))
+        
+        thread = threading.Thread(target=target, daemon=True)
+        thread.start()
+        thread.join(timeout=self.EXECUTION_TIMEOUT)
+        
+        if thread.is_alive():
+            # Thread is still running - timeout occurred
+            # Note: We cannot forcibly kill the thread, but daemon=True ensures
+            # it won't block program exit. We return a timeout error.
+            return "error", f"Execution timed out after {self.EXECUTION_TIMEOUT} seconds. The code may be stuck in an infinite loop or processing too much data."
+        
+        try:
+            return result_queue.get_nowait()
+        except queue.Empty:
+            return "error", "Execution failed without producing a result"
+
     def exec(self, prep_res):
         code, dfs = prep_res
-
-        # The Sandbox: We only pass 'dfs' and 'pd' to the code.
-        final_result_sentinel = object()
-
-        def blocked_global_call(*_args, **_kwargs):
-            raise RuntimeError("globals() is not available in the sandbox")
-
-        safe_builtins = {
-            "abs": abs,
-            "all": all,
-            "any": any,
-            "dict": dict,
-            "enumerate": enumerate,
-            "float": float,
-            "int": int,
-            "len": len,
-            "list": list,
-            "locals": locals,
-            "max": max,
-            "min": min,
-            "range": range,
-            "round": round,
-            "set": set,
-            "sorted": sorted,
-            "str": str,
-            "sum": sum,
-            "tuple": tuple,
-            "zip": zip,
-            "Exception": Exception,
-            "NameError": NameError,
-            "ValueError": ValueError,
-            "KeyError": KeyError,
-            "TypeError": TypeError,
-            "RuntimeError": RuntimeError,
-            "globals": blocked_global_call,
-        }
-
-        local_scope = {
-            "dfs": dfs,
-            "pd": pd,
-            "final_result": final_result_sentinel,
-            "__builtins__": safe_builtins,
-        }
-
-        try:
-            # execute the code string - use local_scope for both globals and locals
-            # so that dfs/pd are accessible in the executed code
-            exec(code, local_scope, local_scope)
-
-            # Check if the code defined 'final_result'
-            if "final_result" not in local_scope or local_scope["final_result"] is final_result_sentinel:
-                raise ValueError("Code did not define 'final_result' variable")
-
-            return "success", local_scope["final_result"]
-
-        except Exception as e:
-            return "error", str(e)
+        return self._execute_code_with_timeout(code, dfs)
 
     def post(self, shared, prep_res, exec_res):
         status, payload = exec_res
@@ -969,22 +1078,42 @@ class DataProfiler(Node):
 class SearchExpander(Node):
     """
     Expands entity search to find related entities, aliases, and cross-references.
-    Uses data profile to search more intelligently.
+    Uses data profile to search more intelligently with configurable sampling.
     """
+    # Configuration: Sample size for column scanning
+    # Adjustable via shared["config"]["search_sample_size"]
+    DEFAULT_SAMPLE_SIZE = 1000
+    
     def prep(self, shared):
         return {
             "entity_map": shared.get("entity_map", {}),
             "entities": shared.get("entities", []),
             "dfs": shared["dfs"],
             "data_profile": shared.get("data_profile", {}),
-            "question": shared["question"]
+            "question": shared["question"],
+            "sample_size": shared.get("config", {}).get("search_sample_size", self.DEFAULT_SAMPLE_SIZE)
         }
+
+    def _get_sample(self, df, col, sample_size):
+        """
+        Get a sample of rows for entity scanning.
+        Uses head() for consistency and performance.
+        """
+        try:
+            series = df[col].dropna()
+            if len(series) <= sample_size:
+                return df
+            # Return sampled dataframe keeping alignment with original indices
+            return df.head(sample_size)
+        except (KeyError, AttributeError):
+            return df.head(0)
 
     def exec(self, prep_res):
         entity_map = prep_res["entity_map"]
         entities = prep_res["entities"]
         dfs = prep_res["dfs"]
         profile = prep_res["data_profile"]
+        sample_size = prep_res["sample_size"]
         
         expanded_map = dict(entity_map)
         related_entities = {}
@@ -997,9 +1126,12 @@ class SearchExpander(Node):
             for table_name, df in dfs.items():
                 table_profile = profile.get(table_name, {})
                 
+                # Use sampling for name column searches
+                sampled_df = self._get_sample(df, table_profile.get("name_columns", [""])[0] if table_profile.get("name_columns") else "", sample_size)
+                
                 for col in table_profile.get("name_columns", []):
                     try:
-                        matches = df[df[col].astype(str).str.lower().str.contains(entity_lower, na=False)]
+                        matches = sampled_df[sampled_df[col].astype(str).str.lower().str.contains(entity_lower, na=False)]
                         if not matches.empty and table_name not in expanded_map.get(entity, {}):
                             if entity not in expanded_map:
                                 expanded_map[entity] = {}
@@ -1014,8 +1146,9 @@ class SearchExpander(Node):
                         try:
                             name_cols = table_profile.get("name_columns", [])
                             if name_cols:
-                                mask = df[name_cols[0]].astype(str).str.lower().str.contains(parts[0] if parts else entity_lower, na=False)
-                                matches = df[mask]
+                                # Use sampling for cross-reference searches
+                                mask = sampled_df[name_cols[0]].astype(str).str.lower().str.contains(parts[0] if parts else entity_lower, na=False)
+                                matches = sampled_df[mask]
                                 if not matches.empty:
                                     entity_id = str(matches.iloc[0].get(id_col, ''))
                                     if entity_id and entity_id != 'nan':

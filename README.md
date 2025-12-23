@@ -20,9 +20,32 @@ An LLM-powered data analyst that answers natural language questions about your C
 - **Learning System**: Remembers successful patterns for future queries
 - **Honest Reporting**: Clearly reports when data is missing or incomplete
 
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `OPENROUTER_API_KEY` | Yes | - | Your OpenRouter API key (starts with `sk-or-`) |
+| `LLM_MODEL` | No | `meta-llama/llama-3.3-70b-instruct` | The LLM model to use for analysis |
+
+### Setting Environment Variables
+
+```bash
+# Linux/macOS
+export OPENROUTER_API_KEY="sk-or-v1-your-key-here"
+export LLM_MODEL="anthropic/claude-3.5-sonnet"  # Optional
+
+# Windows (PowerShell)
+$env:OPENROUTER_API_KEY="sk-or-v1-your-key-here"
+$env:LLM_MODEL="anthropic/claude-3.5-sonnet"  # Optional
+
+# Or use a .env file (copy from .env.example)
+cp .env.example .env
+# Then edit .env with your values
+```
+
 ## Quick Start
 
-1. **Add your API key**: Open the app and expand "Settings" to enter your OpenRouter API key
+1. **Add your API key**: Set the `OPENROUTER_API_KEY` environment variable, or enter it in the Settings panel
 2. **Upload data**: Click "📁 Upload CSV" or type `/upload` to add CSV files (or use the pre-loaded NBA data)
 3. **Ask questions**: Type a question like "Compare LeBron James and Tracy McGrady"
 4. **Get insights**: The agent analyzes your data and provides detailed responses
@@ -65,6 +88,56 @@ EntityResolver → SearchExpander → ContextAggregator → Planner
                                                           ↓
                                     DeepAnalyzer → Visualizer → ResponseSynthesizer
 ```
+
+## CLI Usage
+
+The CLI provides an interactive interface for data analysis with support for ambiguous query resolution.
+
+### Running the CLI
+
+```bash
+# Run with default question
+python main.py
+
+# Run with a custom question
+python main.py "What are the top 10 teams by wins?"
+
+# Run with a question requiring clarification
+python main.py "Show me the stats for that player"
+```
+
+### CLI Session Example
+
+```
+$ python main.py "Show me stats for the player_score column"
+--- Starting Analyst Agent ---
+User Question: Show me stats for the player_score column
+
+Loaded 3 dataframes.
+Schema inferred:
+Table 'players': [id, first_name, last_name, team_id]
+Table 'teams': [id, name, city]
+Table 'stats': [player_id, games, points, rebounds]
+
+⚠️  Your query references unknown columns or tables: ['player_score']. Please clarify or check available schema.
+
+Please provide a clarified question (or type 'quit' to exit):
+> Show me the points column from the stats table
+
+🔄 Re-analyzing with clarified question: Show me the points column from the stats table
+[... analysis continues ...]
+```
+
+### Ambiguity Resolution Flow
+
+When the CLI detects an ambiguous query:
+
+1. **Detection**: The system checks if referenced columns/tables exist in the schema
+2. **Prompt**: If ambiguous, you'll see a warning and be prompted to clarify
+3. **Options**:
+   - Enter a clarified question to re-run the analysis
+   - Type `quit`, `exit`, or `q` to end the session
+4. **Re-entry**: Clarified questions re-enter the flow at the EntityResolver node
 
 ## File Structure
 
