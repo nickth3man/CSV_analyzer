@@ -34,7 +34,9 @@ def create_analyst_flow():
     viz = Visualizer()
     synthesizer = ResponseSynthesizer()
 
-    load >> schema >> profiler >> clarify
+    load - "default" >> schema
+    load - "no_data" >> ask_user
+    schema >> profiler >> clarify
 
     clarify - "ambiguous" >> ask_user
     clarify - "clear"     >> entity_resolver

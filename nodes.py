@@ -205,6 +205,14 @@ Return ONLY the JSON array, nothing else."""
             "knowledge_hints": knowledge_hints
         }
 
+    def exec_fallback(self, prep_res, exc):
+        print(f"EntityResolver failed: {exc}")
+        return {
+            "entities": [],
+            "entity_map": {},
+            "knowledge_hints": {}
+        }
+
     def post(self, shared, prep_res, exec_res):
         shared["entities"] = exec_res["entities"]
         shared["entity_map"] = exec_res["entity_map"]
@@ -253,7 +261,7 @@ DATABASE SCHEMA:
 {schema}
 {entity_info}
 {hints_info}
-USER QUESTION: {question}
+USER QUESTION: <user_question>{question}</user_question>
 
 Create a detailed step-by-step plan (4-6 steps) to thoroughly answer the question. Include:
 1. Which tables to query and how to join them
@@ -267,6 +275,10 @@ Be thorough - this is for deep analysis, not just a simple lookup."""
         if not plan:
             raise ValueError("LLM returned empty plan - retrying")
         return plan
+
+    def exec_fallback(self, prep_res, exc):
+        print(f"Planner failed: {exc}")
+        return "Plan generation failed. Please proceed with caution."
 
     def post(self, shared, prep_res, exec_res):
         shared["plan_steps"] = exec_res
@@ -370,7 +382,7 @@ DATABASE SCHEMA (available as dfs dictionary):
 {cross_ref_info}
 {context_summary}
 {comparison_hint}
-USER QUESTION: {prep_res['question']}
+USER QUESTION: <user_question>{prep_res['question']}</user_question>
 
 PREVIOUS CODE:
 {prep_res.get('previous_code', 'None')}
@@ -390,7 +402,7 @@ DATABASE SCHEMA (available as dfs dictionary):
 {cross_ref_info}
 {context_summary}
 {comparison_hint}
-USER QUESTION: {prep_res['question']}
+USER QUESTION: <user_question>{prep_res['question']}</user_question>
 
 PLAN: {prep_res['plan']}
 
@@ -410,6 +422,10 @@ Write Python code to thoroughly analyze and answer the question.
         if not code:
             raise ValueError("LLM returned empty code - retrying")
         return code
+
+    def exec_fallback(self, prep_res, exc):
+        print(f"CodeGenerator failed: {exc}")
+        return "print('Code generation failed due to LLM error.')\nfinal_result = {}"
 
     def post(self, shared, prep_res, exec_res):
         shared["code_snippet"] = exec_res
@@ -611,12 +627,14 @@ class DeepAnalyzer(Node):
         
         prompt = f"""You are a sports data analyst. Analyze the following data results and provide insights.
 
-ORIGINAL QUESTION: {question}
+ORIGINAL QUESTION: <user_question>{question}</user_question>
 
 ENTITIES BEING ANALYZED: {entities_str}
 {warning_note}
 RAW DATA RESULTS:
+<raw_data>
 {result_str}
+</raw_data>
 
 Provide analysis based ONLY on data that is actually present:
 1. KEY STATISTICS: Summarize the most important numbers (only from actual data)
@@ -667,6 +685,10 @@ Return ONLY valid JSON."""
             }
         
         return deep_analysis
+
+    def exec_fallback(self, prep_res, exc):
+        print(f"DeepAnalyzer failed: {exc}")
+        return None
 
     def post(self, shared, prep_res, exec_res):
         shared["deep_analysis"] = exec_res
@@ -781,15 +803,19 @@ Be honest about the limitations of the analysis."""
         
         prompt = f"""You are a sports analyst writing a response to a user's question.
 
-QUESTION: {question}
+QUESTION: <user_question>{question}</user_question>
 
 ENTITIES: {entities_str}
 {data_quality_note}
 RAW DATA (from actual CSV analysis):
+<raw_data>
 {result_str}
+</raw_data>
 
 ANALYSIS:
+<analysis>
 {analysis_str}
+</analysis>
 
 Write a well-structured response that:
 1. Directly addresses the user's question based on ACTUAL DATA ONLY
@@ -817,6 +843,10 @@ Be honest about data limitations - do not fabricate facts."""
                 knowledge_store.add_successful_pattern("comparison" if len(entities) > 1 else "lookup", question[:100])
 
         return response
+
+    def exec_fallback(self, prep_res, exc):
+        print(f"ResponseSynthesizer failed: {exc}")
+        return "I apologize, but I am unable to generate a response at this time due to a system error."
 
     def post(self, shared, prep_res, exec_res):
         if exec_res:
