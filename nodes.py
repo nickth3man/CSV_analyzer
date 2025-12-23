@@ -2,6 +2,7 @@ import os
 import ast
 import json
 import pandas as pd
+import matplotlib
 from pocketflow import Node
 from utils.call_llm import call_llm
 from utils.knowledge_store import knowledge_store
@@ -584,7 +585,29 @@ class Visualizer(Node):
         if prep_res is None:
             return None
         if isinstance(prep_res, pd.DataFrame):
-            return "plot_generated.png"
+            numeric_cols = [
+                col for col in prep_res.columns
+                if pd.api.types.is_numeric_dtype(prep_res[col])
+            ]
+            if not numeric_cols:
+                return None
+
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+            output_dir = "assets"
+            os.makedirs(output_dir, exist_ok=True)
+            output_path = os.path.join(output_dir, "generated_chart.png")
+
+            plot_df = prep_res[numeric_cols].head(10)
+            plt.figure(figsize=(8, 4))
+            plot_df[numeric_cols[0]].plot(kind="bar")
+            plt.title(f"Top 10 rows by {numeric_cols[0]}")
+            plt.xlabel("Row")
+            plt.ylabel(numeric_cols[0])
+            plt.tight_layout()
+            plt.savefig(output_path)
+            plt.close()
+            return output_path
         return None
 
     def post(self, shared, prep_res, exec_res):
