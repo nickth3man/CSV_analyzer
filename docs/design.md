@@ -48,7 +48,7 @@ The Relational Data Analyst Agent is an LLM-powered system that allows users to 
 4. **Memory Pattern**: KnowledgeStore for persistent learning across queries
 5. **Context Enrichment Pattern**: Multiple nodes progressively enrich context for better analysis
 
-### Flow High-Level Design (18 Nodes):
+### Flow High-Level Design (17 Nodes):
 
 1. **LoadData**: Scans CSV folder and loads all CSV files as pandas DataFrames
 2. **SchemaInference**: Extracts column names from each DataFrame to build schema
@@ -65,9 +65,8 @@ The Relational Data Analyst Agent is an LLM-powered system that allows users to 
 13. **ResultValidator**: Verifies execution results match the original question and entity map
 14. **DeepAnalyzer**: Performs comprehensive statistical analysis on execution results
 15. **Visualizer**: Creates visualizations for DataFrame results
-16. **ResponseSynthesizer**: Uses LLM to generate narrative response from analysis
-17. **KnowledgeUpdater**: Stores successful patterns and learnings for future queries
-18. **AskUser**: Terminal node for ambiguous queries
+16. **ResponseSynthesizer**: Uses LLM to generate narrative response from analysis and persist learnings
+17. **AskUser**: Terminal node for ambiguous queries
 
 ```mermaid
 flowchart TD
@@ -150,11 +149,11 @@ shared = {
     "knowledge_hints": dict,      # Hints from KnowledgeStore
     
     # Search Expansion
-    "entity_cross_refs": dict,    # {entity: {table.column: id_value, ...}, ...}
-    "expanded_tables": list,      # Tables discovered through cross-references
+    "cross_references": dict,     # {entity: {table.column: id_value, ...}, ...}
     
     # Context Aggregation
     "aggregated_context": dict,   # Combined insights, recommended tables, join keys
+    "context_summary": str,       # Human-readable summary for code generation
     
     # Planning and code
     "plan_steps": str,            # LLM-generated analysis plan
@@ -233,7 +232,7 @@ shared = {
    - *Steps*:
      - *prep*: Read entity_map, data_profile, dfs
      - *exec*: For each entity, search ID columns to find cross-references (person_id, player_id, team_id)
-     - *post*: Store cross-references in `shared["entity_cross_refs"]`
+     - *post*: Store cross-references in `shared["cross_references"]`
    - *Output*: `{entity: {table.column: id_value, ...}}`
    - *Example*: `{"LeBron James": {"common_player_info.person_id": "2544", "draft_history.person_id": "2544"}}`
 
@@ -241,9 +240,9 @@ shared = {
    - *Purpose*: Collect insights and pass enriched context between nodes
    - *Type*: Regular Node
    - *Steps*:
-     - *prep*: Read entity_map, entity_cross_refs, data_profile, question
+     - *prep*: Read entity_map, cross_references, data_profile, question
      - *exec*: Combine all context: entity locations, join keys, recommended tables, data quality notes
-     - *post*: Store aggregated context in `shared["aggregated_context"]`
+     - *post*: Store aggregated context in `shared["aggregated_context"]` and summary in `shared["context_summary"]`
    - *Output*: Unified context object with recommendations for Planner/CodeGenerator
 
 9. **Planner**
@@ -333,7 +332,8 @@ shared = {
 ```
 project/
 ├── main.py                    # Entry point - runs the flow
-├── nodes.py                   # All node class definitions (18 nodes)
+├── chainlit_app.py            # Web UI entry point (Chainlit)
+├── nodes.py                   # All node class definitions (17 nodes)
 ├── flow.py                    # Flow creation and node wiring
 ├── utils/
 │   ├── __init__.py
@@ -361,12 +361,20 @@ project/
 - `pocketflow` - Core flow framework
 - `openai` - OpenAI-compatible client for OpenRouter
 - `pandas` - Data manipulation
+- `matplotlib` - Chart generation for visual summaries
+- `requests` - Model list fetching in Chainlit UI
+- `chainlit` - Web chat interface
 
 ## Usage
 
 1. Place CSV files in the `CSV/` directory
 2. Edit the question in `main.py`
 3. Run: `python main.py`
+
+### Web Interface (Chainlit)
+
+1. Run: `chainlit run chainlit_app.py`
+2. Upload CSVs in the UI and ask questions in chat
 
 ### Example Queries
 
