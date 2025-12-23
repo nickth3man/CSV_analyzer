@@ -164,7 +164,7 @@ def get_data_profile():
     for name, df in dfs.items():
         name_cols = [c for c in df.columns if any(x in c.lower() for x in ['name', 'first', 'last', 'player', 'team'])]
         id_cols = [c for c in df.columns if 'id' in c.lower()]
-        numeric_cols = [c for c in df.columns if df[c].dtype in ['int64', 'float64']]
+        numeric_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
         
         profile_text.append(f"""### {name}
 - Rows: {len(df):,}
