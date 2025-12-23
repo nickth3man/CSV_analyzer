@@ -740,7 +740,7 @@ class DataProfiler(Node):
                     table_profile["name_columns"].append(col)
                 if 'id' in col_lower:
                     table_profile["id_columns"].append(col)
-                if df[col].dtype in ['int64', 'float64']:
+                if pd.api.types.is_numeric_dtype(df[col]):
                     table_profile["numeric_columns"].append(col)
                 if 'date' in col_lower or 'year' in col_lower:
                     table_profile["date_columns"].append(col)
