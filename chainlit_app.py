@@ -107,6 +107,7 @@ def get_schema_info():
         return "No CSV files loaded. Upload some data to get started!"
     
     schema_lines = []
+    # TODO: Expand schema summaries to include Excel/JSON/DB metadata once additional formats are supported.
     for name, df in dfs.items():
         cols = ", ".join(df.columns[:10])
         if len(df.columns) > 10:
@@ -418,6 +419,8 @@ async def step_run_analysis(question: str, settings: dict):
         "retry_count": 0,
         "exec_error": None,
     }
+    # TODO: Generate query suggestions from the loaded schema and attach them to the shared store
+    # so the UI can surface suggested questions before/after answering.
     
     try:
         analyst_flow = create_analyst_flow()
@@ -482,6 +485,8 @@ async def on_message(message: cl.Message):
     
     await step_load_data()
     await step_schema()
+    # TODO: Display schema-driven query suggestions to the user (e.g., via a message or action buttons)
+    # before running the analysis, once suggestions are generated.
     
     shared, final_text, chart_path = await step_run_analysis(question, settings)
 

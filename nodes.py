@@ -19,6 +19,9 @@ class LoadData(Node):
         data = {}
         if os.path.exists(csv_dir):
             for filename in os.listdir(csv_dir):
+                # TODO: Support Excel (.xlsx/.xls) and JSON files here by adding loaders and normalizing them into dataframes.
+                # TODO: Add database ingestion (connection config + query) and register those tables alongside file-based data.
+                # TODO: Expand file handling to detect new extensions and route them through format-specific loaders.
                 if filename.endswith(".csv"):
                     filepath = os.path.join(csv_dir, filename)
                     try:
@@ -50,6 +53,8 @@ class SchemaInference(Node):
     def exec(self, prep_res):
         dfs = prep_res
         schema_lines = []
+        # TODO: Ensure schema inference supports dataframes originating from Excel/JSON/DB sources
+        # by preserving source metadata (e.g., sheet names, JSON paths, DB schemas).
         for name, df in dfs.items():
             cols = ", ".join(df.columns)
             schema_lines.append(f"Table '{name}': [{cols}]")
@@ -58,6 +63,8 @@ class SchemaInference(Node):
     def post(self, shared, prep_res, exec_res):
         shared["schema_str"] = exec_res
         print(f"Schema inferred:\n{exec_res}")
+        # TODO: Generate schema-driven query suggestions (e.g., common aggregations)
+        # and store them for the UI to display.
         return "default"
 
 class ClarifyQuery(Node):
@@ -832,6 +839,8 @@ class DataProfiler(Node):
     def exec(self, prep_res):
         dfs = prep_res
         profile = {}
+        # TODO: Extend profiling to capture format-specific hints (Excel sheet names,
+        # JSON nesting paths, DB schema/table names) for richer downstream analysis.
         for table_name, df in dfs.items():
             table_profile = {
                 "row_count": len(df),
