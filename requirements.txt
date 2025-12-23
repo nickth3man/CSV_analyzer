@@ -4,3 +4,5 @@ pandas
 gradio
 matplotlib
 requests
+chainlit
+asyncpg

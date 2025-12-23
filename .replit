@@ -5,7 +5,7 @@ integrations = ["python_openrouter_ai_integrations:1.0.0"]
 
 [nix]
 channel = "stable-25_05"
-packages = ["cairo", "ffmpeg-full", "freetype", "ghostscript", "glibcLocales", "gobject-introspection", "gtk3", "pkg-config", "qhull", "tcl", "tk"]
+packages = ["cairo", "ffmpeg-full", "freetype", "ghostscript", "glibcLocales", "gobject-introspection", "gtk3", "pkg-config", "postgresql", "qhull", "tcl", "tk"]
 
 [workflows]
 runButton = "Project"
@@ -17,15 +17,15 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Gradio App"
+args = "Chainlit App"
 
 [[workflows.workflow]]
-name = "Gradio App"
+name = "Chainlit App"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python app.py"
+args = "chainlit run chainlit_app.py --host 0.0.0.0 --port 5000"
 waitForPort = 5000
 
 [workflows.workflow.metadata]

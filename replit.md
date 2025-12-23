@@ -14,12 +14,15 @@ This project, "Pocket Flow," is a minimalist LLM framework designed for agentic 
 The core of Pocket Flow is modeled as a **Graph + Shared Store**.
 
 ### UI/UX Decisions
-- **Gradio Web Interface** (`app.py`): Mobile-first responsive design running on port 5000
-  - Tabbed interface: Chat, Data, History, Help
+- **Chainlit Web Interface** (`chainlit_app.py`): Modern chat-first UI running on port 5000
+  - Conversational interface with action buttons
+  - Settings panel (gear icon) for API key and model selection
+  - File upload via paperclip icon or `/upload` command
+  - Commands: `/tables`, `/preview <name>`, `/delete <name>`, `/schema`, `/knowledge`, `/help`
+  - Real-time step indicators during analysis (Loading Data, Analyzing Schema, Running Analysis)
+  - Inline chart display in chat messages
   - Example questions for easy onboarding
-  - Real-time status updates during analysis
-  - Chart display for visualizations
-  - Collapsible Settings and Data Profile sections
+- Legacy **Gradio Web Interface** (`app.py`): Alternative interface with tabbed layout
 - Mermaid diagrams are used for visualizing workflow in documentation.
 
 ### Technical Implementations
@@ -39,20 +42,31 @@ The core of Pocket Flow is modeled as a **Graph + Shared Store**.
     - **Structured Output**: Guides LLMs to produce specific data structures (e.g., YAML) using prompt engineering and validation. YAML is preferred over JSON for better handling of escaping and newlines.
 - **File Structure**:
     - `my_project/`
-        - `app.py`: Gradio web interface (main entry point).
+        - `chainlit_app.py`: Chainlit web interface (main entry point).
+        - `app.py`: Legacy Gradio web interface.
         - `main.py`: CLI entry point for running analysis without GUI.
         - `nodes.py`: Node definitions (18 nodes including EntityResolver, DeepAnalyzer, ResponseSynthesizer).
         - `flow.py`: Flow creation and connections.
+        - `chainlit.md`: Chainlit welcome markdown displayed to users.
+        - `.chainlit/config.toml`: Chainlit configuration (file upload, CoT display, etc).
         - `utils/`: Utility functions
           - `call_llm.py`: Standard LLM calls
           - `call_llm_streaming.py`: Streaming LLM calls for Gradio
           - `knowledge_store.py`: Persistent learning storage
         - `CSV/`: Data directory for CSV files
-        - `requirements.txt`: Project dependencies (pocketflow, openai, gradio, matplotlib, pandas).
+        - `requirements.txt`: Project dependencies (pocketflow, openai, gradio, matplotlib, pandas, chainlit).
         - `docs/design.md`: High-level, no-code design documentation.
 
 ## Recent Changes (December 2024)
-- Added **Gradio Frontend** (`app.py`) - comprehensive mobile-responsive web interface with:
+- **Migrated to Chainlit UI** (`chainlit_app.py`) - Modern chat-first interface replacing Gradio:
+  - Action buttons for Upload CSV, Tables, Schema, Help
+  - ChatSettings panel with model selection and API key input
+  - Slash commands for data management (`/upload`, `/tables`, `/preview`, `/delete`, `/schema`, `/knowledge`, `/help`)
+  - Step decorators for visual progress tracking during analysis
+  - Inline chart display with cl.Image
+  - File upload via AskFileMessage or spontaneous upload
+  - Proper Chainlit config in `.chainlit/config.toml`
+- **Legacy Gradio Frontend** (`app.py`) - comprehensive mobile-responsive web interface with:
   - **Chat Tab**: Streaming chat interface with status updates and chart display
   - **Data Tab**: CSV file upload, preview, and management
   - **History Tab**: Knowledge store viewer with learned patterns
