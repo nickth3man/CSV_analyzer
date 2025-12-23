@@ -12,6 +12,9 @@
       "player": [
         "first_name",
         "last_name"
+      ],
+      "draft_history": [
+        "player_name"
       ]
     },
     "Tracy McGrady": {
@@ -22,6 +25,9 @@
       "player": [
         "first_name",
         "last_name"
+      ],
+      "draft_history": [
+        "player_name"
       ]
     }
   },

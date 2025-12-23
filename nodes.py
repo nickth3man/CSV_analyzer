@@ -866,7 +866,7 @@ class ResultValidator(Node):
         else:
             print(f"Validation: All {len(exec_res['entities_found'])} entities found in results")
         
-        return "validated"
+        return "default"
 
 
 class ContextAggregator(Node):
