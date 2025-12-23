@@ -1,6 +1,7 @@
 import os
 import ast
 import json
+import time
 import pandas as pd
 import matplotlib
 from pocketflow import Node
@@ -10,8 +11,7 @@ from utils.knowledge_store import knowledge_store
 class LoadData(Node):
     def prep(self, shared):
         # Scan the CSV directory
-        csv_dir = "CSV"
-        return csv_dir
+        return shared.get("data_dir", "CSV")
 
     def exec(self, prep_res):
         # Read all CSV files from the CSV folder
@@ -26,7 +26,10 @@ class LoadData(Node):
                     filepath = os.path.join(csv_dir, filename)
                     try:
                         table_name = filename.replace(".csv", "")
-                        data[table_name] = pd.read_csv(filepath)
+                        try:
+                            data[table_name] = pd.read_csv(filepath, encoding="utf-8")
+                        except UnicodeDecodeError:
+                            data[table_name] = pd.read_csv(filepath, encoding="latin-1")
                     except (pd.errors.ParserError, UnicodeDecodeError) as e:
                         print(f"Error parsing CSV file {filename}: {e}")
                     except FileNotFoundError as e:
@@ -52,17 +55,20 @@ class SchemaInference(Node):
 
     def exec(self, prep_res):
         dfs = prep_res
-        schema_lines = []
+        schemas = {}
         # TODO: Ensure schema inference supports dataframes originating from Excel/JSON/DB sources
         # by preserving source metadata (e.g., sheet names, JSON paths, DB schemas).
         for name, df in dfs.items():
-            cols = ", ".join(df.columns)
-            schema_lines.append(f"Table '{name}': [{cols}]")
-        return "\n".join(schema_lines)
+            schemas[name] = list(df.columns)
+        return schemas
 
     def post(self, shared, prep_res, exec_res):
-        shared["schema_str"] = exec_res
-        print(f"Schema inferred:\n{exec_res}")
+        shared["schemas"] = exec_res
+        schema_lines = []
+        for name, cols in exec_res.items():
+            schema_lines.append(f"Table '{name}': [{', '.join(cols)}]")
+        shared["schema_str"] = "\n".join(schema_lines)
+        print(f"Schema inferred:\n{shared['schema_str']}")
         # TODO: Generate schema-driven query suggestions (e.g., common aggregations)
         # and store them for the UI to display.
         return "default"
@@ -128,7 +134,7 @@ class EntityResolver(Node):
         
         knowledge_hints = knowledge_store.get_all_hints()
         
-        extract_prompt = f"""Extract all named entities (people, teams, places, specific items) from this question.
+        extract_prompt = f"""Extract entities (people, teams, places, specific items) from this question.
 Return a JSON array of entity names only.
 
 Question: {question}
@@ -325,7 +331,7 @@ Only query tables listed there - don't assume tables exist.
         return {
             "plan": shared["plan_steps"],
             "schema": shared["schema_str"],
-            "question": shared["question"],
+            "question": shared.get("question", ""),
             "entity_map": shared.get("entity_map", {}),
             "entities": shared.get("entities", []),
             "error": shared.get("exec_error"),
@@ -518,7 +524,47 @@ class Executor(Node):
         code, dfs = prep_res
 
         # The Sandbox: We only pass 'dfs' and 'pd' to the code.
-        local_scope = {"dfs": dfs, "pd": pd}
+        final_result_sentinel = object()
+
+        def blocked_global_call(*_args, **_kwargs):
+            raise RuntimeError("globals() is not available in the sandbox")
+
+        safe_builtins = {
+            "abs": abs,
+            "all": all,
+            "any": any,
+            "dict": dict,
+            "enumerate": enumerate,
+            "float": float,
+            "int": int,
+            "len": len,
+            "list": list,
+            "locals": locals,
+            "max": max,
+            "min": min,
+            "range": range,
+            "round": round,
+            "set": set,
+            "sorted": sorted,
+            "str": str,
+            "sum": sum,
+            "tuple": tuple,
+            "zip": zip,
+            "Exception": Exception,
+            "NameError": NameError,
+            "ValueError": ValueError,
+            "KeyError": KeyError,
+            "TypeError": TypeError,
+            "RuntimeError": RuntimeError,
+            "globals": blocked_global_call,
+        }
+
+        local_scope = {
+            "dfs": dfs,
+            "pd": pd,
+            "final_result": final_result_sentinel,
+            "__builtins__": safe_builtins,
+        }
 
         try:
             # execute the code string - use local_scope for both globals and locals
@@ -526,7 +572,7 @@ class Executor(Node):
             exec(code, local_scope, local_scope)
 
             # Check if the code defined 'final_result'
-            if "final_result" not in local_scope:
+            if "final_result" not in local_scope or local_scope["final_result"] is final_result_sentinel:
                 raise ValueError("Code did not define 'final_result' variable")
 
             return "success", local_scope["final_result"]
@@ -549,7 +595,7 @@ class ErrorFixer(Node):
     MAX_RETRIES = 3
     
     def prep(self, shared):
-        return shared["exec_error"], shared["code_snippet"], shared.get("retry_count", 0)
+        return shared.get("exec_error"), shared.get("code_snippet"), shared.get("retry_count", 0)
 
     def exec(self, prep_res):
         error, code, retry_count = prep_res
@@ -718,7 +764,6 @@ class Visualizer(Node):
 
             matplotlib.use("Agg")
             import matplotlib.pyplot as plt
-            import time
             output_dir = "assets"
             os.makedirs(output_dir, exist_ok=True)
 
@@ -877,9 +922,13 @@ class DataProfiler(Node):
                 "column_count": len(df.columns),
                 "columns": {},
                 "name_columns": [],
+                "name_cols": [],
                 "id_columns": [],
+                "id_cols": [],
                 "numeric_columns": [],
-                "date_columns": []
+                "numeric_cols": [],
+                "date_columns": [],
+                "date_cols": []
             }
             
             for col in df.columns:
@@ -892,12 +941,16 @@ class DataProfiler(Node):
                 
                 if 'name' in col_lower or 'first' in col_lower or 'last' in col_lower:
                     table_profile["name_columns"].append(col)
+                    table_profile["name_cols"].append(col)
                 if 'id' in col_lower:
                     table_profile["id_columns"].append(col)
+                    table_profile["id_cols"].append(col)
                 if pd.api.types.is_numeric_dtype(df[col]):
                     table_profile["numeric_columns"].append(col)
+                    table_profile["numeric_cols"].append(col)
                 if 'date' in col_lower or 'year' in col_lower:
                     table_profile["date_columns"].append(col)
+                    table_profile["date_cols"].append(col)
                 
                 table_profile["columns"][col] = col_info
             
@@ -907,6 +960,7 @@ class DataProfiler(Node):
 
     def post(self, shared, prep_res, exec_res):
         shared["data_profile"] = exec_res
+        shared["profiles"] = exec_res
         tables_with_names = [t for t, p in exec_res.items() if p["name_columns"]]
         print(f"Data profiled: {len(exec_res)} tables, {len(tables_with_names)} with name columns")
         return "default"

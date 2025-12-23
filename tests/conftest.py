@@ -195,7 +195,8 @@ def mock_call_llm(mock_llm_response):
 @pytest.fixture
 def mock_call_llm_in_nodes(mock_llm_response):
     """Mocks the call_llm function as imported in nodes.py."""
-    with patch("nodes.call_llm", side_effect=mock_llm_response) as mock:
+    with patch("nodes.call_llm") as mock:
+        mock.return_value = "Mock LLM response for testing purposes."
         yield mock
 
 
