@@ -48,6 +48,7 @@ class SchemaInference(Node):
     def post(self, shared, prep_res, exec_res):
         shared["schema_str"] = exec_res
         print(f"Schema inferred:\n{exec_res}")
+        return "default"
 
 class ClarifyQuery(Node):
     def prep(self, shared):
@@ -223,6 +224,7 @@ Be thorough - this is for deep analysis, not just a simple lookup."""
     def post(self, shared, prep_res, exec_res):
         shared["plan_steps"] = exec_res
         print("Plan generated.")
+        return "default"
 
 class CodeGenerator(Node):
     DYNAMIC_GUIDANCE = """
@@ -362,6 +364,7 @@ Write Python code to thoroughly analyze and answer the question.
 
     def post(self, shared, prep_res, exec_res):
         shared["code_snippet"] = exec_res
+        return "default"
 
 class SafetyCheck(Node):
     """
@@ -614,6 +617,7 @@ class Visualizer(Node):
         shared["chart_path"] = exec_res
         return "default"
 
+
 class ResponseSynthesizer(Node):
     def prep(self, shared):
         return {
@@ -704,6 +708,7 @@ Be honest about data limitations - do not fabricate facts."""
         print("FINAL RESPONSE:")
         print('='*60)
         print(shared.get('final_text', 'No answer'))
+        return "default"
 
 
 class DataProfiler(Node):
@@ -755,6 +760,7 @@ class DataProfiler(Node):
         shared["data_profile"] = exec_res
         tables_with_names = [t for t, p in exec_res.items() if p["name_columns"]]
         print(f"Data profiled: {len(exec_res)} tables, {len(tables_with_names)} with name columns")
+        return "default"
 
 
 class SearchExpander(Node):
