@@ -35,6 +35,12 @@ class LoadData(Node):
     def post(self, shared, prep_res, exec_res):
         shared["dfs"] = exec_res
         print(f"Loaded {len(exec_res)} dataframes.")
+        if not exec_res:
+            shared["final_text"] = (
+                "No CSV files found in the CSV/ directory. "
+                "Please upload data before asking a question."
+            )
+            return "no_data"
         return "default"
 
 class SchemaInference(Node):
