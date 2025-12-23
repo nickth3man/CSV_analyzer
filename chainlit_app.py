@@ -36,6 +36,8 @@ HELP_TEXT = """## How to Use the Data Analyst Agent
 - `/preview <table_name>` - Preview a table
 - `/delete <table_name>` - Delete a table
 - `/schema` - View data schema
+- `/schema <table_name>` - View schema for a specific table
+- `/profile` - View data profile summary
 - `/knowledge` - View learned patterns
 - `/clear_knowledge` - Clear learned patterns
 - `/help` - Show this help
@@ -114,6 +116,17 @@ def get_schema_info():
             cols += f"... (+{len(df.columns) - 10} more)"
         schema_lines.append(f"**{name}** ({len(df)} rows, {len(df.columns)} columns)\n  Columns: {cols}")
     return "\n\n".join(schema_lines)
+
+def get_table_schema(table_name):
+    dfs = load_dataframes()
+    if not dfs:
+        return "No CSV files loaded. Upload some data to get started!"
+    if table_name not in dfs:
+        return f"Table '{table_name}' not found."
+
+    df = dfs[table_name]
+    cols = ", ".join(df.columns)
+    return f"**{table_name}** ({len(df)} rows, {len(df.columns)} columns)\n  Columns: {cols}"
 
 def get_data_profile():
     dfs = load_dataframes()
@@ -212,6 +225,7 @@ async def on_chat_start():
         cl.Action(name="upload_csv", payload={"action": "upload"}, label="📁 Upload CSV", description="Upload CSV files"),
         cl.Action(name="list_tables", payload={"action": "tables"}, label="📋 Tables", description="List loaded tables"),
         cl.Action(name="view_schema", payload={"action": "schema"}, label="📊 Schema", description="View data schema"),
+        cl.Action(name="view_profile", payload={"action": "profile"}, label="🧾 Profile", description="View data profile"),
         cl.Action(name="show_help", payload={"action": "help"}, label="❓ Help", description="Show help"),
     ]
     
@@ -304,6 +318,12 @@ async def on_view_schema(action: cl.Action):
     await cl.Message(content=content).send()
     return "Showed schema"
 
+@cl.action_callback("view_profile")
+async def on_view_profile(action: cl.Action):
+    profile = get_data_profile()
+    await cl.Message(content=f"## Data Profile\n\n{profile}").send()
+    return "Showed data profile"
+
 
 @cl.action_callback("show_help")
 async def on_show_help(action: cl.Action):
@@ -367,9 +387,20 @@ async def handle_command(message_content: str) -> bool:
             await cl.Message(content=f"❌ Table not found: {table_name}").send()
         return True
     
+    elif content.startswith("/schema "):
+        table_name = message_content[8:].strip()
+        schema = get_table_schema(table_name)
+        await cl.Message(content=f"## Table Schema\n\n{schema}").send()
+        return True
+
     elif content == "/schema":
         schema = get_schema_info()
         await cl.Message(content=f"## Data Schema\n\n{schema}").send()
+        return True
+
+    elif content == "/profile":
+        profile = get_data_profile()
+        await cl.Message(content=f"## Data Profile\n\n{profile}").send()
         return True
     
     elif content == "/knowledge":
@@ -483,12 +514,20 @@ async def on_message(message: cl.Message):
         await cl.Message(content="⚠️ No data loaded. Please upload CSV files first using the 📁 button or `/upload` command.").send()
         return
     
+    progress_msg = await cl.Message(content="⏳ Starting analysis...").send()
+    await progress_msg.update(content="📥 Loading data...")
     await step_load_data()
+    await progress_msg.update(content="🧭 Analyzing schema...")
     await step_schema()
     # TODO: Display schema-driven query suggestions to the user (e.g., via a message or action buttons)
     # before running the analysis, once suggestions are generated.
+    await progress_msg.update(content="🧠 Running analysis pipeline...")
     
     shared, final_text, chart_path = await step_run_analysis(question, settings)
+    if shared:
+        await progress_msg.update(content="✅ Analysis complete.")
+    else:
+        await progress_msg.update(content="⚠️ Analysis failed. See details below.")
 
     elements = []
     if chart_path:
