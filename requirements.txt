@@ -1,9 +1,5 @@
 pocketflow>=0.0.1
 openai
-pocketflow
-openai
 pandas
-openai
-pocketflow
 gradio
 matplotlib
