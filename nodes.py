@@ -12,8 +12,9 @@ class LoadData(Node):
         csv_dir = "CSV"
         return csv_dir
 
-    def exec(self, csv_dir):
+    def exec(self, prep_res):
         # Read all CSV files from the CSV folder
+        csv_dir = prep_res
         data = {}
         if os.path.exists(csv_dir):
             for filename in os.listdir(csv_dir):
@@ -35,7 +36,8 @@ class SchemaInference(Node):
     def prep(self, shared):
         return shared["dfs"]
 
-    def exec(self, dfs):
+    def exec(self, prep_res):
+        dfs = prep_res
         schema_lines = []
         for name, df in dfs.items():
             cols = ", ".join(df.columns)
@@ -50,8 +52,8 @@ class ClarifyQuery(Node):
     def prep(self, shared):
         return shared["question"], shared["schema_str"]
 
-    def exec(self, inputs):
-        q, schema = inputs
+    def exec(self, prep_res):
+        q, schema = prep_res
         # Logic: If query references columns not in schema, return ambiguous
         # Simulating a check...
         if "bad_column" in q:
@@ -64,7 +66,7 @@ class ClarifyQuery(Node):
         return exec_res
 
 class AskUser(Node):
-    def exec(self, _):
+    def exec(self, prep_res):
         pass
 
     def post(self, shared, prep_res, exec_res):
@@ -78,10 +80,10 @@ class EntityResolver(Node):
             "dfs": shared["dfs"]
         }
 
-    def exec(self, inputs):
-        question = inputs["question"]
-        schema = inputs["schema"]
-        dfs = inputs["dfs"]
+    def exec(self, prep_res):
+        question = prep_res["question"]
+        schema = prep_res["schema"]
+        dfs = prep_res["dfs"]
         
         knowledge_hints = knowledge_store.get_all_hints()
         
@@ -95,7 +97,7 @@ Return ONLY the JSON array, nothing else."""
         
         try:
             entities_response = call_llm(extract_prompt)
-            entities_response = entities_response.strip()
+            entities_response = (entities_response or "").strip()
             if entities_response.startswith("```"):
                 entities_response = entities_response.split("```")[1]
                 if entities_response.startswith("json"):
@@ -178,11 +180,11 @@ class Planner(Node):
             "knowledge_hints": shared.get("knowledge_hints", {})
         }
 
-    def exec(self, inputs):
-        question = inputs["question"]
-        schema = inputs["schema"]
-        entity_map = inputs["entity_map"]
-        knowledge_hints = inputs["knowledge_hints"]
+    def exec(self, prep_res):
+        question = prep_res["question"]
+        schema = prep_res["schema"]
+        entity_map = prep_res["entity_map"]
+        knowledge_hints = prep_res["knowledge_hints"]
         
         entity_info = ""
         if entity_map:
@@ -270,16 +272,16 @@ Only query tables listed there - don't assume tables exist.
             "cross_references": shared.get("cross_references", {})
         }
 
-    def exec(self, inputs):
+    def exec(self, prep_res):
         entity_info = ""
-        if inputs.get("entity_map"):
+        if prep_res.get("entity_map"):
             entity_info = "\n\nENTITY LOCATIONS:\n"
-            for entity, tables in inputs["entity_map"].items():
+            for entity, tables in prep_res["entity_map"].items():
                 for table, cols in tables.items():
                     entity_info += f"  - '{entity}' is in table '{table}', columns: {cols}\n"
         
-        context_summary = inputs.get("context_summary", "")
-        cross_refs = inputs.get("cross_references", {})
+        context_summary = prep_res.get("context_summary", "")
+        cross_refs = prep_res.get("cross_references", {})
         cross_ref_info = ""
         if cross_refs:
             cross_ref_info = "\n\nCROSS-REFERENCES (entity IDs found):\n"
@@ -287,20 +289,20 @@ Only query tables listed there - don't assume tables exist.
                 for ref_key, ref_val in refs.items():
                     cross_ref_info += f"  - {entity}: {ref_key} = {ref_val}\n"
         
-        is_comparison = len(inputs.get("entities", [])) > 1
+        is_comparison = len(prep_res.get("entities", [])) > 1
         comparison_hint = ""
         if is_comparison:
-            entities = inputs["entities"]
+            entities = prep_res["entities"]
             comparison_hint = f"""
 COMPARISON QUERY: You are comparing these entities: {entities}
 For each entity, query ONLY the tables listed in ENTITY LOCATIONS above.
 Loop through each entity, gather data from their respective tables, then combine into final_result.
 """
         
-        if inputs.get("error"):
+        if prep_res.get("error"):
             print("Fixing code based on error...")
             error_fix_hint = ""
-            error = inputs['error']
+            error = prep_res['error']
             if "merge" in error.lower() or "key" in error.lower() or "dtype" in error.lower():
                 error_fix_hint = """
 FIX APPROACH: The error is likely due to incompatible dtypes or merge keys.
@@ -313,17 +315,17 @@ FIX APPROACH: The error is likely due to incompatible dtypes or merge keys.
 {self.DYNAMIC_GUIDANCE}
 {error_fix_hint}
 DATABASE SCHEMA (available as dfs dictionary):
-{inputs['schema']}
+{prep_res['schema']}
 {entity_info}
 {cross_ref_info}
 {context_summary}
 {comparison_hint}
-USER QUESTION: {inputs['question']}
+USER QUESTION: {prep_res['question']}
 
 PREVIOUS CODE:
-{inputs.get('previous_code', 'None')}
+{prep_res.get('previous_code', 'None')}
 
-ERROR: {inputs['error']}
+ERROR: {prep_res['error']}
 
 Write ONLY the corrected Python code. AVOID complex merges - query tables separately instead.
 The dataframes are in a dict called 'dfs' where keys are table names.
@@ -333,14 +335,14 @@ Do NOT include markdown code blocks. Just raw Python code."""
             prompt = f"""You are a Python data analyst. Write comprehensive code to answer the user's question.
 {self.DYNAMIC_GUIDANCE}
 DATABASE SCHEMA (available as dfs dictionary):
-{inputs['schema']}
+{prep_res['schema']}
 {entity_info}
 {cross_ref_info}
 {context_summary}
 {comparison_hint}
-USER QUESTION: {inputs['question']}
+USER QUESTION: {prep_res['question']}
 
-PLAN: {inputs['plan']}
+PLAN: {prep_res['plan']}
 
 Write Python code to thoroughly analyze and answer the question. 
 - The dataframes are in a dict called 'dfs' where keys are table names
@@ -354,7 +356,7 @@ Write Python code to thoroughly analyze and answer the question.
 - Only use pandas (pd) which is already imported."""
 
         code = call_llm(prompt)
-        code = code.replace("```python", "").replace("```", "").strip()
+        code = (code or "").replace("```python", "").replace("```", "").strip()
         return code
 
     def post(self, shared, prep_res, exec_res):
@@ -367,7 +369,8 @@ class SafetyCheck(Node):
     def prep(self, shared):
         return shared["code_snippet"]
 
-    def exec(self, code):
+    def exec(self, prep_res):
+        code = prep_res
         try:
             tree = ast.parse(code)
         except SyntaxError:
@@ -403,8 +406,8 @@ class Executor(Node):
     def prep(self, shared):
         return shared["code_snippet"], shared["dfs"]
 
-    def exec(self, inputs):
-        code, dfs = inputs
+    def exec(self, prep_res):
+        code, dfs = prep_res
 
         # The Sandbox: We only pass 'dfs' and 'pd' to the code.
         local_scope = {"dfs": dfs, "pd": pd}
@@ -440,8 +443,8 @@ class ErrorFixer(Node):
     def prep(self, shared):
         return shared["exec_error"], shared["code_snippet"], shared.get("retry_count", 0)
 
-    def exec(self, inputs):
-        error, code, retry_count = inputs
+    def exec(self, prep_res):
+        error, code, retry_count = prep_res
         if retry_count >= self.MAX_RETRIES:
             return "max_retries_exceeded"
         return "try_again"
@@ -493,10 +496,10 @@ class DeepAnalyzer(Node):
         
         return missing_entities, data_warnings
 
-    def exec(self, inputs):
-        exec_result = inputs["exec_result"]
-        question = inputs["question"]
-        entities = inputs["entities"]
+    def exec(self, prep_res):
+        exec_result = prep_res["exec_result"]
+        question = prep_res["question"]
+        entities = prep_res["entities"]
         
         if exec_result is None:
             return None
@@ -542,7 +545,7 @@ Return ONLY valid JSON."""
 
         try:
             analysis_response = call_llm(prompt)
-            analysis_response = analysis_response.strip()
+            analysis_response = (analysis_response or "").strip()
             if analysis_response.startswith("```"):
                 analysis_response = analysis_response.split("```")[1]
                 if analysis_response.startswith("json"):
@@ -577,10 +580,10 @@ class Visualizer(Node):
             return shared["exec_result"]
         return None
 
-    def exec(self, result):
-        if result is None:
+    def exec(self, prep_res):
+        if prep_res is None:
             return None
-        if isinstance(result, pd.DataFrame):
+        if isinstance(prep_res, pd.DataFrame):
             return "plot_generated.png"
         return None
 
@@ -599,14 +602,14 @@ class ResponseSynthesizer(Node):
             "from_error": "exec_result" not in shared
         }
 
-    def exec(self, inputs):
-        if inputs["from_error"]:
+    def exec(self, prep_res):
+        if prep_res["from_error"]:
             return None
         
-        exec_result = inputs["exec_result"]
-        deep_analysis = inputs["deep_analysis"]
-        question = inputs["question"]
-        entities = inputs["entities"]
+        exec_result = prep_res["exec_result"]
+        deep_analysis = prep_res["deep_analysis"]
+        question = prep_res["question"]
+        entities = prep_res["entities"]
         
         result_str = str(exec_result)
         if len(result_str) > 3000:
@@ -664,7 +667,7 @@ Be honest about data limitations - do not fabricate facts."""
         if entities:
             for entity in entities:
                 if entity not in missing_entities:
-                    for table, cols in inputs["entity_map"].get(entity, {}).items():
+                    for table, cols in prep_res["entity_map"].get(entity, {}).items():
                         knowledge_store.add_entity_mapping(entity, table, cols)
             if not missing_entities:
                 knowledge_store.add_successful_pattern("comparison" if len(entities) > 1 else "lookup", question[:100])
@@ -688,7 +691,8 @@ class DataProfiler(Node):
     def prep(self, shared):
         return shared["dfs"]
 
-    def exec(self, dfs):
+    def exec(self, prep_res):
+        dfs = prep_res
         profile = {}
         for table_name, df in dfs.items():
             table_profile = {
@@ -744,11 +748,11 @@ class SearchExpander(Node):
             "question": shared["question"]
         }
 
-    def exec(self, inputs):
-        entity_map = inputs["entity_map"]
-        entities = inputs["entities"]
-        dfs = inputs["dfs"]
-        profile = inputs["data_profile"]
+    def exec(self, prep_res):
+        entity_map = prep_res["entity_map"]
+        entities = prep_res["entities"]
+        dfs = prep_res["dfs"]
+        profile = prep_res["data_profile"]
         
         expanded_map = dict(entity_map)
         related_entities = {}
@@ -818,10 +822,10 @@ class ResultValidator(Node):
             "cross_references": shared.get("cross_references", {})
         }
 
-    def exec(self, inputs):
-        exec_result = inputs["exec_result"]
-        entities = inputs["entities"]
-        entity_map = inputs["entity_map"]
+    def exec(self, prep_res):
+        exec_result = prep_res["exec_result"]
+        entities = prep_res["entities"]
+        entity_map = prep_res["entity_map"]
         
         validation = {
             "entities_found": [],
@@ -886,24 +890,24 @@ class ContextAggregator(Node):
             "knowledge_hints": knowledge_store.get_all_hints()
         }
 
-    def exec(self, inputs):
+    def exec(self, prep_res):
         context = {
-            "query_type": "comparison" if len(inputs["entities"]) > 1 else "lookup",
-            "entities": inputs["entities"],
+            "query_type": "comparison" if len(prep_res["entities"]) > 1 else "lookup",
+            "entities": prep_res["entities"],
             "entity_locations": {},
             "recommended_tables": set(),
             "join_keys": [],
             "data_quality_notes": []
         }
         
-        for entity, tables in inputs["entity_map"].items():
+        for entity, tables in prep_res["entity_map"].items():
             context["entity_locations"][entity] = {
                 "tables": list(tables.keys()),
                 "primary_table": list(tables.keys())[0] if tables else None
             }
             context["recommended_tables"].update(tables.keys())
         
-        profile = inputs["data_profile"]
+        profile = prep_res["data_profile"]
         for table_name in context["recommended_tables"]:
             if table_name in profile:
                 id_cols = profile[table_name].get("id_columns", [])
@@ -914,8 +918,8 @@ class ContextAggregator(Node):
                 if row_count == 0:
                     context["data_quality_notes"].append(f"{table_name} is empty")
         
-        if inputs["cross_references"]:
-            context["cross_references"] = inputs["cross_references"]
+        if prep_res["cross_references"]:
+            context["cross_references"] = prep_res["cross_references"]
         
         context["recommended_tables"] = list(context["recommended_tables"])
         
