@@ -23,25 +23,24 @@ An LLM-powered data analyst that answers natural language questions about your C
 ## Quick Start
 
 1. **Add your API key**: Open the app and expand "Settings" to enter your OpenRouter API key
-2. **Upload data**: Go to the "Data" tab to upload CSV files (or use the pre-loaded NBA data)
+2. **Upload data**: Click "📁 Upload CSV" or type `/upload` to add CSV files (or use the pre-loaded NBA data)
 3. **Ask questions**: Type a question like "Compare LeBron James and Tracy McGrady"
 4. **Get insights**: The agent analyzes your data and provides detailed responses
 
 ## Web Interface
 
-The Gradio web interface provides:
+The Chainlit web interface provides:
 
-| Tab | Description |
-|-----|-------------|
-| **Chat** | Ask questions and view responses with status updates |
-| **Data** | Upload, preview, and manage CSV files |
-| **History** | View learned patterns and entity mappings |
-| **Help** | Usage guide and example questions |
+### Features
+- **Chat Interface**: Ask questions and view responses with real-time status updates
+- **Quick Actions**: Buttons for common tasks (Upload CSV, List Tables, View Schema, Help)
+- **Commands**: Type commands like `/upload`, `/tables`, `/schema`, `/knowledge`, `/help`
+- **File Management**: Upload and preview CSV files
+- **Knowledge Store**: View learned patterns and entity mappings with `/knowledge`
 
 ### Settings
 - **API Key**: Enter your OpenRouter API key
 - **Model Selection**: Choose from available LLM models (fetched live from OpenRouter)
-- **Refresh Models**: Update the model list based on your API key
 
 ## Example Questions
 
@@ -53,7 +52,7 @@ The Gradio web interface provides:
 
 ## Architecture
 
-The agent uses an 18-node pipeline:
+The agent uses a 17-node pipeline:
 
 ```
 LoadData → SchemaInference → DataProfiler → ClarifyQuery
@@ -70,9 +69,9 @@ EntityResolver → SearchExpander → ContextAggregator → Planner
 ## File Structure
 
 ```
-├── app.py                 # Gradio web interface (main entry point)
+├── chainlit_app.py        # Chainlit web interface (main entry point)
 ├── main.py                # CLI entry point
-├── nodes.py               # Node definitions (18 nodes)
+├── nodes.py               # Node definitions (17 nodes)
 ├── flow.py                # Flow creation and connections
 ├── utils/
 │   ├── call_llm.py        # LLM API calls
@@ -88,7 +87,7 @@ EntityResolver → SearchExpander → ContextAggregator → Planner
 
 - `pocketflow` - Core LLM framework
 - `openai` - OpenAI-compatible API client
-- `gradio` - Web interface
+- `chainlit` - Web interface
 - `pandas` - Data manipulation
 - `matplotlib` - Visualizations
 - `requests` - HTTP requests for model fetching
