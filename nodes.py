@@ -24,8 +24,12 @@ class LoadData(Node):
                     try:
                         table_name = filename.replace(".csv", "")
                         data[table_name] = pd.read_csv(filepath)
+                    except (pd.errors.ParserError, UnicodeDecodeError) as e:
+                        print(f"Error parsing CSV file {filename}: {e}")
+                    except FileNotFoundError as e:
+                        print(f"File not found {filename}: {e}")
                     except Exception as e:
-                        print(f"Error loading {filename}: {e}")
+                        print(f"Unexpected error loading {filename}: {e}")
         return data
 
     def post(self, shared, prep_res, exec_res):
@@ -73,6 +77,7 @@ class AskUser(Node):
 
     def post(self, shared, prep_res, exec_res):
         print(f"System: {shared.get('final_text', 'Ends')}")
+        return "default"
 
 class EntityResolver(Node):
     def prep(self, shared):
@@ -105,7 +110,11 @@ Return ONLY the JSON array, nothing else."""
                 if entities_response.startswith("json"):
                     entities_response = entities_response[4:]
             entities = json.loads(entities_response)
-        except (json.JSONDecodeError, Exception):
+        except json.JSONDecodeError as e:
+            print(f"Failed to parse entity JSON: {e}")
+            entities = []
+        except Exception as e:
+            print(f"Unexpected error extracting entities: {e}")
             entities = []
         
         entity_map = {}
@@ -135,7 +144,8 @@ Return ONLY the JSON array, nothing else."""
                             last_match = df[lc].astype(str).str.lower().str.contains(entity_parts[-1], na=False)
                             if (first_match & last_match).any():
                                 matching_cols.extend([fc, lc])
-                        except Exception:
+                        except (KeyError, AttributeError, TypeError) as e:
+                            # Column doesn't exist or wrong type, skip
                             pass
                 
                 for col in df.columns:
@@ -147,7 +157,8 @@ Return ONLY the JSON array, nothing else."""
                             matches = sample.astype(str).str.lower().str.contains(entity_lower, na=False)
                             if matches.any():
                                 matching_cols.append(col)
-                    except Exception:
+                    except (KeyError, AttributeError, TypeError):
+                        # Column access error or type conversion error, skip this column
                         continue
                 
                 if matching_cols:
@@ -557,7 +568,18 @@ Return ONLY valid JSON."""
             deep_analysis = json.loads(analysis_response)
             deep_analysis["_missing_entities"] = missing_entities
             deep_analysis["_data_warnings"] = data_warnings
-        except (json.JSONDecodeError, Exception):
+        except json.JSONDecodeError as e:
+            print(f"Failed to parse deep analysis JSON: {e}")
+            deep_analysis = {
+                "key_stats": {"raw_result": str(exec_result)[:500]},
+                "comparison": None,
+                "insights": ["Analysis completed with available data"],
+                "data_gaps": missing_entities,
+                "_missing_entities": missing_entities,
+                "_data_warnings": data_warnings
+            }
+        except Exception as e:
+            print(f"Unexpected error in deep analysis: {e}")
             deep_analysis = {
                 "key_stats": {"raw_result": str(exec_result)[:500]},
                 "comparison": None,
@@ -599,6 +621,19 @@ class Visualizer(Node):
             import matplotlib.pyplot as plt
             output_dir = "assets"
             os.makedirs(output_dir, exist_ok=True)
+
+            # Clean up old chart files (keep only last 10)
+            try:
+                chart_files = sorted(
+                    [f for f in os.listdir(output_dir) if f.startswith("generated_chart")],
+                    key=lambda x: os.path.getmtime(os.path.join(output_dir, x))
+                )
+                # Remove oldest files if more than 10
+                for old_file in chart_files[:-10]:
+                    os.remove(os.path.join(output_dir, old_file))
+            except (OSError, IOError):
+                pass  # Cleanup is best-effort
+
             output_path = os.path.join(output_dir, "generated_chart.png")
 
             plot_df = prep_res[numeric_cols].head(10)
@@ -801,7 +836,8 @@ class SearchExpander(Node):
                             if entity not in expanded_map:
                                 expanded_map[entity] = {}
                             expanded_map[entity][table_name] = [col]
-                    except Exception:
+                    except (KeyError, AttributeError, TypeError):
+                        # Column access error or type conversion error, skip
                         pass
                 
                 if table_name in expanded_map.get(entity, {}):
@@ -818,7 +854,8 @@ class SearchExpander(Node):
                                         if entity not in cross_references:
                                             cross_references[entity] = {}
                                         cross_references[entity][f"{table_name}.{id_col}"] = entity_id
-                        except Exception:
+                        except (KeyError, AttributeError, IndexError, TypeError):
+                            # Column not found, empty matches, or type error, skip
                             pass
         
         return {
@@ -830,11 +867,12 @@ class SearchExpander(Node):
     def post(self, shared, prep_res, exec_res):
         shared["entity_map"] = exec_res["expanded_map"]
         shared["cross_references"] = exec_res["cross_references"]
-        
+
         total_tables = sum(len(tables) for tables in exec_res["expanded_map"].values())
         print(f"Search expanded: {len(exec_res['expanded_map'])} entities across {total_tables} table matches")
         if exec_res["cross_references"]:
             print(f"Cross-references found: {exec_res['cross_references']}")
+        return "default"
 
 
 class ResultValidator(Node):
@@ -971,3 +1009,4 @@ AGGREGATED CONTEXT:
         shared["aggregated_context"] = exec_res["context"]
         shared["context_summary"] = exec_res["summary"]
         print(f"Context aggregated: {exec_res['context']['query_type']} query with {len(exec_res['context']['recommended_tables'])} tables")
+        return "default"

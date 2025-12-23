@@ -73,7 +73,8 @@ def fetch_openrouter_models(api_key=None):
                     models.append(model_id)
             models.sort()
             return models[:50] if models else DEFAULT_MODELS
-    except Exception:
+    except (requests.RequestException, ValueError) as e:
+        print(f"Warning: Could not fetch OpenRouter models: {e}")
         pass
     
     return DEFAULT_MODELS
@@ -94,8 +95,10 @@ def load_dataframes():
                 try:
                     table_name = filename.replace(".csv", "")
                     dfs[table_name] = pd.read_csv(filepath)
-                except Exception:
-                    pass
+                except (pd.errors.ParserError, UnicodeDecodeError) as e:
+                    print(f"Warning: Could not parse {filename}: {e}")
+                except Exception as e:
+                    print(f"Warning: Unexpected error loading {filename}: {e}")
     return dfs
 
 def get_schema_info():
@@ -257,18 +260,22 @@ async def on_upload_action(action: cl.Action):
     if files:
         csv_dir = "CSV"
         os.makedirs(csv_dir, exist_ok=True)
-        
+
         uploaded = []
         for file in files:
+            # SECURITY: Only use basename to prevent path traversal
             filename = os.path.basename(file.name)
             if not filename.endswith('.csv'):
                 filename += '.csv'
+            # Validate filename doesn't contain path separators or start with dot
+            if '/' in filename or '\\' in filename or filename.startswith('.') or not filename:
+                continue  # Skip invalid filenames
             dest = os.path.join(csv_dir, filename)
             shutil.copy(file.path, dest)
             uploaded.append(filename.replace('.csv', ''))
-        
+
         await cl.Message(content=f"✅ Uploaded: {', '.join(uploaded)}\n\nYou can now ask questions about your data!").send()
-    
+
     return "Upload complete"
 
 
@@ -317,16 +324,20 @@ async def handle_command(message_content: str) -> bool:
         if files:
             csv_dir = "CSV"
             os.makedirs(csv_dir, exist_ok=True)
-            
+
             uploaded = []
             for file in files:
+                # SECURITY: Only use basename to prevent path traversal
                 filename = os.path.basename(file.name)
                 if not filename.endswith('.csv'):
                     filename += '.csv'
+                # Validate filename doesn't contain path separators or start with dot
+                if '/' in filename or '\\' in filename or filename.startswith('.') or not filename:
+                    continue  # Skip invalid filenames
                 dest = os.path.join(csv_dir, filename)
                 shutil.copy(file.path, dest)
                 uploaded.append(filename.replace('.csv', ''))
-            
+
             await cl.Message(content=f"✅ Uploaded: {', '.join(uploaded)}").send()
         return True
     
@@ -426,17 +437,21 @@ async def on_message(message: cl.Message):
     if message.elements:
         csv_dir = "CSV"
         os.makedirs(csv_dir, exist_ok=True)
-        
+
         uploaded = []
         for element in message.elements:
             if hasattr(element, 'path') and element.path:
+                # SECURITY: Only use basename to prevent path traversal
                 filename = os.path.basename(element.name if hasattr(element, 'name') else element.path)
                 if not filename.endswith('.csv'):
                     filename += '.csv'
+                # Validate filename doesn't contain path separators or start with dot
+                if '/' in filename or '\\' in filename or filename.startswith('.') or not filename:
+                    continue  # Skip invalid filenames
                 dest = os.path.join(csv_dir, filename)
                 shutil.copy(element.path, dest)
                 uploaded.append(filename.replace('.csv', ''))
-        
+
         if uploaded:
             await cl.Message(content=f"✅ Uploaded: {', '.join(uploaded)}\n\nYou can now ask questions about your data!").send()
             return
@@ -450,9 +465,14 @@ async def on_message(message: cl.Message):
     
     settings = cl.user_session.get("settings", {})
     api_key = settings.get("api_key", os.environ.get("OPENROUTER_API_KEY", ""))
-    
-    if not api_key:
+
+    if not api_key or len(api_key.strip()) == 0:
         await cl.Message(content="⚠️ Please set your OpenRouter API key in Settings (gear icon) first.").send()
+        return
+
+    # Basic API key format validation
+    if not api_key.startswith("sk-or-"):
+        await cl.Message(content="⚠️ Invalid API key format. OpenRouter keys should start with 'sk-or-'.").send()
         return
     
     dfs = load_dataframes()
@@ -464,11 +484,15 @@ async def on_message(message: cl.Message):
     await step_schema()
     
     shared, final_text, chart_path = await step_run_analysis(question, settings)
-    
+
     elements = []
-    if chart_path and os.path.exists(chart_path):
-        elements.append(cl.Image(path=chart_path, name="chart", display="inline"))
-    
+    if chart_path:
+        try:
+            # Try to create the image element, avoiding TOCTOU race condition
+            elements.append(cl.Image(path=chart_path, name="chart", display="inline"))
+        except (FileNotFoundError, OSError) as e:
+            print(f"Warning: Could not load chart image: {e}")
+
     await cl.Message(content=final_text, elements=elements).send()
 
 
