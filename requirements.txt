@@ -1,7 +1,6 @@
 pocketflow>=0.0.1
 openai
 pandas
-gradio
 matplotlib
 requests
 chainlit

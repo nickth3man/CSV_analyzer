@@ -22,7 +22,6 @@ The core of Pocket Flow is modeled as a **Graph + Shared Store**.
   - Real-time step indicators during analysis (Loading Data, Analyzing Schema, Running Analysis)
   - Inline chart display in chat messages
   - Example questions for easy onboarding
-- Legacy **Gradio Web Interface** (`app.py`): Alternative interface with tabbed layout
 - Mermaid diagrams are used for visualizing workflow in documentation.
 
 ### Technical Implementations
@@ -43,7 +42,6 @@ The core of Pocket Flow is modeled as a **Graph + Shared Store**.
 - **File Structure**:
     - `my_project/`
         - `chainlit_app.py`: Chainlit web interface (main entry point).
-        - `app.py`: Legacy Gradio web interface.
         - `main.py`: CLI entry point for running analysis without GUI.
         - `nodes.py`: Node definitions (18 nodes including EntityResolver, DeepAnalyzer, ResponseSynthesizer).
         - `flow.py`: Flow creation and connections.
@@ -51,10 +49,10 @@ The core of Pocket Flow is modeled as a **Graph + Shared Store**.
         - `.chainlit/config.toml`: Chainlit configuration (file upload, CoT display, etc).
         - `utils/`: Utility functions
           - `call_llm.py`: Standard LLM calls
-          - `call_llm_streaming.py`: Streaming LLM calls for Gradio
+          - `call_llm_streaming.py`: Streaming LLM calls
           - `knowledge_store.py`: Persistent learning storage
         - `CSV/`: Data directory for CSV files
-        - `requirements.txt`: Project dependencies (pocketflow, openai, gradio, matplotlib, pandas, chainlit).
+        - `requirements.txt`: Project dependencies (pocketflow, openai, matplotlib, pandas, chainlit).
         - `docs/design.md`: High-level, no-code design documentation.
 
 ## Recent Changes (December 2024)
@@ -66,15 +64,6 @@ The core of Pocket Flow is modeled as a **Graph + Shared Store**.
   - Inline chart display with cl.Image
   - File upload via AskFileMessage or spontaneous upload
   - Proper Chainlit config in `.chainlit/config.toml`
-- **Legacy Gradio Frontend** (`app.py`) - comprehensive mobile-responsive web interface with:
-  - **Chat Tab**: Streaming chat interface with status updates and chart display
-  - **Data Tab**: CSV file upload, preview, and management
-  - **History Tab**: Knowledge store viewer with learned patterns
-  - **Help Tab**: Usage documentation and examples
-  - **Settings**: 
-    - API key input field for users to enter their OpenRouter API key
-    - Dynamic model dropdown that fetches available models from OpenRouter API
-    - "Refresh Models" button to update model list
 - Added **Streaming LLM utility** (`utils/call_llm_streaming.py`) for real-time token streaming
 - Added **EntityResolver** node for discovering entities across tables using first_name/last_name matching
 - Added **DeepAnalyzer** node for comprehensive statistical analysis with data validation
