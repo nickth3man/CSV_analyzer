@@ -1,22 +1,27 @@
 from pocketflow import Flow
 from nodes import (
-    LoadData, SchemaInference, 
-    ClarifyQuery, AskUser, EntityResolver, Planner,
+    LoadData, SchemaInference, DataProfiler,
+    ClarifyQuery, AskUser, EntityResolver, SearchExpander,
+    ContextAggregator, Planner,
     CodeGenerator, SafetyCheck, Executor, ErrorFixer,
-    DeepAnalyzer, Visualizer, ResponseSynthesizer
+    ResultValidator, DeepAnalyzer, Visualizer, ResponseSynthesizer
 )
 
 def create_analyst_flow():
     """
     Creates the Enhanced Relational Data Analyst Flow.
-    Includes EntityResolver, DeepAnalyzer, and ResponseSynthesizer for comprehensive analysis.
+    Now includes DataProfiler, SearchExpander, ContextAggregator, and ResultValidator
+    for deeper search and better inter-node communication.
     """
 
     load = LoadData()
     schema = SchemaInference()
+    profiler = DataProfiler()
     clarify = ClarifyQuery()
     ask_user = AskUser()
     entity_resolver = EntityResolver()
+    search_expander = SearchExpander()
+    context_aggregator = ContextAggregator()
     plan = Planner()
 
     code_gen = CodeGenerator()
@@ -24,16 +29,17 @@ def create_analyst_flow():
     executor = Executor()
     fixer = ErrorFixer()
 
+    result_validator = ResultValidator()
     deep_analyzer = DeepAnalyzer()
     viz = Visualizer()
     synthesizer = ResponseSynthesizer()
 
-    load >> schema >> clarify
+    load >> schema >> profiler >> clarify
 
     clarify - "ambiguous" >> ask_user
     clarify - "clear"     >> entity_resolver
 
-    entity_resolver >> plan >> code_gen
+    entity_resolver >> search_expander >> context_aggregator >> plan >> code_gen
 
     code_gen >> safety
 
@@ -43,9 +49,9 @@ def create_analyst_flow():
     executor - "error"   >> fixer
     fixer    - "fix"     >> code_gen
     fixer    - "give_up" >> synthesizer
-    executor - "success" >> deep_analyzer
+    executor - "success" >> result_validator
 
-    deep_analyzer >> viz >> synthesizer
+    result_validator >> deep_analyzer >> viz >> synthesizer
 
     return Flow(start=load)
 

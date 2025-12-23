@@ -265,7 +265,9 @@ Only query tables listed there - don't assume tables exist.
             "entity_map": shared.get("entity_map", {}),
             "entities": shared.get("entities", []),
             "error": shared.get("exec_error"),
-            "previous_code": shared.get("code_snippet")
+            "previous_code": shared.get("code_snippet"),
+            "context_summary": shared.get("context_summary", ""),
+            "cross_references": shared.get("cross_references", {})
         }
 
     def exec(self, inputs):
@@ -275,6 +277,15 @@ Only query tables listed there - don't assume tables exist.
             for entity, tables in inputs["entity_map"].items():
                 for table, cols in tables.items():
                     entity_info += f"  - '{entity}' is in table '{table}', columns: {cols}\n"
+        
+        context_summary = inputs.get("context_summary", "")
+        cross_refs = inputs.get("cross_references", {})
+        cross_ref_info = ""
+        if cross_refs:
+            cross_ref_info = "\n\nCROSS-REFERENCES (entity IDs found):\n"
+            for entity, refs in cross_refs.items():
+                for ref_key, ref_val in refs.items():
+                    cross_ref_info += f"  - {entity}: {ref_key} = {ref_val}\n"
         
         is_comparison = len(inputs.get("entities", [])) > 1
         comparison_hint = ""
@@ -304,6 +315,8 @@ FIX APPROACH: The error is likely due to incompatible dtypes or merge keys.
 DATABASE SCHEMA (available as dfs dictionary):
 {inputs['schema']}
 {entity_info}
+{cross_ref_info}
+{context_summary}
 {comparison_hint}
 USER QUESTION: {inputs['question']}
 
@@ -322,6 +335,8 @@ Do NOT include markdown code blocks. Just raw Python code."""
 DATABASE SCHEMA (available as dfs dictionary):
 {inputs['schema']}
 {entity_info}
+{cross_ref_info}
+{context_summary}
 {comparison_hint}
 USER QUESTION: {inputs['question']}
 
@@ -330,6 +345,7 @@ PLAN: {inputs['plan']}
 Write Python code to thoroughly analyze and answer the question. 
 - The dataframes are in a dict called 'dfs' where keys are table names
 - Use the ENTITY LOCATIONS above to find the right tables and columns for filtering
+- Use CROSS-REFERENCES if available to find related data by ID
 - ONLY query tables that are mentioned in ENTITY LOCATIONS - don't assume tables exist
 - AVOID complex multi-table merges - query tables separately and combine in Python
 - Store your final answer in a variable called 'final_result' (a dictionary)
@@ -662,3 +678,263 @@ Be honest about data limitations - do not fabricate facts."""
         print("FINAL RESPONSE:")
         print('='*60)
         print(shared.get('final_text', 'No answer'))
+
+
+class DataProfiler(Node):
+    """
+    Analyzes each table's data quality and statistics.
+    Provides insights to help other nodes understand data better.
+    """
+    def prep(self, shared):
+        return shared["dfs"]
+
+    def exec(self, dfs):
+        profile = {}
+        for table_name, df in dfs.items():
+            table_profile = {
+                "row_count": len(df),
+                "column_count": len(df.columns),
+                "columns": {},
+                "name_columns": [],
+                "id_columns": [],
+                "numeric_columns": [],
+                "date_columns": []
+            }
+            
+            for col in df.columns:
+                col_lower = col.lower()
+                col_info = {
+                    "dtype": str(df[col].dtype),
+                    "null_count": int(df[col].isnull().sum()),
+                    "unique_count": int(df[col].nunique())
+                }
+                
+                if 'name' in col_lower or 'first' in col_lower or 'last' in col_lower:
+                    table_profile["name_columns"].append(col)
+                if 'id' in col_lower:
+                    table_profile["id_columns"].append(col)
+                if df[col].dtype in ['int64', 'float64']:
+                    table_profile["numeric_columns"].append(col)
+                if 'date' in col_lower or 'year' in col_lower:
+                    table_profile["date_columns"].append(col)
+                
+                table_profile["columns"][col] = col_info
+            
+            profile[table_name] = table_profile
+        
+        return profile
+
+    def post(self, shared, prep_res, exec_res):
+        shared["data_profile"] = exec_res
+        tables_with_names = [t for t, p in exec_res.items() if p["name_columns"]]
+        print(f"Data profiled: {len(exec_res)} tables, {len(tables_with_names)} with name columns")
+
+
+class SearchExpander(Node):
+    """
+    Expands entity search to find related entities, aliases, and cross-references.
+    Uses data profile to search more intelligently.
+    """
+    def prep(self, shared):
+        return {
+            "entity_map": shared.get("entity_map", {}),
+            "entities": shared.get("entities", []),
+            "dfs": shared["dfs"],
+            "data_profile": shared.get("data_profile", {}),
+            "question": shared["question"]
+        }
+
+    def exec(self, inputs):
+        entity_map = inputs["entity_map"]
+        entities = inputs["entities"]
+        dfs = inputs["dfs"]
+        profile = inputs["data_profile"]
+        
+        expanded_map = dict(entity_map)
+        related_entities = {}
+        cross_references = {}
+        
+        for entity in entities:
+            entity_lower = entity.lower()
+            parts = entity_lower.split()
+            
+            for table_name, df in dfs.items():
+                table_profile = profile.get(table_name, {})
+                
+                for col in table_profile.get("name_columns", []):
+                    try:
+                        matches = df[df[col].astype(str).str.lower().str.contains(entity_lower, na=False)]
+                        if not matches.empty and table_name not in expanded_map.get(entity, {}):
+                            if entity not in expanded_map:
+                                expanded_map[entity] = {}
+                            expanded_map[entity][table_name] = [col]
+                    except Exception:
+                        pass
+                
+                if table_name in expanded_map.get(entity, {}):
+                    id_cols = table_profile.get("id_columns", [])
+                    for id_col in id_cols:
+                        try:
+                            name_cols = table_profile.get("name_columns", [])
+                            if name_cols:
+                                mask = df[name_cols[0]].astype(str).str.lower().str.contains(parts[0] if parts else entity_lower, na=False)
+                                matches = df[mask]
+                                if not matches.empty:
+                                    entity_id = str(matches.iloc[0].get(id_col, ''))
+                                    if entity_id and entity_id != 'nan':
+                                        if entity not in cross_references:
+                                            cross_references[entity] = {}
+                                        cross_references[entity][f"{table_name}.{id_col}"] = entity_id
+                        except Exception:
+                            pass
+        
+        return {
+            "expanded_map": expanded_map,
+            "related_entities": related_entities,
+            "cross_references": cross_references
+        }
+
+    def post(self, shared, prep_res, exec_res):
+        shared["entity_map"] = exec_res["expanded_map"]
+        shared["cross_references"] = exec_res["cross_references"]
+        
+        total_tables = sum(len(tables) for tables in exec_res["expanded_map"].values())
+        print(f"Search expanded: {len(exec_res['expanded_map'])} entities across {total_tables} table matches")
+        if exec_res["cross_references"]:
+            print(f"Cross-references found: {exec_res['cross_references']}")
+
+
+class ResultValidator(Node):
+    """
+    Validates execution results against the original question and entity map.
+    Identifies missing data and suggests additional queries.
+    """
+    def prep(self, shared):
+        return {
+            "exec_result": shared.get("exec_result"),
+            "entities": shared.get("entities", []),
+            "entity_map": shared.get("entity_map", {}),
+            "question": shared["question"],
+            "cross_references": shared.get("cross_references", {})
+        }
+
+    def exec(self, inputs):
+        exec_result = inputs["exec_result"]
+        entities = inputs["entities"]
+        entity_map = inputs["entity_map"]
+        
+        validation = {
+            "entities_found": [],
+            "entities_missing": [],
+            "data_completeness": {},
+            "suggestions": []
+        }
+        
+        result_str = str(exec_result).lower() if exec_result else ""
+        
+        for entity in entities:
+            entity_lower = entity.lower()
+            if entity_lower in result_str or any(p in result_str for p in entity_lower.split()):
+                validation["entities_found"].append(entity)
+                
+                tables_with_data = entity_map.get(entity, {})
+                completeness = len(tables_with_data)
+                validation["data_completeness"][entity] = {
+                    "tables_found": list(tables_with_data.keys()),
+                    "completeness_score": min(completeness / 3, 1.0)
+                }
+            else:
+                validation["entities_missing"].append(entity)
+                validation["suggestions"].append(f"Re-search for {entity} with alternative name patterns")
+        
+        if isinstance(exec_result, dict):
+            for entity in entities:
+                if entity in exec_result:
+                    entity_data = exec_result[entity]
+                    if isinstance(entity_data, dict):
+                        found_tables = entity_data.get("found_in_tables", [])
+                        if len(found_tables) < 2:
+                            validation["suggestions"].append(f"Limited data for {entity} - only in {found_tables}")
+        
+        return validation
+
+    def post(self, shared, prep_res, exec_res):
+        shared["validation_result"] = exec_res
+        
+        if exec_res["entities_missing"]:
+            print(f"Validation: Missing data for {exec_res['entities_missing']}")
+        else:
+            print(f"Validation: All {len(exec_res['entities_found'])} entities found in results")
+        
+        return "validated"
+
+
+class ContextAggregator(Node):
+    """
+    Collects insights from previous nodes and creates enriched context for code generation.
+    Acts as a communication hub between nodes.
+    """
+    def prep(self, shared):
+        return {
+            "question": shared["question"],
+            "schema": shared["schema_str"],
+            "entity_map": shared.get("entity_map", {}),
+            "entities": shared.get("entities", []),
+            "data_profile": shared.get("data_profile", {}),
+            "cross_references": shared.get("cross_references", {}),
+            "plan_steps": shared.get("plan_steps", ""),
+            "knowledge_hints": knowledge_store.get_all_hints()
+        }
+
+    def exec(self, inputs):
+        context = {
+            "query_type": "comparison" if len(inputs["entities"]) > 1 else "lookup",
+            "entities": inputs["entities"],
+            "entity_locations": {},
+            "recommended_tables": set(),
+            "join_keys": [],
+            "data_quality_notes": []
+        }
+        
+        for entity, tables in inputs["entity_map"].items():
+            context["entity_locations"][entity] = {
+                "tables": list(tables.keys()),
+                "primary_table": list(tables.keys())[0] if tables else None
+            }
+            context["recommended_tables"].update(tables.keys())
+        
+        profile = inputs["data_profile"]
+        for table_name in context["recommended_tables"]:
+            if table_name in profile:
+                id_cols = profile[table_name].get("id_columns", [])
+                if id_cols:
+                    context["join_keys"].append(f"{table_name}: {id_cols}")
+                
+                row_count = profile[table_name].get("row_count", 0)
+                if row_count == 0:
+                    context["data_quality_notes"].append(f"{table_name} is empty")
+        
+        if inputs["cross_references"]:
+            context["cross_references"] = inputs["cross_references"]
+        
+        context["recommended_tables"] = list(context["recommended_tables"])
+        
+        context_summary = f"""
+AGGREGATED CONTEXT:
+- Query Type: {context['query_type']}
+- Entities: {', '.join(context['entities'])}
+- Recommended Tables: {', '.join(context['recommended_tables'])}
+- Join Keys: {'; '.join(context['join_keys']) if context['join_keys'] else 'None identified'}
+- Entity Locations: {json.dumps(context['entity_locations'], indent=2)}
+"""
+        if context.get("cross_references"):
+            context_summary += f"- Cross-References: {json.dumps(context['cross_references'], indent=2)}\n"
+        if context["data_quality_notes"]:
+            context_summary += f"- Data Notes: {'; '.join(context['data_quality_notes'])}\n"
+        
+        return {"context": context, "summary": context_summary}
+
+    def post(self, shared, prep_res, exec_res):
+        shared["aggregated_context"] = exec_res["context"]
+        shared["context_summary"] = exec_res["summary"]
+        print(f"Context aggregated: {exec_res['context']['query_type']} query with {len(exec_res['context']['recommended_tables'])} tables")
