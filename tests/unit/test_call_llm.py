@@ -68,7 +68,7 @@ class TestCallLLMEnvironmentValidation:
                 call_llm("Test prompt")
 
     def test_uses_default_model_when_not_set(self, mock_env_vars):
-        """Test default model is used when LLM_MODEL not set."""
+        """Test default model is used when OPENROUTER_MODEL not set."""
         with patch.dict(os.environ, {"OPENROUTER_API_KEY": "test_key"}, clear=True):
             with patch("utils.call_llm.OpenAI") as mock_client_class:
                 mock_client = MagicMock()
@@ -82,7 +82,7 @@ class TestCallLLMEnvironmentValidation:
                 assert call_args[1]["model"] == "meta-llama/llama-3.3-70b-instruct"
 
     def test_uses_custom_model_when_set(self, mock_env_vars):
-        """Test custom model is used when LLM_MODEL is set."""
+        """Test custom model is used when OPENROUTER_MODEL is set."""
         with patch("utils.call_llm.OpenAI") as mock_client_class:
             mock_client = MagicMock()
             mock_client.chat.completions.create.return_value.choices[0].message.content = "Response"

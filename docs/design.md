@@ -108,7 +108,7 @@ flowchart TD
    - *Config*: Uses OpenRouter API with configurable model via environment variables
    - *Environment Variables*:
      - `OPENROUTER_API_KEY`: API key for OpenRouter
-     - `LLM_MODEL`: Model to use (default: meta-llama/llama-3.3-70b-instruct)
+     - `OPENROUTER_MODEL`: Model to use (default: meta-llama/llama-3.3-70b-instruct)
    - Used by: Planner, CodeGenerator, EntityResolver, DeepAnalyzer, ResponseSynthesizer nodes
 
 2. **KnowledgeStore** (`utils/knowledge_store.py`)
@@ -361,7 +361,7 @@ project/
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `OPENROUTER_API_KEY` | OpenRouter API key | (required) |
-| `LLM_MODEL` | Model to use | `meta-llama/llama-3.3-70b-instruct` |
+| `OPENROUTER_MODEL` | Model to use | `meta-llama/llama-3.3-70b-instruct` |
 
 ### Dependencies
 

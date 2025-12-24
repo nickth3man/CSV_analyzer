@@ -11,7 +11,7 @@ def call_llm(prompt, max_retries=3):
 
     # Create client with timeout
     client = OpenAI(api_key=api_key, base_url=base_url, timeout=60.0)
-    model = os.environ.get("LLM_MODEL", "meta-llama/llama-3.3-70b-instruct")
+    model = os.environ.get("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct")
 
     # Retry logic with exponential backoff
     for attempt in range(max_retries):

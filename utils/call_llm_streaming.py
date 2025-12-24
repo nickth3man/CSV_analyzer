@@ -7,7 +7,7 @@ def call_llm_streaming(prompt, model=None):
     
     client = OpenAI(api_key=api_key, base_url=base_url)
     if model is None:
-        model = os.environ.get("LLM_MODEL", "meta-llama/llama-3.3-70b-instruct")
+        model = os.environ.get("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct")
     
     stream = client.chat.completions.create(
         model=model,
