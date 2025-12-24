@@ -1,8 +1,11 @@
 """DataFrame caching for efficient data loading."""
 
-import os
+import contextlib
 import logging
+import os
+
 import pandas as pd
+
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +15,7 @@ class DataFrameCache:
     Cache for loaded DataFrames to avoid re-reading CSV files on each command.
     Implements cache invalidation based on directory modification time.
     """
-    def __init__(self, csv_dir="CSV"):
+    def __init__(self, csv_dir="CSV") -> None:
         self.csv_dir = csv_dir
         self._cache = {}
         self._last_mtime = None
@@ -28,13 +31,11 @@ class DataFrameCache:
         for filename in os.listdir(self.csv_dir):
             if filename.endswith(".csv"):
                 filepath = os.path.join(self.csv_dir, filename)
-                try:
+                with contextlib.suppress(OSError):
                     file_mtimes[filename] = os.path.getmtime(filepath)
-                except OSError:
-                    pass
         return dir_mtime, file_mtimes
 
-    def _is_cache_valid(self):
+    def _is_cache_valid(self) -> bool:
         """Check if the cache is still valid based on directory state."""
         dir_mtime, file_mtimes = self._get_dir_state()
 
@@ -53,7 +54,7 @@ class DataFrameCache:
 
         return True
 
-    def invalidate(self):
+    def invalidate(self) -> None:
         """Force cache invalidation (e.g., after upload/delete)."""
         self._cache = {}
         self._last_mtime = None

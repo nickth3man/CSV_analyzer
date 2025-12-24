@@ -16,62 +16,59 @@ It is organized into the following components:
 """
 
 # Import handlers, starters, profiles and actions to register them with Chainlit
-from .handlers import (
-    on_chat_start,
-    on_settings_update,
-    on_message,
-    set_starters,
-    chat_profile
-)
-from .actions import (
-    on_upload_action,
+from src.frontend.actions import (
     on_list_tables,
-    on_view_schema,
+    on_show_help,
+    on_upload_action,
     on_view_profile,
-    on_show_help
-)
-from .steps import (
-    step_load_data,
-    step_schema,
-    step_run_analysis,
-    stream_response,
-    display_result_with_streaming
-)
-# Display utilities are now in display.py (separated from data_utils.py)
-from .display import (
-    display_table_preview,
-    display_schema_summary
-)
-# Also export UI-agnostic data functions for external use
-from .data_utils import (
-    get_table_preview_data,
-    get_schema_summary_data
+    on_view_schema,
 )
 
+# Also export UI-agnostic data functions for external use
+from src.frontend.data_utils import get_schema_summary_data, get_table_preview_data
+
+# Display utilities are now in display.py (separated from data_utils.py)
+from src.frontend.display import display_schema_summary, display_table_preview
+from src.frontend.handlers import (
+    chat_profile,
+    on_chat_start,
+    on_message,
+    on_settings_update,
+    set_starters,
+)
+from src.frontend.steps import (
+    display_result_with_streaming,
+    step_load_data,
+    step_run_analysis,
+    step_schema,
+    stream_response,
+)
+
+
 __all__ = [
-    # Event handlers
-    'on_chat_start',
-    'on_settings_update',
-    'on_message',
-    # Starters and profiles
-    'set_starters',
-    'chat_profile',
-    # Action callbacks
-    'on_upload_action',
-    'on_list_tables',
-    'on_view_schema',
-    'on_view_profile',
-    'on_show_help',
-    # Step functions
-    'step_load_data',
-    'step_schema',
-    'step_run_analysis',
-    'stream_response',
-    'display_result_with_streaming',
+    "chat_profile",
+    "display_result_with_streaming",
+    "display_schema_summary",
     # Chainlit display utilities (UI layer)
-    'display_table_preview',
-    'display_schema_summary',
+    "display_table_preview",
+    "get_schema_summary_data",
     # UI-agnostic data functions
-    'get_table_preview_data',
-    'get_schema_summary_data',
+    "get_table_preview_data",
+    # Event handlers
+    "on_chat_start",
+    "on_list_tables",
+    "on_message",
+    "on_settings_update",
+    "on_show_help",
+    # Action callbacks
+    "on_upload_action",
+    "on_view_profile",
+    "on_view_schema",
+    # Starters and profiles
+    "set_starters",
+    # Step functions
+    "step_load_data",
+    "step_run_analysis",
+    "step_schema",
+    "stream_response",
 ]

@@ -1,9 +1,7 @@
 """Security tests for file upload functionality."""
 
-import pytest
 import os
-import tempfile
-from pathlib import Path
+
 from backend.utils.file_sanitizer import sanitize_csv_filename
 
 
@@ -27,8 +25,8 @@ class TestFileUploadSecurity:
 
             # The basename should be safe
             assert filename is not None, f"Should have sanitized {malicious_path}"
-            assert '/' not in filename
-            assert '\\' not in filename
+            assert "/" not in filename
+            assert "\\" not in filename
 
     def test_rejects_path_separators_in_filename(self):
         """Test that filenames with path separators are rejected."""
@@ -41,7 +39,7 @@ class TestFileUploadSecurity:
 
         for filename in invalid_filenames:
             # Apply validation logic
-            is_valid = not ('/' in filename or '\\' in filename or filename.startswith('.') or not filename)
+            is_valid = not ("/" in filename or "\\" in filename or filename.startswith(".") or not filename)
             assert not is_valid, f"Should have rejected {filename}"
 
     def test_rejects_dot_prefix_filenames(self):
@@ -53,13 +51,13 @@ class TestFileUploadSecurity:
         ]
 
         for filename in invalid_filenames:
-            is_valid = not ('/' in filename or '\\' in filename or filename.startswith('.') or not filename)
+            is_valid = not ("/" in filename or "\\" in filename or filename.startswith(".") or not filename)
             assert not is_valid, f"Should have rejected {filename}"
 
     def test_rejects_empty_filename(self):
         """Test that empty filenames are rejected."""
         filename = ""
-        is_valid = not ('/' in filename or '\\' in filename or filename.startswith('.') or not filename)
+        is_valid = not ("/" in filename or "\\" in filename or filename.startswith(".") or not filename)
         assert not is_valid, "Should have rejected empty filename"
 
     def test_accepts_valid_filenames(self):
@@ -74,7 +72,7 @@ class TestFileUploadSecurity:
         ]
 
         for filename in valid_filenames:
-            is_valid = not ('/' in filename or '\\' in filename or filename.startswith('.') or not filename)
+            is_valid = not ("/" in filename or "\\" in filename or filename.startswith(".") or not filename)
             assert is_valid, f"Should have accepted {filename}"
 
     def test_csv_extension_enforcement(self):
@@ -88,8 +86,8 @@ class TestFileUploadSecurity:
 
         for input_name, expected in test_cases:
             filename = input_name
-            if not filename.endswith('.csv'):
-                filename += '.csv'
+            if not filename.endswith(".csv"):
+                filename += ".csv"
             assert filename == expected
 
     def test_path_traversal_prevention(self):
@@ -106,8 +104,8 @@ class TestFileUploadSecurity:
             result = sanitize_csv_filename(malicious)
             assert result == f"{expected_basename}.csv"
             # The basename should not contain any path separators
-            assert '/' not in result
-            assert '\\' not in result
+            assert "/" not in result
+            assert "\\" not in result
 
     def test_file_save_location(self, tmp_path):
         """Test that files are saved in the correct directory."""
@@ -168,13 +166,6 @@ class TestFileUploadValidation:
             "application/vnd.ms-excel"
         ]
 
-        invalid_mime_types = [
-            "application/pdf",
-            "text/plain",
-            "application/zip",
-            "text/html",
-            "application/javascript"
-        ]
 
         # In the real app, this would be enforced by cl.AskFileMessage
         # Here we just verify the expected values
@@ -197,10 +188,10 @@ class TestFileUploadValidation:
         ]
 
         for filename in valid_files:
-            assert filename.lower().endswith('.csv')
+            assert filename.lower().endswith(".csv")
 
         for filename in invalid_files:
-            assert not filename.lower().endswith('.csv')
+            assert not filename.lower().endswith(".csv")
 
 
 class TestFilenameSanitization:
@@ -230,11 +221,11 @@ class TestFilenameSanitization:
 
         for filename in special_names:
             # These should be allowed as long as no path separators
-            is_valid = not ('/' in filename or '\\' in filename or filename.startswith('.') or not filename)
+            not ("/" in filename or "\\" in filename or filename.startswith(".") or not filename)
             # Most should be valid (implementation dependent)
             # At minimum, no path traversal should be possible
-            assert '/' not in filename
-            assert '\\' not in filename
+            assert "/" not in filename
+            assert "\\" not in filename
 
     def test_null_byte_injection(self):
         """Test that null bytes in filenames are handled."""
@@ -245,7 +236,7 @@ class TestFilenameSanitization:
         result = sanitize_csv_filename(malicious)
 
         # The result should not contain null bytes in modern Python
-        assert result == malicious.split('\x00')[0]
+        assert result == malicious.split("\x00")[0]
 
     def test_very_long_filename(self):
         """Test handling of very long filenames."""
@@ -270,5 +261,5 @@ class TestFilenameSanitization:
             result = sanitize_csv_filename(filename)
             assert result is not None
             # At minimum, should not contain path separators
-            assert '/' not in result
-            assert '\\' not in result
+            assert "/" not in result
+            assert "\\" not in result

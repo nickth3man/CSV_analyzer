@@ -1,10 +1,10 @@
-"""
-Code generation nodes for CSV analysis and NBA API interactions.
-"""
+"""Code generation nodes for CSV analysis and NBA API interactions."""
 
 import json
 import logging
+
 from pocketflow import Node
+
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ entities_to_compare = ['Entity1', 'Entity2']  # from user question
 for entity_name in entities_to_compare:
     entity_data = {'name': entity_name, 'found_in_tables': []}
     parts = entity_name.lower().split()
-    
+
     # For each table where entity was found (from ENTITY LOCATIONS above):
     for table_name in dfs.keys():
         df = dfs[table_name]
@@ -41,7 +41,7 @@ for entity_name in entities_to_compare:
             # Build dynamic mask based on available columns
             # Extract relevant data from matches
             pass
-    
+
     final_result[entity_name] = entity_data
 ```
 
@@ -52,23 +52,23 @@ Only query tables listed there - don't assume tables exist.
     def prep(self, shared):
         """
         Assembles and normalizes required inputs from the shared execution context for the CSV code generator.
-        
+
         Parameters:
-        	shared (dict): Shared state containing execution context and interim results produced by previous nodes. Expected keys used below may be absent; defaults are applied where appropriate.
-        
+            shared (dict): Shared state containing execution context and interim results produced by previous nodes. Expected keys used below may be absent; defaults are applied where appropriate.
+
         Returns:
-        	dict: Prepared inputs with the following keys:
-        		plan: The stepwise plan from shared["plan_steps"].
-        		schema: String representation of the database/table schema from shared["schema_str"].
-        		question: User question or prompt from shared["question"] or empty string.
-        		entity_map: Mapping of entity names to their locations/columns from shared["entity_map"] or empty dict.
-        		entities: List of entity names from shared["entities"] or empty list.
-        		error: Execution error message from shared["exec_error"] or None.
-        		previous_code: Previously generated CSV code snippet from shared["csv_code_snippet"] or None.
-        		context_summary: Aggregated textual context from shared["context_summary"] or empty string.
-        		cross_references: Cross-reference details between entities/tables from shared["cross_references"] or empty dict.
-        		data_sources: Metadata about available data sources from shared["data_sources"] or empty dict.
-        		aggregated_context: Additional contextual information from shared["aggregated_context"] or empty dict.
+            dict: Prepared inputs with the following keys:
+                plan: The stepwise plan from shared["plan_steps"].
+                schema: String representation of the database/table schema from shared["schema_str"].
+                question: User question or prompt from shared["question"] or empty string.
+                entity_map: Mapping of entity names to their locations/columns from shared["entity_map"] or empty dict.
+                entities: List of entity names from shared["entities"] or empty list.
+                error: Execution error message from shared["exec_error"] or None.
+                previous_code: Previously generated CSV code snippet from shared["csv_code_snippet"] or None.
+                context_summary: Aggregated textual context from shared["context_summary"] or empty string.
+                cross_references: Cross-reference details between entities/tables from shared["cross_references"] or empty dict.
+                data_sources: Metadata about available data sources from shared["data_sources"] or empty dict.
+                aggregated_context: Additional contextual information from shared["aggregated_context"] or empty dict.
         """
         return {
             "plan": shared["plan_steps"],
@@ -87,24 +87,24 @@ Only query tables listed there - don't assume tables exist.
     def exec(self, prep_res):
         """
         Generate Python analysis code by composing a prompt from prepared context and calling the LLM.
-        
+
         Parameters:
-        	prep_res (dict): Prepared context from prep(), expected keys include:
-        		- "schema" (str): database schema string.
-        		- "question" (str): user question.
-        		- "plan" (str): plan steps for analysis.
-        		- "entity_map" (dict, optional): mapping of entities to tables and columns.
-        		- "entities" (list, optional): list of entities (used to detect comparisons).
-        		- "cross_references" (dict, optional): entity ID cross-reference information.
-        		- "context_summary" (str, optional): aggregated contextual text.
-        		- "previous_code" (str, optional): prior generated code to be fixed.
-        		- "error" (str, optional): previous execution error used to request fixes.
-        
+            prep_res (dict): Prepared context from prep(), expected keys include:
+                - "schema" (str): database schema string.
+                - "question" (str): user question.
+                - "plan" (str): plan steps for analysis.
+                - "entity_map" (dict, optional): mapping of entities to tables and columns.
+                - "entities" (list, optional): list of entities (used to detect comparisons).
+                - "cross_references" (dict, optional): entity ID cross-reference information.
+                - "context_summary" (str, optional): aggregated contextual text.
+                - "previous_code" (str, optional): prior generated code to be fixed.
+                - "error" (str, optional): previous execution error used to request fixes.
+
         Returns:
-        	str: Raw Python code produced by the LLM (cleaned of markdown fences) that assigns the analysis result to a dictionary named `final_result`.
-        
+            str: Raw Python code produced by the LLM (cleaned of markdown fences) that assigns the analysis result to a dictionary named `final_result`.
+
         Raises:
-        	ValueError: If the LLM returns no code (empty string).
+            ValueError: If the LLM returns no code (empty string).
         """
         entity_info = ""
         if prep_res.get("entity_map"):
@@ -177,7 +177,7 @@ USER QUESTION: <user_question>{prep_res['question']}</user_question>
 
 PLAN: {prep_res['plan']}
 
-Write Python code to thoroughly analyze and answer the question. 
+Write Python code to thoroughly analyze and answer the question.
 - The DataFrames are in a dict called 'dfs' where keys are table names
 - Use the ENTITY LOCATIONS above to find the right tables and columns for filtering
 - Use CROSS-REFERENCES if available to find related data by ID
@@ -194,29 +194,29 @@ Write Python code to thoroughly analyze and answer the question.
             raise ValueError("LLM returned empty code - retrying")
         return code
 
-    def exec_fallback(self, prep_res, exc):
+    def exec_fallback(self, prep_res, exc) -> str:
         """
         Provide a minimal fallback Python snippet when code generation fails.
-        
+
         Parameters:
             prep_res (dict): Prepared inputs that were passed to the generator (unused by this fallback).
             exc (Exception): The exception raised by the failed code generation attempt.
-        
+
         Returns:
             str: A Python code snippet that prints a failure message and sets `final_result` to an empty dictionary.
         """
         logger.error(f"CodeGenerator failed: {exc}")
         return "print('Code generation failed due to LLM error.')\nfinal_result = {}"
 
-    def post(self, shared, prep_res, exec_res):
+    def post(self, shared, prep_res, exec_res) -> str:
         """
         Store the generated CSV code snippet in the shared execution context and advance the node flow.
-        
+
         Parameters:
-        	exec_res (str): Generated Python code (or snippet) produced by the node.
-        
+            exec_res (str): Generated Python code (or snippet) produced by the node.
+
         Returns:
-        	str: The next state key, `"default"`.
+            str: The next state key, `"default"`.
         """
         shared["csv_code_snippet"] = exec_res
         return "default"
@@ -228,19 +228,19 @@ class NBAApiCodeGenerator(Node):
     def prep(self, shared):
         """
         Assembles and returns the subset of shared runtime state required to generate NBA API code.
-        
+
         Parameters:
-        	shared (dict): Shared execution context containing pipeline state and artifacts.
-        
+            shared (dict): Shared execution context containing pipeline state and artifacts.
+
         Returns:
-        	dict: A mapping with keys:
-        		plan: pipeline plan steps (from shared["plan_steps"])
-        		api_schema: API schema string (from shared.get("api_schema_str", ""))
-        		question: user question or prompt (from shared.get("question", ""))
-        		entity_ids: identifiers for target entities (from shared.get("entity_ids", {}))
-        		aggregated_context: additional contextual data (from shared.get("aggregated_context", {}))
-        		previous_code: previously generated API code snippet (from shared.get("api_code_snippet"))
-        		error: execution error info if present (from shared.get("exec_error"))
+            dict: A mapping with keys:
+                plan: pipeline plan steps (from shared["plan_steps"])
+                api_schema: API schema string (from shared.get("api_schema_str", ""))
+                question: user question or prompt (from shared.get("question", ""))
+                entity_ids: identifiers for target entities (from shared.get("entity_ids", {}))
+                aggregated_context: additional contextual data (from shared.get("aggregated_context", {}))
+                previous_code: previously generated API code snippet (from shared.get("api_code_snippet"))
+                error: execution error info if present (from shared.get("exec_error"))
         """
         return {
             "plan": shared["plan_steps"],
@@ -255,7 +255,7 @@ class NBAApiCodeGenerator(Node):
     def exec(self, prep_res):
         """
         Generate Python code that calls the NBA API helper according to the prepared plan, context, and entity IDs.
-        
+
         Parameters:
             prep_res (dict): Prepared inputs from prep(), expected keys:
                 - aggregated_context (dict): contextual information to include in the prompt.
@@ -264,10 +264,10 @@ class NBAApiCodeGenerator(Node):
                 - api_schema (str): string description of available API schema.
                 - question (str): the user's question to answer.
                 - error (optional): previous execution error to include for regenerating fixed code.
-        
+
         Returns:
             str: Raw Python code (no markdown fences) that assigns results to `api_result`.
-        
+
         Raises:
             ValueError: If the language model returns an empty code string.
         """
@@ -303,31 +303,31 @@ Requirements:
             raise ValueError("LLM returned empty API code - retrying")
         return code
 
-    def exec_fallback(self, prep_res, exc):
+    def exec_fallback(self, prep_res, exc) -> str:
         """
         Provide a minimal fallback Python snippet when NBA API code generation fails.
-        
+
         Parameters:
             prep_res (dict): Prepared input that was passed to exec; used for context in logging or debugging.
             exc (Exception): The exception raised during code generation.
-        
+
         Returns:
             str: A Python code string that sets `api_result` to an empty dictionary.
         """
         logger.error(f"NBAApiCodeGenerator failed: {exc}")
         return "api_result = {}"
 
-    def post(self, shared, prep_res, exec_res):
+    def post(self, shared, prep_res, exec_res) -> str:
         """
         Persist the generated API code snippet in the shared workflow state and signal the default next step.
-        
+
         Parameters:
-        	shared (dict): Shared workflow/state dictionary used across nodes; the code snippet will be stored here under the "api_code_snippet" key.
-        	prep_res: Preparation result from the node's prep step (unused by this method).
-        	exec_res (str): Generated Python code produced by exec to be persisted.
-        
+            shared (dict): Shared workflow/state dictionary used across nodes; the code snippet will be stored here under the "api_code_snippet" key.
+            prep_res: Preparation result from the node's prep step (unused by this method).
+            exec_res (str): Generated Python code produced by exec to be persisted.
+
         Returns:
-        	str: The next state identifier, `"default"`.
+            str: The next state identifier, `"default"`.
         """
         shared["api_code_snippet"] = exec_res
         return "default"

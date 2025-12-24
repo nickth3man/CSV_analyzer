@@ -3,9 +3,6 @@
 import json
 import os
 import threading
-import time
-
-import pytest
 
 from backend.utils.knowledge_store import KnowledgeStore
 
@@ -45,7 +42,7 @@ class TestKnowledgeStoreInitialization:
             "join_patterns": [{"tables": ["a", "b"], "keys": ["id"]}]
         }
 
-        with open(temp_knowledge_file, 'w') as f:
+        with open(temp_knowledge_file, "w") as f:
             json.dump(existing_data, f)
 
         from backend.utils import knowledge_store as ks_module
@@ -65,7 +62,7 @@ class TestKnowledgeStoreInitialization:
     def test_handles_corrupted_json(self, temp_knowledge_file):
         """Test handling of corrupted JSON file."""
         # Write invalid JSON
-        with open(temp_knowledge_file, 'w') as f:
+        with open(temp_knowledge_file, "w") as f:
             f.write("This is not valid JSON {{{")
 
         from backend.utils import knowledge_store as ks_module
@@ -325,9 +322,9 @@ class TestKnowledgeStorePersistence:
     def test_saves_to_file(self, temp_knowledge_file):
         """
         Verifies that adding an entity mapping causes the store to persist data to the configured knowledge file.
-        
+
         This test temporarily points the store's KNOWLEDGE_FILE at a provided temporary file, adds an entity mapping, and asserts the file is created and contains the new entity mapping.
-        
+
         Parameters:
             temp_knowledge_file (str | pathlib.Path): Temporary filesystem path used as the knowledge file for this test.
         """
@@ -342,7 +339,7 @@ class TestKnowledgeStorePersistence:
             # Check that file was created and contains data
             assert os.path.exists(temp_knowledge_file)
 
-            with open(temp_knowledge_file, 'r') as f:
+            with open(temp_knowledge_file) as f:
                 saved_data = json.load(f)
 
             assert "Alice" in saved_data["entity_mappings"]
@@ -379,7 +376,7 @@ class TestKnowledgeStoreThreadSafety:
         try:
             store = KnowledgeStore()
 
-            def add_entities(prefix, count):
+            def add_entities(prefix, count) -> None:
                 for i in range(count):
                     store.add_entity_mapping(f"{prefix}_{i}", "table", ["col"])
 
@@ -410,12 +407,12 @@ class TestKnowledgeStoreThreadSafety:
 
             results = []
 
-            def read_entities():
+            def read_entities() -> None:
                 for _ in range(100):
                     hints = store.get_entity_hints("Alice")
                     results.append(hints)
 
-            def write_entities():
+            def write_entities() -> None:
                 for i in range(100):
                     store.add_entity_mapping(f"Entity_{i}", "table", ["col"])
 

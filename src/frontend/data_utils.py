@@ -5,10 +5,13 @@ data structures (dicts, DataFrames, strings) rather than sending UI messages.
 For Chainlit-specific display functions, see the display module.
 """
 
-import os
 import logging
+import os
+
 import pandas as pd
-from .cache import get_dataframe_cache
+
+from src.frontend.cache import get_dataframe_cache
+
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +21,7 @@ def get_csv_files():
     csv_dir = "CSV"
     if not os.path.exists(csv_dir):
         os.makedirs(csv_dir)
-    return [f.replace(".csv", "") for f in os.listdir(csv_dir) if f.endswith('.csv')]
+    return [f.replace(".csv", "") for f in os.listdir(csv_dir) if f.endswith(".csv")]
 
 
 def load_dataframes():
@@ -26,7 +29,7 @@ def load_dataframes():
     return get_dataframe_cache().get_dataframes()
 
 
-def invalidate_dataframe_cache():
+def invalidate_dataframe_cache() -> None:
     """Invalidate the DataFrame cache after file changes."""
     get_dataframe_cache().invalidate()
 
@@ -47,7 +50,7 @@ def get_schema_info():
     return "\n\n".join(schema_lines)
 
 
-def get_table_schema(table_name):
+def get_table_schema(table_name) -> str:
     """Get schema information for a specific table."""
     dfs = load_dataframes()
     if not dfs:
@@ -68,8 +71,8 @@ def get_data_profile():
 
     profile_text = []
     for name, df in dfs.items():
-        name_cols = [c for c in df.columns if any(x in c.lower() for x in ['name', 'first', 'last', 'player', 'team'])]
-        id_cols = [c for c in df.columns if 'id' in c.lower()]
+        name_cols = [c for c in df.columns if any(x in c.lower() for x in ["name", "first", "last", "player", "team"])]
+        id_cols = [c for c in df.columns if "id" in c.lower()]
         numeric_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
 
         profile_text.append(f"""### {name}
@@ -127,17 +130,17 @@ def get_table_preview_data(table_name: str, max_rows: int = 10) -> dict | None:
     # Build summary stats - use is_string_dtype for robust string detection
     num_cols = len([c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])])
     str_cols = len([c for c in df.columns if pd.api.types.is_string_dtype(df[c])])
-    
+
     logger.debug(f"Table '{table_name}': {len(df)} rows, {len(df.columns)} cols ({num_cols} numeric, {str_cols} text)")
 
     return {
-        'table_name': table_name,
-        'preview_df': preview_df,
-        'total_rows': len(df),
-        'total_cols': len(df.columns),
-        'num_cols': num_cols,
-        'str_cols': str_cols,
-        'rows_shown': len(preview_df)
+        "table_name": table_name,
+        "preview_df": preview_df,
+        "total_rows": len(df),
+        "total_cols": len(df.columns),
+        "num_cols": num_cols,
+        "str_cols": str_cols,
+        "rows_shown": len(preview_df)
     }
 
 
@@ -174,26 +177,26 @@ def get_schema_summary_data() -> dict | None:
     tables = []
     for name, df in dfs.items():
         num_cols = len([c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])])
-        
+
         # Create a summary DataFrame of column info
         col_info = pd.DataFrame({
-            'Column': df.columns,
-            'Type': [str(df[c].dtype) for c in df.columns],
-            'Non-Null': [df[c].notna().sum() for c in df.columns],
-            'Sample': [str(df[c].iloc[0])[:30] if len(df) > 0 else '' for c in df.columns]
+            "Column": df.columns,
+            "Type": [str(df[c].dtype) for c in df.columns],
+            "Non-Null": [df[c].notna().sum() for c in df.columns],
+            "Sample": [str(df[c].iloc[0])[:30] if len(df) > 0 else "" for c in df.columns]
         })
-        
+
         tables.append({
-            'name': name,
-            'rows': len(df),
-            'cols': len(df.columns),
-            'num_cols': num_cols,
-            'col_info': col_info
+            "name": name,
+            "rows": len(df),
+            "cols": len(df.columns),
+            "num_cols": num_cols,
+            "col_info": col_info
         })
-    
+
     logger.info(f"Retrieved schema summary data for {len(tables)} tables")
-    
+
     return {
-        'table_count': len(tables),
-        'tables': tables
+        "table_count": len(tables),
+        "tables": tables
     }

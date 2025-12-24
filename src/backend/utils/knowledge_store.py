@@ -1,16 +1,17 @@
 import json
+import logging
 import os
 import threading
-import logging
 
 from backend.config import SUCCESSFUL_PATTERN_LIMIT
+
 
 logger = logging.getLogger(__name__)
 
 KNOWLEDGE_FILE = "knowledge_store.json"
 
 class KnowledgeStore:
-    def __init__(self):
+    def __init__(self) -> None:
         self.data = {
             "entity_mappings": {},
             "successful_patterns": {},
@@ -19,24 +20,24 @@ class KnowledgeStore:
         }
         self._lock = threading.Lock()
         self.load()
-    
-    def load(self):
+
+    def load(self) -> None:
         with self._lock:
             if os.path.exists(KNOWLEDGE_FILE):
                 try:
-                    with open(KNOWLEDGE_FILE, 'r') as f:
+                    with open(KNOWLEDGE_FILE) as f:
                         self.data = json.load(f)
-                except (json.JSONDecodeError, IOError):
+                except (OSError, json.JSONDecodeError):
                     pass
 
-    def save(self):
+    def save(self) -> None:
         with self._lock:
             try:
-                with open(KNOWLEDGE_FILE, 'w') as f:
+                with open(KNOWLEDGE_FILE, "w") as f:
                     json.dump(self.data, f, indent=2)
-            except IOError as e:
+            except OSError as e:
                 logger.warning(f"Warning: Could not save knowledge store: {e}")
-    
+
     def get_entity_hints(self, entity_name):
         with self._lock:
             entity_lower = entity_name.lower()
@@ -46,7 +47,7 @@ class KnowledgeStore:
                     hints[key] = value
             return hints
 
-    def add_entity_mapping(self, entity, table, columns):
+    def add_entity_mapping(self, entity, table, columns) -> None:
         with self._lock:
             if entity not in self.data["entity_mappings"]:
                 self.data["entity_mappings"][entity] = {}
@@ -56,7 +57,7 @@ class KnowledgeStore:
                 if col not in self.data["entity_mappings"][entity][table]:
                     self.data["entity_mappings"][entity][table].append(col)
         self.save()
-    
+
     def get_successful_patterns(self, query_type=None):
         with self._lock:
             patterns = self.data.get("successful_patterns", {})
@@ -64,12 +65,12 @@ class KnowledgeStore:
                 return patterns.get(query_type, [])
             return patterns
 
-    def add_successful_pattern(self, query_type, pattern):
+    def add_successful_pattern(self, query_type, pattern) -> None:
         """
         Store a successful pattern under the given query type and persist the updated list.
-        
+
         Adds the pattern to the in-memory list for query_type if not already present, trims the list to the most recent SUCCESSFUL_PATTERN_LIMIT entries when it exceeds that limit, and then saves the store to disk.
-        
+
         Parameters:
             query_type (str): Category or type of query to associate the pattern with.
             pattern: Representation of the successful pattern to record (e.g., string or serializable object).
@@ -84,10 +85,10 @@ class KnowledgeStore:
                         self.data["successful_patterns"][query_type][-SUCCESSFUL_PATTERN_LIMIT:]
         self.save()
 
-    def add_column_hint(self, description, table, column):
+    def add_column_hint(self, description, table, column) -> None:
         """
         Store a column hint in the knowledge store keyed by a lowercase description and persist the change.
-        
+
         Parameters:
             description (str): Human-readable description used as the lookup key; it is normalized to lowercase.
             table (str): Name of the table associated with the hint.
@@ -102,7 +103,7 @@ class KnowledgeStore:
         with self._lock:
             return self.data.get("column_hints", {})
 
-    def add_join_pattern(self, tables, join_keys):
+    def add_join_pattern(self, tables, join_keys) -> None:
         with self._lock:
             pattern = {"tables": sorted(tables), "keys": join_keys}
             if pattern not in self.data["join_patterns"]:

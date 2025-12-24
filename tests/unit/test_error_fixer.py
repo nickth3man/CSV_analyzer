@@ -1,6 +1,5 @@
 """Tests for ErrorFixer node - retry logic and error handling."""
 
-import pytest
 from backend.nodes import ErrorFixer
 
 

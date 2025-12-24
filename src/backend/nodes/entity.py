@@ -1,11 +1,11 @@
-"""
-Entity resolution and search expansion nodes.
-"""
+"""Entity resolution and search expansion nodes."""
 
 import json
 import logging
+
 import pandas as pd
 from pocketflow import Node
+
 
 logger = logging.getLogger(__name__)
 
@@ -16,14 +16,12 @@ from backend.utils.nba_api_client import nba_client
 
 
 class EntityResolver(Node):
-    """
-    Discover which tables contain entities mentioned in the query using configurable sampling.
-    """
+    """Discover which tables contain entities mentioned in the query using configurable sampling."""
 
     def prep(self, shared):
         """
         Prepare execution inputs for the EntityResolver by extracting required values from the shared context.
-        
+
         Parameters:
             shared (dict): Shared pipeline state. Expected keys:
                 - "question": the user question text.
@@ -31,7 +29,7 @@ class EntityResolver(Node):
                 - "dfs": mapping of table names to pandas DataFrame objects.
                 - "config" (optional): may contain "entity_sample_size" to override the default.
                 - "entity_ids" (optional): prepopulated entity identifier mappings.
-        
+
         Returns:
             dict: Execution-ready dictionary with keys:
                 - "question": the extracted question.
@@ -52,14 +50,14 @@ class EntityResolver(Node):
     def _get_sample(df, col, sample_size):
         """
         Return a non-null sample from a DataFrame column for entity scanning.
-        
+
         Attempts to extract non-missing values from `df[col]`. If the column's non-missing count is less than or equal to `sample_size`, returns the full non-missing Series; otherwise returns the first `sample_size` entries. If the column is missing or `df` does not support column access, returns an empty object-typed Series.
-        
+
         Parameters:
             df: DataFrame-like object containing the column to sample.
             col (str): Column name to sample.
             sample_size (int): Maximum number of rows to return.
-        
+
         Returns:
             pandas.Series: A Series of non-null values from the column (possibly empty).
         """
@@ -74,14 +72,14 @@ class EntityResolver(Node):
     def exec(self, prep_res):
         """
         Resolve entities mentioned in the prepared request, locate columns containing those entities across provided DataFrames, enrich with known IDs, and record mappings in the knowledge store.
-        
+
         Parameters:
             prep_res (dict): Preparation result containing:
                 - question (str): The user question to extract entities from.
                 - dfs (dict[str, pandas.DataFrame]): Mapping of table name to DataFrame to search for entity occurrences.
                 - sample_size (int): Number of rows/values to sample from columns when searching for matches.
                 - entity_ids (dict, optional): Existing mapping of entities to ID dicts (e.g., {"player_id": ...} or {"team_id": ...}).
-        
+
         Returns:
             dict: {
                 "entities": list[str],            # Extracted entity names (may be empty on parse failure).
@@ -110,14 +108,13 @@ Return ONLY the JSON array, nothing else."""
             entities_response = (entities_response or "").strip()
             if entities_response.startswith("```"):
                 entities_response = entities_response.split("```")[1]
-                if entities_response.startswith("json"):
-                    entities_response = entities_response[4:]
+                entities_response = entities_response.removeprefix("json")
             entities = json.loads(entities_response)
         except json.JSONDecodeError as exc:
-            logger.error(f"Failed to parse entity JSON: {exc}")
+            logger.exception(f"Failed to parse entity JSON: {exc}")
             entities = []
-        except Exception as exc:  # noqa: BLE001
-            logger.error(f"Unexpected error extracting entities: {exc}")
+        except Exception as exc:
+            logger.exception(f"Unexpected error extracting entities: {exc}")
             entities = []
 
         entity_map = {}
@@ -181,11 +178,11 @@ Return ONLY the JSON array, nothing else."""
     def exec_fallback(self, prep_res, exc):
         """
         Handle failures during EntityResolver.exec by returning a safe default execution result.
-        
+
         Parameters:
             prep_res: The preparation result passed to exec; included for signature compatibility but not used.
             exc (Exception): The exception that caused the failure.
-        
+
         Returns:
             dict: A default execution result containing:
                 - "entities": an empty list.
@@ -199,17 +196,17 @@ Return ONLY the JSON array, nothing else."""
             "knowledge_hints": {},
         }
 
-    def post(self, shared, prep_res, exec_res):
+    def post(self, shared, prep_res, exec_res) -> str:
         """
         Merge execution results into the shared context, log a short summary of resolved entities, and return the next node token.
-        
+
         Parameters:
-        	shared (dict): Shared pipeline state to be updated. This function sets the keys "entities", "entity_map", "knowledge_hints", and "entity_ids" from exec_res.
-        	prep_res (dict): Preparation result (unused by this implementation but passed by the pipeline).
-        	exec_res (dict): Execution result containing at least the keys "entities", "entity_map", "knowledge_hints", and "entity_ids".
-        
+            shared (dict): Shared pipeline state to be updated. This function sets the keys "entities", "entity_map", "knowledge_hints", and "entity_ids" from exec_res.
+            prep_res (dict): Preparation result (unused by this implementation but passed by the pipeline).
+            exec_res (dict): Execution result containing at least the keys "entities", "entity_map", "knowledge_hints", and "entity_ids".
+
         Returns:
-        	str: The next pipeline token, `"default"`.
+            str: The next pipeline token, `"default"`.
         """
         shared["entities"] = exec_res["entities"]
         shared["entity_map"] = exec_res["entity_map"]
@@ -226,17 +223,15 @@ Return ONLY the JSON array, nothing else."""
 
 
 class SearchExpander(Node):
-    """
-    Expand entity search to find aliases and cross-references using data profiles.
-    """
+    """Expand entity search to find aliases and cross-references using data profiles."""
 
     def prep(self, shared):
         """
         Prepare inputs for the SearchExpander node by extracting required values from the shared pipeline state.
-        
+
         Parameters:
             shared (dict): Shared pipeline state containing execution context (expected keys: "dfs", "question", optional "entity_map", "entities", "data_profile", and "config").
-        
+
         Returns:
             dict: A dictionary with the following keys:
                 - entity_map: existing entity-to-table mapping (default {}).
@@ -259,12 +254,12 @@ class SearchExpander(Node):
     def _get_sample(df, col, sample_size):
         """
         Return a DataFrame sample that preserves the input rows' context based on non-null values in a specified column.
-        
+
         Parameters:
             df (pandas.DataFrame): The DataFrame to sample.
             col (str): Column name whose non-null count determines whether to return the full DataFrame or a subset.
             sample_size (int): Maximum number of rows to keep when sampling.
-        
+
         Returns:
             pandas.DataFrame: The original DataFrame if the specified column has non-null entries less than or equal to sample_size; otherwise the first `sample_size` rows. Returns an empty DataFrame (zero rows) if `col` is missing or `df` is not a DataFrame.
         """
@@ -279,7 +274,7 @@ class SearchExpander(Node):
     def exec(self, prep_res):
         """
         Expand the entity-to-table mapping and collect cross-table identifier references for resolved entities.
-        
+
         Parameters:
             prep_res (dict): Preparation results containing:
                 - entity_map: existing mapping of entities to tables/columns
@@ -287,14 +282,14 @@ class SearchExpander(Node):
                 - dfs: dict of table_name -> DataFrame to search
                 - data_profile: dict of table profile metadata (including `name_columns` and `id_columns`)
                 - sample_size: integer sample size used when sampling DataFrames
-        
+
         Returns:
             dict: {
                 "expanded_map": dict mapping each entity to tables and matched name columns,
                 "related_entities": dict of related entity suggestions (empty by default),
                 "cross_references": dict mapping each entity to found id values keyed by "table_name.id_column"
             }
-        
+
         Notes:
             - Sampling is performed via the class's _get_sample helper using the table's first name column when available.
             - String matching is case-insensitive and tolerant of missing columns or malformed data; index and type errors during scanning are ignored.
@@ -352,19 +347,19 @@ class SearchExpander(Node):
             "cross_references": cross_references,
         }
 
-    def post(self, shared, prep_res, exec_res):
+    def post(self, shared, prep_res, exec_res) -> str:
         """
         Merge expanded entity mappings and cross-references into the shared context and log a brief summary.
-        
+
         Updates shared["entity_map"] with exec_res["expanded_map"] and shared["cross_references"] with exec_res["cross_references"], then prints a count of entities and table matches and any cross-references found.
-        
+
         Parameters:
-        	exec_res (dict): Execution result containing:
-        		expanded_map (dict): Mapping of entities to tables/columns.
-        		cross_references (dict): Discovered cross-reference values.
-        
+            exec_res (dict): Execution result containing:
+                expanded_map (dict): Mapping of entities to tables/columns.
+                cross_references (dict): Discovered cross-reference values.
+
         Returns:
-        	str: The string "default" indicating normal continuation.
+            str: The string "default" indicating normal continuation.
         """
         shared["entity_map"] = exec_res["expanded_map"]
         shared["cross_references"] = exec_res["cross_references"]

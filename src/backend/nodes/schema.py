@@ -1,10 +1,10 @@
-"""
-Schema analysis and data profiling nodes.
-"""
+"""Schema analysis and data profiling nodes."""
 
 import logging
+
 import pandas as pd
 from pocketflow import Node
+
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ class SchemaInference(Node):
     def prep(self, shared):
         """
         Provide the pipeline's loaded DataFrame mapping from the shared context.
-        
+
         Returns:
             dict: Mapping from table name (str) to pandas.DataFrame stored under shared["dfs"].
         """
@@ -24,10 +24,10 @@ class SchemaInference(Node):
     def exec(self, prep_res):
         """
         Infer column lists and split schemas by observed source.
-        
+
         Parameters:
             prep_res (dict): Mapping of table name to pandas DataFrame.
-        
+
         Returns:
             tuple: A 3-tuple (schemas, csv_schema, api_schema) where
                 - schemas (dict): table name -> list of column names for every DataFrame.
@@ -51,18 +51,18 @@ class SchemaInference(Node):
                 csv_schema[name] = list(df.columns)
         return schemas, csv_schema, api_schema
 
-    def post(self, shared, prep_res, exec_res):
+    def post(self, shared, prep_res, exec_res) -> str:
         """
         Store inferred schema information in the shared state and produce human-readable schema strings.
-        
+
         This writes the following keys into the shared dictionary:
         - "schemas": mapping of table name to list of column names.
         - "csv_schema_str": formatted multi-line string of CSV-only table schemas.
         - "api_schema_str": formatted multi-line string of API-only table schemas.
         - "schema_str": formatted multi-line string listing each table with its source (from shared["data_sources"] or "MERGED") and columns.
-        
+
         Also prints a brief schema summary to stdout.
-        
+
         Returns:
             result (str): The string "default".
         """
@@ -89,7 +89,7 @@ class DataProfiler(Node):
     def prep(self, shared):
         """
         Provide the pipeline's loaded DataFrame mapping from the shared context.
-        
+
         Returns:
             dict: Mapping from table name (str) to pandas.DataFrame stored under shared["dfs"].
         """
@@ -98,10 +98,10 @@ class DataProfiler(Node):
     def exec(self, prep_res):
         """
         Builds a profiling summary for each DataFrame in the provided mapping.
-        
+
         Parameters:
             prep_res (dict): Mapping from table name (str) to pandas DataFrame to be profiled.
-        
+
         Returns:
             dict: A mapping from table name to a profile dictionary with the following keys:
                 - row_count (int): Number of rows in the table.
@@ -159,12 +159,12 @@ class DataProfiler(Node):
 
         return profile
 
-    def post(self, shared, prep_res, exec_res):
+    def post(self, shared, prep_res, exec_res) -> str:
         """
         Store the profiling results in the shared state and print a brief summary.
-        
+
         Stores the provided profiling dictionary into shared["data_profile"] and shared["profiles"], counts how many tables include detected name columns, and prints a one-line summary of total profiled tables and how many contain name columns.
-        
+
         Returns:
             str: The string "default".
         """

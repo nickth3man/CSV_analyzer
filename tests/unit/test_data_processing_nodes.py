@@ -1,10 +1,8 @@
 """Tests for data processing nodes - Schema, Profiler, CodeGenerator, Visualizer."""
 
-import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pandas as pd
-import pytest
 
 from backend.nodes import CodeGenerator, DataProfiler, SchemaInference, Visualizer
 
@@ -22,7 +20,7 @@ class TestSchemaInference:
 
         # exec returns (schemas, csv_schema, api_schema)
         schemas = exec_res[0]
-        
+
         assert "employees" in schemas
         # Should have identified columns
         assert "name" in str(schemas["employees"])
@@ -339,7 +337,7 @@ class TestVisualizer:
         prep_res = node.prep(shared)
         with patch("matplotlib.pyplot.figure"):
             with patch("matplotlib.pyplot.title") as mock_title:
-                exec_res = node.exec(prep_res)
+                node.exec(prep_res)
 
                 # Should use the first numeric column (score)
                 # The title should mention the column name
@@ -357,7 +355,7 @@ class TestVisualizer:
         with patch("pandas.DataFrame.head") as mock_head:
             mock_head.return_value = df.head(10)
             prep_res = node.prep(shared)
-            exec_res = node.exec(prep_res)
+            node.exec(prep_res)
 
             # Should call head(10)
             mock_head.assert_called_with(10)
