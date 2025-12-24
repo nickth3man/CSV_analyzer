@@ -1,8 +1,7 @@
 """Tests for LoadData node - CSV file loading and error handling."""
 
-import pytest
 import pandas as pd
-import os
+
 from backend.nodes import LoadData
 
 
@@ -38,8 +37,8 @@ class TestLoadDataBasicLoading:
         dfs = node.exec(str(temp_csv_dir))
 
         # Table names should be filenames without .csv extension
-        for table_name in dfs.keys():
-            assert '.csv' not in table_name
+        for table_name in dfs:
+            assert ".csv" not in table_name
             assert isinstance(table_name, str)
             assert len(table_name) > 0
 
@@ -113,7 +112,7 @@ class TestLoadDataEncodingHandling:
     def test_handles_utf8_encoding(self, tmp_path):
         """Test loading UTF-8 encoded CSV."""
         csv_file = tmp_path / "utf8.csv"
-        csv_file.write_text("name,city\nAlice,São Paulo\nBob,Tokyo", encoding='utf-8')
+        csv_file.write_text("name,city\nAlice,São Paulo\nBob,Tokyo", encoding="utf-8")
 
         node = LoadData()
         dfs = node.exec(str(tmp_path))
@@ -144,7 +143,7 @@ class TestLoadDataDataIntegrity:
 
         # Check that the test_valid.csv has correct columns
         if "test_valid" in dfs:
-            expected_columns = ['name', 'age', 'salary', 'department']
+            expected_columns = ["name", "age", "salary", "department"]
             assert list(dfs["test_valid"].columns) == expected_columns
 
     def test_preserves_data_types(self, test_data_dir):
@@ -155,11 +154,11 @@ class TestLoadDataDataIntegrity:
         if "test_valid" in dfs:
             df = dfs["test_valid"]
             # Age should be numeric
-            assert pd.api.types.is_numeric_dtype(df['age'])
+            assert pd.api.types.is_numeric_dtype(df["age"])
             # Salary should be numeric
-            assert pd.api.types.is_numeric_dtype(df['salary'])
+            assert pd.api.types.is_numeric_dtype(df["salary"])
             # Name and department should be strings/objects
-            assert pd.api.types.is_object_dtype(df['name'])
+            assert pd.api.types.is_object_dtype(df["name"])
 
     def test_preserves_row_count(self, test_data_dir):
         """Test that all rows are loaded."""
@@ -198,7 +197,7 @@ class TestLoadDataPostMethod:
         node.post(shared, prep_res, exec_res)
 
         # Check that something was printed
-        captured = capsys.readouterr()
+        capsys.readouterr()
         # The node should print information about loaded tables
         # This is implementation-dependent
 

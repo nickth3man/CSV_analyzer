@@ -8,8 +8,11 @@ For UI-agnostic data functions, see the data_utils module.
 """
 
 import logging
+
 import chainlit as cl
-from .data_utils import get_table_preview_data, get_schema_summary_data
+
+from src.frontend.data_utils import get_schema_summary_data, get_table_preview_data
+
 
 logger = logging.getLogger(__name__)
 
@@ -29,10 +32,10 @@ async def display_table_preview(table_name: str, max_rows: int = 10) -> bool:
         True if table was found and displayed, False otherwise
     """
     logger.info(f"Displaying preview for table '{table_name}'")
-    
+
     # Get data from UI-agnostic function
     data = get_table_preview_data(table_name, max_rows)
-    
+
     if data is None:
         await cl.Message(content=f"❌ Table `{table_name}` not found.").send()
         return False
@@ -40,7 +43,7 @@ async def display_table_preview(table_name: str, max_rows: int = 10) -> bool:
     # Create Chainlit DataFrame element for native display
     elements = [
         cl.Dataframe(
-            data=data['preview_df'],
+            data=data["preview_df"],
             name=f"{table_name}_preview",
             display="inline"
         )
@@ -56,7 +59,7 @@ async def display_table_preview(table_name: str, max_rows: int = 10) -> bool:
 """,
         elements=elements
     ).send()
-    
+
     logger.info(f"Successfully displayed preview for table '{table_name}' with {data['rows_shown']} rows")
     return True
 
@@ -72,38 +75,38 @@ async def display_schema_summary() -> bool:
         True if schema was displayed, False if no tables loaded
     """
     logger.info("Displaying schema summary")
-    
+
     # Get data from UI-agnostic function
     data = get_schema_summary_data()
-    
+
     if data is None:
         await cl.Message(content="📂 No tables loaded. Upload CSV files to get started!").send()
         return False
 
     # Build overview message
     overview = f"## 📊 Data Schema Overview\n\n**{data['table_count']} tables loaded:**\n\n"
-    
-    for table in data['tables']:
+
+    for table in data["tables"]:
         overview += f"- **{table['name']}**: {table['rows']:,} rows x {table['cols']} cols ({table['num_cols']} numeric)\n"
-    
+
     overview += "\n---\n\n**Column Details:**\n"
-    
+
     await cl.Message(content=overview).send()
 
     # Show column info for each table using Chainlit DataFrame elements
-    for table in data['tables']:
+    for table in data["tables"]:
         elements = [
             cl.Dataframe(
-                data=table['col_info'],
+                data=table["col_info"],
                 name=f"{table['name']}_schema",
                 display="inline"
             )
         ]
-        
+
         await cl.Message(
             content=f"### {table['name']}",
             elements=elements
         ).send()
-    
+
     logger.info(f"Successfully displayed schema summary for {data['table_count']} tables")
     return True

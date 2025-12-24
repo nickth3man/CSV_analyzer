@@ -1,8 +1,7 @@
 """Tests for EntityResolver node - entity extraction and table matching."""
 
-import pytest
 import pandas as pd
-from unittest.mock import patch, MagicMock
+
 from backend.nodes import EntityResolver
 
 
@@ -65,7 +64,7 @@ class TestEntityResolverEntityExtraction:
 
     def test_handles_malformed_json(self, mock_call_llm_in_nodes, sample_shared_store):
         """Test handling of malformed JSON response."""
-        mock_call_llm_in_nodes.return_value = 'This is not valid JSON'
+        mock_call_llm_in_nodes.return_value = "This is not valid JSON"
 
         node = EntityResolver()
         shared = {
@@ -82,7 +81,7 @@ class TestEntityResolverEntityExtraction:
 
     def test_handles_empty_response(self, mock_call_llm_in_nodes, sample_shared_store):
         """Test handling of empty LLM response."""
-        mock_call_llm_in_nodes.return_value = ''
+        mock_call_llm_in_nodes.return_value = ""
 
         node = EntityResolver()
         shared = {
@@ -204,7 +203,8 @@ class TestEntityResolverMultiPartNames:
         assert "employees" in exec_res["entity_map"]["Alice Johnson"]
         # Should match both first_name and last_name columns
         cols = exec_res["entity_map"]["Alice Johnson"]["employees"]
-        assert "first_name" in cols and "last_name" in cols
+        assert "first_name" in cols
+        assert "last_name" in cols
 
     def test_handles_player_name_columns(self, mock_call_llm_in_nodes):
         """Test matching with player_name style columns."""

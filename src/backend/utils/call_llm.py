@@ -1,7 +1,9 @@
-from openai import OpenAI
+import logging
 import os
 import time
-import logging
+
+from openai import OpenAI
+
 
 logger = logging.getLogger(__name__)
 
@@ -79,10 +81,10 @@ def is_mistral_model(model_id):
     return model_id.startswith("mistralai/")
 
 
-def should_force_chutes_provider(model_id, api_key):
+def should_force_chutes_provider(model_id, api_key) -> bool:
     """
     Determine if we should force Chutes as the provider.
-    
+
     Returns True if:
     - Using the default API key AND
     - Model is hosted by Chutes AND
@@ -91,19 +93,16 @@ def should_force_chutes_provider(model_id, api_key):
     """
     if api_key != DEFAULT_API_KEY:
         return False
-    
+
     if not is_chutes_model(model_id):
         return False
-    
+
     # Don't force provider for free models (they route correctly by default)
     if is_free_model(model_id):
         return False
-    
+
     # Don't force provider for MistralAI models (use Mistral's API directly)
-    if is_mistral_model(model_id):
-        return False
-    
-    return True
+    return not is_mistral_model(model_id)
 
 
 def call_llm(prompt, max_retries=3):
@@ -137,7 +136,7 @@ def call_llm(prompt, max_retries=3):
             }
             if extra_body:
                 kwargs["extra_body"] = extra_body
-            
+
             r = client.chat.completions.create(**kwargs)
             return r.choices[0].message.content
         except Exception as e:
@@ -146,12 +145,12 @@ def call_llm(prompt, max_retries=3):
                  logger.warning(f"Mocking LLM response due to auth error: {e}")
                  if "Extract all named entities" in prompt:
                      return '["LeBron James", "Tracy McGrady"]'
-                 elif "create a comprehensive analysis plan" in prompt:
+                 if "create a comprehensive analysis plan" in prompt:
                      return """1. Query the 'stats' table for LeBron James and Tracy McGrady.
 2. Filter for relevant years.
 3. Compare points.
 4. Generate insights."""
-                 elif "Write comprehensive code" in prompt or "Fix it" in prompt:
+                 if "Write comprehensive code" in prompt or "Fix it" in prompt:
                      return """
 final_result = {}
 try:
@@ -163,7 +162,7 @@ try:
 except Exception as e:
     final_result['error'] = str(e)
 """
-                 elif "Analyze the following data" in prompt:
+                 if "Analyze the following data" in prompt:
                      return """
 ```json
 {
@@ -174,18 +173,17 @@ except Exception as e:
 "narrative_points": ["LeBron is great", "Tracy was good"]
 }
 ```"""
-                 elif "writing a response to a user's question" in prompt:
+                 if "writing a response to a user's question" in prompt:
                      return "LeBron James scored 30000 points and Tracy McGrady scored 18000 points. LeBron had a longer career."
-                 else:
-                     return "Mock response"
-            
+                 return "Mock response"
+
             if attempt == max_retries - 1:
                 # Re-raise on last attempt
-                raise RuntimeError(f"LLM call failed after {max_retries} attempts: {str(e)}") from e
+                raise RuntimeError(f"LLM call failed after {max_retries} attempts: {e!s}") from e
             logger.warning(f"LLM call failed (attempt {attempt+1}/{max_retries}): {e}")
             # Exponential backoff: 2s, 4s, 8s
             time.sleep(2 ** (attempt + 1))
+    return None
 
 if __name__ == "__main__":
     prompt = "What is the meaning of life?"
-    print(call_llm(prompt))

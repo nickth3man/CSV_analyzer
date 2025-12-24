@@ -1,7 +1,7 @@
 """Security tests for Executor node - sandboxed code execution."""
 
-import pytest
 import pandas as pd
+
 from backend.nodes import Executor
 
 
@@ -27,7 +27,7 @@ final_result = sorted([v for v in available_vars if not v.startswith('_')])
 
         assert status == "success"
         # Should only have 'dfs', 'pd', and 'final_result' (created by the code)
-        assert set(result) == {'dfs', 'pd', 'final_result'}
+        assert set(result) == {"dfs", "pd", "final_result"}
 
     def test_cannot_access_globals(self, sample_df):
         """Test that code cannot access global scope."""
@@ -48,7 +48,7 @@ except NameError:
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
-        status, result = exec_res["csv"]
+        status, _result = exec_res["csv"]
 
         # Should fail because globals() is not in scope
         assert status == "error"
@@ -87,7 +87,7 @@ final_result = df['salary'].mean()
         status, result = exec_res["csv"]
 
         assert status == "success"
-        assert result == sample_df['salary'].mean()
+        assert result == sample_df["salary"].mean()
 
 
 class TestExecutorResultExtraction:
@@ -201,8 +201,8 @@ final_result = {
         status, result = exec_res["csv"]
 
         assert status == "success"
-        assert result['count'] == 3
-        assert result['avg_salary'] == 84000
+        assert result["count"] == 3
+        assert result["avg_salary"] == 84000
 
 
 class TestExecutorErrorHandling:
@@ -375,8 +375,8 @@ final_result = grouped.to_dict()
         status, result = exec_res["csv"]
 
         assert status == "success"
-        assert 'Engineering' in result
-        assert result['Engineering'] == (75000 + 95000) / 2
+        assert "Engineering" in result
+        assert result["Engineering"] == (75000 + 95000) / 2
 
     def test_aggregation_operation(self, sample_df):
         """Test aggregation operations."""
@@ -399,9 +399,9 @@ final_result = {
         status, result = exec_res["csv"]
 
         assert status == "success"
-        assert result['mean'] == 84000
-        assert result['median'] == 82000
-        assert result['sum'] == 252000
+        assert result["mean"] == 84000
+        assert result["median"] == 82000
+        assert result["sum"] == 252000
 
     def test_merge_operation(self, sample_df, sample_sales_df):
         """Test merging DataFrames."""

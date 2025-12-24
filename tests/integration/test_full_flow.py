@@ -1,9 +1,6 @@
 """Integration tests for full analysis flow."""
 
-from unittest.mock import patch
 
-import pandas as pd
-import pytest
 
 from backend.flow import create_analyst_flow
 
@@ -14,7 +11,7 @@ class TestFullAnalysisFlow:
     def test_simple_query_flow(self, mock_call_llm_in_nodes, temp_csv_dir):
         """Test a simple query through the full flow."""
         # Set up mock LLM responses for each node
-        def mock_llm_response(prompt):
+        def mock_llm_response(prompt) -> str:
             prompt_lower = prompt.lower()
 
             if "ambiguous" in prompt_lower or "clarify" in prompt_lower:
@@ -23,39 +20,38 @@ is_ambiguous: false
 reason: "Query is clear"
 ```"""
 
-            elif "extract entities" in prompt_lower or "extract all named" in prompt_lower:
-                return '[]'  # No entities
+            if "extract entities" in prompt_lower or "extract all named" in prompt_lower:
+                return "[]"  # No entities
 
-            elif "create a plan" in prompt_lower or "analysis plan" in prompt_lower:
+            if "create a plan" in prompt_lower or "analysis plan" in prompt_lower:
                 return "1. Calculate the average salary from employees table"
 
-            elif "generate python code" in prompt_lower or "write code" in prompt_lower:
+            if "generate python code" in prompt_lower or "write code" in prompt_lower:
                 return """```python
 final_result = dfs['test_valid']['salary'].mean()
 ```"""
 
-            elif "validate" in prompt_lower or "verify" in prompt_lower:
+            if "validate" in prompt_lower or "verify" in prompt_lower:
                 return """```yaml
 is_valid: true
 reason: "Result answers the question"
 ```"""
 
-            elif "deep analysis" in prompt_lower or "statistical" in prompt_lower:
+            if "deep analysis" in prompt_lower or "statistical" in prompt_lower:
                 return """```yaml
 insights:
   - "Average salary calculated successfully"
 ```"""
 
-            elif "synthesize" in prompt_lower or "narrative" in prompt_lower:
+            if "synthesize" in prompt_lower or "narrative" in prompt_lower:
                 return "The average salary is $84,000."
 
-            else:
-                return "Mock response"
+            return "Mock response"
 
         mock_call_llm_in_nodes.side_effect = mock_llm_response
 
         # Create shared store
-        shared = {
+        {
             "data_dir": str(temp_csv_dir),
             "question": "What is the average salary?"
         }
@@ -72,7 +68,7 @@ insights:
 
     def test_flow_handles_clear_query(self, mock_call_llm_in_nodes, sample_df):
         """Test flow with a clear, unambiguous query."""
-        def mock_llm_response(prompt):
+        def mock_llm_response(prompt) -> str:
             if "ambiguous" in prompt.lower():
                 return """```yaml
 is_ambiguous: false
@@ -82,11 +78,6 @@ reason: "Query is clear and specific"
 
         mock_call_llm_in_nodes.side_effect = mock_llm_response
 
-        shared = {
-            "data_dir": "/test",
-            "question": "What is the average salary?",
-            "dfs": {"employees": sample_df}
-        }
 
         flow = create_analyst_flow()
         # The flow structure should be valid
@@ -94,7 +85,7 @@ reason: "Query is clear and specific"
 
     def test_flow_handles_ambiguous_query(self, mock_call_llm_in_nodes, sample_df):
         """Test flow with an ambiguous query."""
-        def mock_llm_response(prompt):
+        def mock_llm_response(prompt) -> str:
             if "ambiguous" in prompt.lower():
                 return """```yaml
 is_ambiguous: true
@@ -107,11 +98,6 @@ suggested_questions:
 
         mock_call_llm_in_nodes.side_effect = mock_llm_response
 
-        shared = {
-            "data_dir": "/test",
-            "question": "Tell me about salaries",
-            "dfs": {"employees": sample_df}
-        }
 
         flow = create_analyst_flow()
         # Should have ambiguous path in flow
@@ -186,7 +172,7 @@ class TestFlowDataPropagation:
 
         shared = {"data_dir": "/test"}
 
-        node = LoadData()
+        LoadData()
         # This is more of a unit test, but shows data propagation concept
         assert shared is not None
 
@@ -216,10 +202,6 @@ class TestFlowValidation:
 
     def test_flow_handles_missing_data(self):
         """Test flow handling when data is missing."""
-        shared = {
-            "data_dir": "/nonexistent",
-            "question": "Test"
-        }
 
         flow = create_analyst_flow()
         # Flow should handle missing data gracefully

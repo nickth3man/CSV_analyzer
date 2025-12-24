@@ -1,25 +1,29 @@
 """Main event handlers for Chainlit app."""
 
+import logging
 import os
 import shutil
-import logging
+
 import chainlit as cl
+
 
 logger = logging.getLogger(__name__)
 from chainlit.input_widget import Select, TextInput
+
 from backend.utils.file_sanitizer import sanitize_csv_filename
-from .config import (
-    DEFAULT_API_KEY,
-    EXAMPLE_QUESTIONS,
-    fetch_openrouter_models
-)
-from .data_utils import (
+from src.frontend.commands import handle_command
+from src.frontend.config import DEFAULT_API_KEY, fetch_openrouter_models
+from src.frontend.data_utils import (
     get_csv_files,
+    invalidate_dataframe_cache,
     load_dataframes,
-    invalidate_dataframe_cache
 )
-from .commands import handle_command
-from .steps import step_load_data, step_schema, step_run_analysis, display_result_with_streaming
+from src.frontend.steps import (
+    display_result_with_streaming,
+    step_load_data,
+    step_run_analysis,
+    step_schema,
+)
 
 
 @cl.set_starters
@@ -91,7 +95,7 @@ async def chat_profile():
 
 
 @cl.on_chat_start
-async def on_chat_start():
+async def on_chat_start() -> None:
     """Initialize the chat session."""
     # Use default API key if none is set in environment
     current_api_key = os.environ.get("OPENROUTER_API_KEY", "")
@@ -172,7 +176,7 @@ Ask me anything about NBA data! I can analyze player stats, compare careers, fin
 
 
 @cl.on_settings_update
-async def on_settings_update(settings):
+async def on_settings_update(settings) -> None:
     """Handle settings updates."""
     cl.user_session.set("settings", settings)
 
@@ -228,7 +232,7 @@ async def on_settings_update(settings):
 
 
 @cl.on_message
-async def on_message(message: cl.Message):
+async def on_message(message: cl.Message) -> None:
     """Handle incoming messages."""
     # Handle file uploads via message elements
     if message.elements:
@@ -237,15 +241,15 @@ async def on_message(message: cl.Message):
 
         uploaded = []
         for element in message.elements:
-            if hasattr(element, 'path') and element.path:
+            if hasattr(element, "path") and element.path:
                 # SECURITY: sanitize filenames to prevent path traversal
-                raw_name = element.name if hasattr(element, 'name') else element.path
+                raw_name = element.name if hasattr(element, "name") else element.path
                 filename = sanitize_csv_filename(raw_name)
                 if not filename:
                     continue  # Skip invalid filenames
                 dest = os.path.join(csv_dir, filename)
                 shutil.copy(element.path, dest)
-                uploaded.append(filename.replace('.csv', ''))
+                uploaded.append(filename.replace(".csv", ""))
 
         if uploaded:
             # Invalidate cache after upload

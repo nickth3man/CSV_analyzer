@@ -1,8 +1,7 @@
 """Tests for call_llm utility - LLM API wrapper with retry logic."""
 
 import os
-import time
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -66,7 +65,7 @@ class TestCallLLMEnvironmentValidation:
     def test_uses_default_api_key_when_missing(self):
         """Test that default API key is used when OPENROUTER_API_KEY is not set."""
         from backend.utils.call_llm import DEFAULT_API_KEY
-        
+
         with patch.dict(os.environ, {}, clear=True):
             with patch("backend.utils.call_llm.OpenAI") as mock_client_class:
                 mock_client = MagicMock()
@@ -122,7 +121,7 @@ class TestCallLLMRetryLogic:
             ]
             mock_client_class.return_value = mock_client
 
-            with patch("backend.utils.call_llm.time.sleep") as mock_sleep:
+            with patch("backend.utils.call_llm.time.sleep"):
                 result = call_llm("Test prompt")
 
                 assert result == "Success"

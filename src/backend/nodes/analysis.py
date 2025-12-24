@@ -1,15 +1,14 @@
-"""
-Analysis, visualization, and response synthesis nodes.
-"""
+"""Analysis, visualization, and response synthesis nodes."""
 
 import json
+import logging
 import os
 import time
-import logging
 
 import matplotlib
 import pandas as pd
 from pocketflow import Node
+
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +29,10 @@ class DeepAnalyzer(Node):
     def prep(self, shared):
         """
         Prepare payload for DeepAnalyzer, assembling execution results and related context from the shared state.
-        
+
         Parameters:
             shared (dict): Shared runtime context containing keys like "exec_result", "csv_exec_result", "api_exec_result", "question", "entity_map", "entities", and "cross_validation".
-        
+
         Returns:
             dict: A prepared dictionary with keys:
                 - "exec_result": primary execution result from `shared["exec_result"]` if present, otherwise a composite with "csv" and "api" results.
@@ -57,13 +56,13 @@ class DeepAnalyzer(Node):
     def _check_data_completeness(self, exec_result, entities):
         """
         Check which requested entities are missing or have incomplete data in the execution result.
-        
+
         Inspects exec_result (when it is a dict) for each entity name (case-insensitive) by looking at keys and stringified values. Treats None, empty dicts, and empty lists as missing/incomplete. Returns a list of entity names that were not found or whose data appears incomplete, and a parallel list of human-readable warning messages describing each problem.
-        
+
         Parameters:
             exec_result (dict | any): The execution result to search; only dicts are inspected for entity data.
             entities (Iterable[str]): Names of entities to verify presence/completeness for.
-        
+
         Returns:
             tuple:
                 - missing_entities (list[str]): Entities not found or with incomplete/empty data.
@@ -79,7 +78,7 @@ class DeepAnalyzer(Node):
                 for key, value in exec_result.items():
                     if entity_lower in str(key).lower():
                         if isinstance(value, dict):
-                            if not value or all(v is None or v == {} or v == [] for v in value.values()):
+                            if not value or all(v is None or v in ({}, []) for v in value.values()):
                                 missing_entities.append(entity)
                                 data_warnings.append(f"Data for '{entity}' appears incomplete or empty")
                             else:
@@ -100,14 +99,14 @@ class DeepAnalyzer(Node):
     def exec(self, prep_res):
         """
         Generate a structured deep analysis of execution results using an LLM and return the analysis augmented with data-quality metadata.
-        
+
         Parameters:
             prep_res (dict): Preparation result containing:
                 - "exec_result": the raw execution result to analyze (any type)
                 - "question": the user's original question (str)
                 - "entities": list of entity names requested (list[str])
                 - "cross_validation": cross-validation summary to include in the prompt (any serializable)
-        
+
         Returns:
             dict | None: A deep analysis structure when exec_result is present, otherwise `None`. The returned dict contains at least the keys:
                 - "key_stats": dict of important statistics derived from available data
@@ -177,13 +176,12 @@ Return ONLY valid JSON."""
             analysis_response = (analysis_response or "").strip()
             if analysis_response.startswith("```"):
                 analysis_response = analysis_response.split("```")[1]
-                if analysis_response.startswith("json"):
-                    analysis_response = analysis_response[4:]
+                analysis_response = analysis_response.removeprefix("json")
             deep_analysis = json.loads(analysis_response)
             deep_analysis["_missing_entities"] = missing_entities
             deep_analysis["_data_warnings"] = data_warnings
         except json.JSONDecodeError as exc:
-            logger.error(f"Failed to parse deep analysis JSON: {exc}")
+            logger.exception(f"Failed to parse deep analysis JSON: {exc}")
             deep_analysis = {
                 "key_stats": {"raw_result": str(exec_result)[:500]},
                 "comparison": None,
@@ -192,8 +190,8 @@ Return ONLY valid JSON."""
                 "_missing_entities": missing_entities,
                 "_data_warnings": data_warnings,
             }
-        except Exception as exc:  # noqa: BLE001
-            logger.error(f"Unexpected error in deep analysis: {exc}")
+        except Exception as exc:
+            logger.exception(f"Unexpected error in deep analysis: {exc}")
             deep_analysis = {
                 "key_stats": {"raw_result": str(exec_result)[:500]},
                 "comparison": None,
@@ -205,26 +203,25 @@ Return ONLY valid JSON."""
 
         return deep_analysis
 
-    def exec_fallback(self, prep_res, exc):
+    def exec_fallback(self, prep_res, exc) -> None:
         """
         Handle execution failures for DeepAnalyzer by reporting the error and returning None.
-        
+
         Parameters:
             prep_res: The prepared input that was passed to exec; may be used for diagnostics.
             exc: The exception instance that caused the failure; its message is reported.
         """
         logger.error(f"DeepAnalyzer failed: {exc}")
-        return None
 
-    def post(self, shared, prep_res, exec_res):
+    def post(self, shared, prep_res, exec_res) -> str:
         """
         Store the deep analysis result in the shared pipeline state and log completion status.
-        
+
         Parameters:
             shared (dict): Mutable pipeline state; will be updated with key "deep_analysis" set to exec_res.
             prep_res: Prepared input for execution (unused by this post step).
             exec_res (dict | None): Result of deep analysis; if present and contains the "_data_warnings" key, warnings are printed.
-        
+
         Returns:
             str: The next pipeline step identifier, always `"default"`.
         """
@@ -243,25 +240,25 @@ class Visualizer(Node):
     def prep(self, shared):
         """
         Extracts the execution result from the shared pipeline state for visualization.
-        
+
         Parameters:
-        	shared (dict): Shared pipeline state containing prior node outputs.
-        
+            shared (dict): Shared pipeline state containing prior node outputs.
+
         Returns:
-        	exec_result: The value stored under "exec_result" in `shared`, or `None` if that key is absent.
+            exec_result: The value stored under "exec_result" in `shared`, or `None` if that key is absent.
         """
         return shared.get("exec_result")
 
     def exec(self, prep_res):
         """
         Create a simple bar chart from the first numeric column of a DataFrame and save it to the assets directory.
-        
+
         Parameters:
             prep_res (pandas.DataFrame | None): DataFrame to visualize; may be None or non-DataFrame in which case no chart is produced.
-        
+
         Returns:
             str | None: File path to the generated PNG chart (assets/chart_<timestamp>.png) if a chart was created, `None` if no chart could be produced (e.g., prep_res is None, not a DataFrame, or contains no numeric columns).
-        
+
         Notes:
             - Ensures the "assets" directory exists and prunes older chart files beyond CHART_HISTORY_LIMIT.
             - The chart uses up to CHART_ROW_LIMIT rows and plots the first numeric column as a bar chart.
@@ -286,7 +283,7 @@ class Visualizer(Node):
                 )
                 for old_file in chart_files[:-CHART_HISTORY_LIMIT]:
                     os.remove(os.path.join(output_dir, old_file))
-            except (OSError, IOError):
+            except OSError:
                 pass
 
             timestamp = int(time.time())
@@ -304,13 +301,13 @@ class Visualizer(Node):
             return output_path
         return None
 
-    def post(self, shared, prep_res, exec_res):
+    def post(self, shared, prep_res, exec_res) -> str:
         """
         Store the generated chart path in the shared state and continue the default flow.
-        
+
         Parameters:
             exec_res (str | None): File path to the generated chart image, or None if no chart was produced.
-        
+
         Returns:
             "default": Signal indicating the default post-execution transition.
         """
@@ -324,7 +321,7 @@ class ResponseSynthesizer(Node):
     def prep(self, shared):
         """
         Assembles a response-synthesis payload from the shared runtime state.
-        
+
         Parameters:
             shared (dict): Runtime context containing keys used to build the payload. Expected keys:
                 - "exec_result": raw execution result (optional)
@@ -334,7 +331,7 @@ class ResponseSynthesizer(Node):
                 - "entity_map": mapping of entity identifiers to metadata (optional, defaults to {})
                 - "cross_validation": cross-validation summary (optional, defaults to {})
                 - "data_sources": metadata about data sources (optional, defaults to {})
-        
+
         Returns:
             dict: Payload with the following keys:
                 - "exec_result": value of shared["exec_result"] or None
@@ -360,24 +357,24 @@ class ResponseSynthesizer(Node):
     def exec(self, prep_res):
         """
         Compose the final user-facing response by combining raw execution results, deep analysis, and data-quality information, invoking the LLM to produce a structured answer and updating the knowledge store with any discovered entity mappings.
-        
+
         Parameters:
-        	prep_res (dict): Prepared payload containing at least:
-        		- "from_error" (bool): if True, indicates upstream failure and causes this call to return None.
-        		- "exec_result": raw execution result (e.g., DataFrame or text).
-        		- "deep_analysis" (dict|None): analysis output that may include private keys `_missing_entities` and `_data_warnings`.
-        		- "question" (str): the user's original question.
-        		- "entities" (list[str]): entities referenced by the question.
-        		- "entity_map" (dict): mappings used to update the knowledge store.
-        		- Optional "cross_validation" and "data_sources" for inclusion in the prompt.
-        
+            prep_res (dict): Prepared payload containing at least:
+                - "from_error" (bool): if True, indicates upstream failure and causes this call to return None.
+                - "exec_result": raw execution result (e.g., DataFrame or text).
+                - "deep_analysis" (dict|None): analysis output that may include private keys `_missing_entities` and `_data_warnings`.
+                - "question" (str): the user's original question.
+                - "entities" (list[str]): entities referenced by the question.
+                - "entity_map" (dict): mappings used to update the knowledge store.
+                - Optional "cross_validation" and "data_sources" for inclusion in the prompt.
+
         Returns:
-        	str | None: A formatted textual response generated by the LLM, or None when prep_res indicates an upstream error.
-        
+            str | None: A formatted textual response generated by the LLM, or None when prep_res indicates an upstream error.
+
         Side effects:
-        	- May add entity mappings and a successful query pattern to the global knowledge_store for entities found in the data.
-        	- Truncates long raw results and analysis when building the prompt to the configured limits.
-        	- Ensures the generated response explicitly notes missing or incomplete data as indicated by deep_analysis.
+            - May add entity mappings and a successful query pattern to the global knowledge_store for entities found in the data.
+            - Truncates long raw results and analysis when building the prompt to the configured limits.
+            - Ensures the generated response explicitly notes missing or incomplete data as indicated by deep_analysis.
         """
         if prep_res["from_error"]:
             return None
@@ -465,29 +462,29 @@ Be honest about data limitations - do not fabricate facts."""
 
         return response
 
-    def exec_fallback(self, prep_res, exc):
+    def exec_fallback(self, prep_res, exc) -> str:
         """
         Handle failures during ResponseSynthesizer execution and provide a user-facing apology message.
-        
+
         Parameters:
             prep_res: The prepared input that was being processed when the error occurred.
             exc (Exception): The exception that triggered the fallback.
-        
+
         Returns:
             A user-facing apology string indicating a system error and inability to generate a response.
         """
         logger.error(f"ResponseSynthesizer failed: {exc}")
         return "I apologize, but I am unable to generate a response at this time due to a system error."
 
-    def post(self, shared, prep_res, exec_res):
+    def post(self, shared, prep_res, exec_res) -> str:
         """
         Store the final response in shared state, print a formatted "FINAL RESPONSE" block, and return the default next-step tag.
-        
+
         Parameters:
             shared (dict): Shared pipeline state where the final text will be stored under the "final_text" key.
             prep_res: Preparation result (not used by this post step).
             exec_res: The execution result to store and display; if falsy, existing shared["final_text"] is left unchanged.
-        
+
         Returns:
             str: The next-step tag "default".
         """

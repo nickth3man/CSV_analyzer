@@ -1,8 +1,10 @@
 """Configuration and constants for the Chainlit frontend."""
 
-import requests
-import os
 import logging
+import os
+
+import requests
+
 
 logger = logging.getLogger(__name__)
 
@@ -127,13 +129,13 @@ def is_chutes_model(model_id):
     return base_id in CHUTES_HOSTED_MODELS
 
 
-def is_allowed_model(model):
+def is_allowed_model(model) -> bool:
     """
     Check if a model should be included in the filtered list.
     Returns True if:
     - Model is free (pricing.prompt == 0 and pricing.completion == 0)
     - Model is from MistralAI (id starts with 'mistralai/')
-    - Model is hosted by Chutes provider
+    - Model is hosted by Chutes provider.
     """
     model_id = model.get("id", "")
 
@@ -146,10 +148,7 @@ def is_allowed_model(model):
         return True
 
     # Check if it's hosted by Chutes provider
-    if is_chutes_model(model_id):
-        return True
-
-    return False
+    return bool(is_chutes_model(model_id))
 
 
 def fetch_openrouter_models(api_key=None, filter_models=True):
@@ -202,6 +201,5 @@ def fetch_openrouter_models(api_key=None, filter_models=True):
             return models if models else DEFAULT_MODELS
     except (requests.RequestException, ValueError) as e:
         logger.warning(f"Warning: Could not fetch OpenRouter models: {e}")
-        pass
 
     return DEFAULT_MODELS

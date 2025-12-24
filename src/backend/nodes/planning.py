@@ -1,10 +1,10 @@
-"""
-Planning and context aggregation nodes.
-"""
+"""Planning and context aggregation nodes."""
 
 import json
 import logging
+
 from pocketflow import Node
+
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class Planner(Node):
     def prep(self, shared):
         """
         Build a prepared payload extracted from the shared runtime state for plan generation.
-        
+
         Parameters:
             shared (dict): Runtime shared state containing inputs and intermediate results. Expected keys used:
                 - "question": user question string
@@ -28,7 +28,7 @@ class Planner(Node):
                 - "knowledge_hints" (optional): hints or join patterns from the knowledge store
                 - "aggregated_context" (optional): previously aggregated context for the query
                 - "entity_ids" (optional): explicit identifiers for entities
-        
+
         Returns:
             dict: A payload with the following keys:
                 - "question": copied from shared["question"]
@@ -50,7 +50,7 @@ class Planner(Node):
     def exec(self, prep_res):
         """
         Generate a multi-step analysis plan that combines CSV and NBA API data based on the provided preparation results.
-        
+
         Parameters:
             prep_res (dict): Prepared input dictionary containing:
                 - question (str): The user's question.
@@ -59,10 +59,10 @@ class Planner(Node):
                 - knowledge_hints (dict): Hints such as join patterns from previous queries.
                 - aggregated_context (dict, optional): Previously aggregated contextual data.
                 - entity_ids (dict, optional): Official NBA IDs for entities to be used in API calls.
-        
+
         Returns:
             plan (str): A detailed, step-by-step analysis plan covering CSV table queries and joins, NBA API endpoints and fields to call (using entity IDs), filters, cross-source aggregations and comparisons, cross-validation steps, discrepancy handling, and lineup optimization guidance.
-        
+
         Raises:
             ValueError: If the language model returns an empty plan.
         """
@@ -112,28 +112,28 @@ Be thorough - this is for deep analysis, not just a simple lookup."""
             raise ValueError("LLM returned empty plan - retrying")
         return plan
 
-    def exec_fallback(self, prep_res, exc):
+    def exec_fallback(self, prep_res, exc) -> str:
         """
         Provide a fallback plan message when plan generation fails.
-        
+
         Parameters:
             prep_res (dict): The prepared execution payload passed to the node.
             exc (Exception): The exception that caused the failure.
-        
+
         Returns:
             str: A generic fallback message instructing caution while proceeding.
         """
         logger.error(f"Planner failed: {exc}")
         return "Plan generation failed. Please proceed with caution."
 
-    def post(self, shared, prep_res, exec_res):
+    def post(self, shared, prep_res, exec_res) -> str:
         """
         Persist the generated plan into the shared execution state and mark the node as complete.
-        
+
         Parameters:
             shared (dict): Shared state dictionary used by nodes; the plan will be stored under the "plan_steps" key.
             exec_res: The plan produced by the node's execution, stored into shared["plan_steps"].
-        
+
         Returns:
             str: The next node transition label, `"default"`.
         """
@@ -143,38 +143,36 @@ Be thorough - this is for deep analysis, not just a simple lookup."""
 
 
 class ContextAggregator(Node):
-    """
-    Collect insights from previous nodes and create enriched context for code generation.
-    """
+    """Collect insights from previous nodes and create enriched context for code generation."""
 
     def prep(self, shared):
         """
         Builds the execution payload for ContextAggregator by extracting required values from the shared execution state.
-        
+
         Parameters:
-        	shared (dict): Shared node state containing prior results and configuration. Expected keys (if present) include:
-        		- "question": the user's original question
-        		- "schema_str": database schema string
-        		- "entity_map": mapping of entities to their table/column locations
-        		- "entities": list of entity names
-        		- "data_profile": table profiling information (e.g., row counts, id_columns)
-        		- "cross_references": cross-reference metadata between sources
-        		- "plan_steps": previously generated plan steps
-        		- "data_sources": metadata about available data sources
-        		- "entity_ids": explicit entity identifier mappings
-        
+            shared (dict): Shared node state containing prior results and configuration. Expected keys (if present) include:
+                - "question": the user's original question
+                - "schema_str": database schema string
+                - "entity_map": mapping of entities to their table/column locations
+                - "entities": list of entity names
+                - "data_profile": table profiling information (e.g., row counts, id_columns)
+                - "cross_references": cross-reference metadata between sources
+                - "plan_steps": previously generated plan steps
+                - "data_sources": metadata about available data sources
+                - "entity_ids": explicit entity identifier mappings
+
         Returns:
-        	dict: Payload with the following keys populated from `shared` (or defaults):
-        		- "question": user question
-        		- "schema": schema string
-        		- "entity_map": entity location map (default {})
-        		- "entities": list of entities (default [])
-        		- "data_profile": profiling info (default {})
-        		- "cross_references": cross-reference info (default {})
-        		- "plan_steps": plan steps string (default "")
-        		- "knowledge_hints": hints retrieved from the knowledge store
-        		- "data_sources": data source metadata (default {})
-        		- "entity_ids": entity identifier mappings (default {})
+            dict: Payload with the following keys populated from `shared` (or defaults):
+                - "question": user question
+                - "schema": schema string
+                - "entity_map": entity location map (default {})
+                - "entities": list of entities (default [])
+                - "data_profile": profiling info (default {})
+                - "cross_references": cross-reference info (default {})
+                - "plan_steps": plan steps string (default "")
+                - "knowledge_hints": hints retrieved from the knowledge store
+                - "data_sources": data source metadata (default {})
+                - "entity_ids": entity identifier mappings (default {})
         """
         return {
             "question": shared["question"],
@@ -192,7 +190,7 @@ class ContextAggregator(Node):
     def exec(self, prep_res):
         """
         Builds an aggregated context object and a human-readable summary from prepared inputs about entities and data profiles.
-        
+
         Parameters:
             prep_res (dict): Prepared inputs containing:
                 - "entities" (list): Entity names involved in the query.
@@ -201,7 +199,7 @@ class ContextAggregator(Node):
                 - "cross_references" (optional dict): Cross-reference metadata.
                 - "data_sources" (optional dict): Source descriptors for tables.
                 - "entity_ids" (optional dict): Specific IDs for entities.
-        
+
         Returns:
             dict: A dictionary with:
                 - "context" (dict): Aggregated context including:
@@ -226,7 +224,7 @@ class ContextAggregator(Node):
         for entity, tables in prep_res["entity_map"].items():
             context["entity_locations"][entity] = {
                 "tables": list(tables.keys()),
-                "primary_table": list(tables.keys())[0] if tables else None,
+                "primary_table": next(iter(tables.keys())) if tables else None,
             }
             context["recommended_tables"].update(tables.keys())
 
@@ -269,17 +267,17 @@ AGGREGATED CONTEXT:
 
         return {"context": context, "summary": context_summary}
 
-    def post(self, shared, prep_res, exec_res):
+    def post(self, shared, prep_res, exec_res) -> str:
         """
         Store the aggregated context and its textual summary into the shared state.
-        
+
         Parameters:
             shared (dict): Mutable shared state for the node pipeline; will be updated with aggregated context and summary.
             prep_res (dict): Preparation output (unused by this method).
             exec_res (dict): Execution result containing:
                 - context (dict): Aggregated context object; must include `query_type` and `recommended_tables`.
                 - summary (str): Human-readable summary of the aggregated context.
-        
+
         Returns:
             str: Execution token "default".
         """

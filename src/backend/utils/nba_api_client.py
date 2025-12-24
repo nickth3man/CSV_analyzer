@@ -13,7 +13,7 @@ from nba_api.stats.static import players, teams
 class NBAApiClient:
     """Lightweight wrapper around nba_api with caching and rate limiting."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.request_delay = float(os.environ.get("NBA_API_REQUEST_DELAY", 0.6))
         self.cache_ttl = int(os.environ.get("NBA_API_CACHE_TTL", 3600))
         self.cache_dir = os.environ.get("NBA_API_CACHE_DIR", ".nba_cache")
@@ -56,20 +56,20 @@ class NBAApiClient:
         path = self._cache_path(name, params)
         if not os.path.exists(path):
             return None
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             cached = json.load(f)
         timestamp = cached.get("timestamp", 0)
         if time.time() - timestamp > self.cache_ttl:
             return None
         return self._deserialize(cached.get("payload"))
 
-    def _write_cache(self, name, params, payload):
+    def _write_cache(self, name, params, payload) -> None:
         path = self._cache_path(name, params)
         os.makedirs(self.cache_dir, exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             json.dump({"timestamp": time.time(), "payload": self._serialize(payload)}, f)
 
-    def _throttle(self):
+    def _throttle(self) -> None:
         with self._lock:
             elapsed = time.time() - self._last_request_time
             if elapsed < self.request_delay:
@@ -137,29 +137,25 @@ class NBAApiClient:
 
     def get_player_game_log(self, player_id, season):
         def fetch():
-            frame = endpoints.PlayerGameLog(player_id=player_id, season=season).get_data_frames()[0]
-            return frame
+            return endpoints.PlayerGameLog(player_id=player_id, season=season).get_data_frames()[0]
 
         return self._call_with_cache("player_game_log", {"player_id": player_id, "season": season}, fetch)
 
     def get_team_game_log(self, team_id, season):
         def fetch():
-            frame = endpoints.TeamGameLog(team_id=team_id, season=season).get_data_frames()[0]
-            return frame
+            return endpoints.TeamGameLog(team_id=team_id, season=season).get_data_frames()[0]
 
         return self._call_with_cache("team_game_log", {"team_id": team_id, "season": season}, fetch)
 
     def get_league_leaders(self, season, stat_category="PTS"):
         def fetch():
-            frame = endpoints.LeagueLeaders(season=season, stat_category_abbreviation=stat_category).get_data_frames()[0]
-            return frame
+            return endpoints.LeagueLeaders(season=season, stat_category_abbreviation=stat_category).get_data_frames()[0]
 
         return self._call_with_cache("league_leaders", {"season": season, "stat_category": stat_category}, fetch)
 
     def get_common_team_roster(self, team_id, season):
         def fetch():
-            frame = endpoints.CommonTeamRoster(team_id=team_id, season=season).get_data_frames()[0]
-            return frame
+            return endpoints.CommonTeamRoster(team_id=team_id, season=season).get_data_frames()[0]
 
         return self._call_with_cache("common_team_roster", {"team_id": team_id, "season": season}, fetch)
 

@@ -1,7 +1,13 @@
-import logging
-from pocketflow import Flow
+"""Flow module for the NBA Expert data analyst workflow.
 
-logger = logging.getLogger(__name__)
+This module creates and configures the main analyst flow by wiring together
+all the processing nodes for data ingestion, query clarification, code
+generation, execution, and response synthesis.
+"""
+
+import logging
+
+from pocketflow import Flow
 
 from backend.nodes import (
     AskUser,
@@ -27,16 +33,21 @@ from backend.nodes import (
     Visualizer,
 )
 
-def create_analyst_flow():
-    """
-    Create the Enhanced Relational Data Analyst Flow.
-    
-    Constructs and wire together nodes for data ingestion, clarification, planning, code generation, safety checks, execution, validation, analysis, visualization, and response synthesis; the flow begins at the initial data loader.
-    
+
+logger = logging.getLogger(__name__)
+
+
+def create_analyst_flow() -> Flow:
+    """Create the Enhanced Relational Data Analyst Flow.
+
+    Constructs and wire together nodes for data ingestion, clarification,
+    planning, code generation, safety checks, execution, validation,
+    analysis, visualization, and response synthesis; the flow begins at
+    the initial data loader.
+
     Returns:
         Flow: Flow object with start node set to the initial LoadData node.
     """
-
     load = LoadData()
     nba_loader = NBAApiDataLoader()
     merger = DataMerger()
@@ -73,7 +84,8 @@ def create_analyst_flow():
     ask_user - "clarified" >> entity_resolver
     # Other AskUser actions ("default", "quit") terminate the flow
 
-    entity_resolver >> search_expander >> context_aggregator >> plan >> code_gen >> api_code_gen >> safety
+    entity_resolver >> search_expander >> context_aggregator >> plan >> code_gen
+    code_gen >> api_code_gen >> safety
 
     safety - "unsafe" >> code_gen
     safety - "safe" >> executor
@@ -86,6 +98,7 @@ def create_analyst_flow():
     result_validator >> cross_validator >> deep_analyzer >> viz >> synthesizer
 
     return Flow(start=load)
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

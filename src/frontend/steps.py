@@ -1,22 +1,23 @@
 """Step functions for analysis pipeline."""
 
-import os
 import asyncio
 import logging
+import os
 
 import chainlit as cl
 
 from backend.flow import create_analyst_flow
-from .data_utils import get_schema_info, load_dataframes
+from src.frontend.data_utils import get_schema_info, load_dataframes
+
 
 logger = logging.getLogger(__name__)
 
 
 @cl.step(type="tool", name="Loading Data")
-async def step_load_data():
+async def step_load_data() -> str:
     """Load data step."""
     dfs = load_dataframes()
-    table_names = ", ".join(f"`{name}`" for name in dfs.keys())
+    table_names = ", ".join(f"`{name}`" for name in dfs)
     return f"Loaded {len(dfs)} tables: {table_names}"
 
 
@@ -66,7 +67,7 @@ async def step_run_analysis(question: str, settings: dict):
         return shared, final_text, chart_path
 
     except Exception as e:
-        return None, f"An error occurred: {str(e)}", None
+        return None, f"An error occurred: {e!s}", None
 
 
 async def stream_response(content: str, elements: list | None = None):
@@ -101,7 +102,7 @@ async def stream_response(content: str, elements: list | None = None):
     return msg
 
 
-async def display_result_with_streaming(final_text: str, chart_path: str | None = None):
+async def display_result_with_streaming(final_text: str, chart_path: str | None = None) -> None:
     """
     Display the analysis result with optional streaming and chart.
 

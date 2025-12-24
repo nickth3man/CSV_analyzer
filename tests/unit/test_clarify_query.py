@@ -1,6 +1,5 @@
 """Tests for ClarifyQuery node."""
 
-import pytest
 from backend.nodes import ClarifyQuery
 
 
@@ -203,7 +202,7 @@ class TestClarifyQueryPartialMatches:
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
-        status, missing = exec_res
+        status, _missing = exec_res
 
         # "common_player" is a substring match
         assert status == "clear"

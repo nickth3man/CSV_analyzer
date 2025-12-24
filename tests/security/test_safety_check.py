@@ -1,6 +1,5 @@
 """Security tests for SafetyCheck node - CRITICAL for preventing code injection."""
 
-import pytest
 from backend.nodes import SafetyCheck
 
 
@@ -23,7 +22,6 @@ class TestSafetyCheckForbiddenImports:
         """Test that 'import subprocess' is blocked."""
         node = SafetyCheck()
         code = "import subprocess\nsubprocess.call(['ls'])"
-        shared = {"csv_code_snippet": code}
 
         status, reason = node.exec((code, ""))
 

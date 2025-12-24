@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import pandas as pd
 
@@ -11,23 +11,23 @@ class DataSourceManager:
 
     DISCREPANCY_THRESHOLD = 0.05
 
-    def detect_query_entities(self, question: str) -> List[str]:
+    def detect_query_entities(self, question: str) -> list[str]:
         """Lightweight entity detection to inform API endpoint choices."""
         if not question:
             return []
         candidates = re.findall(r"[A-Z][a-z]+(?:\s[A-Z][a-z]+)*", question)
-        seen: List[str] = []
+        seen: list[str] = []
         for candidate in candidates:
             if candidate not in seen:
                 seen.append(candidate)
         return seen
 
-    def determine_api_endpoints(self, entities: List[str], question: str) -> List[Dict[str, Any]]:
+    def determine_api_endpoints(self, entities: list[str], question: str) -> list[dict[str, Any]]:
         """Map entities + intent to candidate endpoints."""
-        endpoints: List[Dict[str, Any]] = []
+        endpoints: list[dict[str, Any]] = []
         q_lower = question.lower()
 
-        def add_endpoint(name: str, params: Optional[Dict[str, Any]] = None):
+        def add_endpoint(name: str, params: dict[str, Any] | None = None) -> None:
             endpoints.append({"name": name, "params": params or {}})
 
         if "score" in q_lower or "today" in q_lower or "live" in q_lower:
@@ -53,12 +53,12 @@ class DataSourceManager:
         return endpoints
 
     def merge_data_sources(
-        self, csv_data: Dict[str, pd.DataFrame], api_data: Dict[str, pd.DataFrame]
-    ) -> Tuple[Dict[str, pd.DataFrame], List[Dict[str, Any]], Dict[str, str]]:
+        self, csv_data: dict[str, pd.DataFrame], api_data: dict[str, pd.DataFrame]
+    ) -> tuple[dict[str, pd.DataFrame], list[dict[str, Any]], dict[str, str]]:
         """Merge CSV + API dataframes with source tracking and discrepancies."""
-        merged: Dict[str, pd.DataFrame] = {}
-        discrepancies: List[Dict[str, Any]] = []
-        sources: Dict[str, str] = {}
+        merged: dict[str, pd.DataFrame] = {}
+        discrepancies: list[dict[str, Any]] = []
+        sources: dict[str, str] = {}
 
         csv_data = csv_data or {}
         api_data = api_data or {}
@@ -83,9 +83,9 @@ class DataSourceManager:
 
     def _merge_table(
         self, csv_df: pd.DataFrame, api_df: pd.DataFrame, table_name: str
-    ) -> Tuple[pd.DataFrame, List[Dict[str, Any]]]:
+    ) -> tuple[pd.DataFrame, list[dict[str, Any]]]:
         """Merge a single table and record discrepancies."""
-        discrepancies: List[Dict[str, Any]] = []
+        discrepancies: list[dict[str, Any]] = []
         working_api_df = api_df.copy()
         working_csv_df = csv_df.copy()
 
@@ -134,14 +134,13 @@ class DataSourceManager:
             merged = pd.concat([working_api_df, working_csv_df], ignore_index=True, sort=False)
 
         merged["_source"] = merged.get("_source_api", merged.get("_source_csv", "merged"))
-        merged.drop(
+        merged = merged.drop(
             columns=[c for c in merged.columns if c.startswith("_source_")],
-            inplace=True,
             errors="ignore",
         )
         return merged, discrepancies
 
-    def reconcile_conflicts(self, csv_value: Any, api_value: Any, field: str) -> Tuple[Any, str]:
+    def reconcile_conflicts(self, csv_value: Any, api_value: Any, field: str) -> tuple[Any, str]:
         """Resolve conflicts according to priority rules."""
         if api_value is None and csv_value is None:
             return None, "missing"

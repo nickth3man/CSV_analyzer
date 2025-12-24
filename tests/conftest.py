@@ -1,11 +1,10 @@
 """Shared fixtures and mocks for all tests."""
 
 import os
-import sys
-import tempfile
 import shutil
+import sys
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
@@ -102,7 +101,7 @@ def sample_shared_store(sample_df):
 @pytest.fixture
 def mock_llm_response():
     """Returns a mock LLM response function."""
-    def _mock_response(prompt):
+    def _mock_response(prompt) -> str:
         """Generate deterministic mock responses based on prompt content."""
         prompt_lower = prompt.lower()
 
@@ -123,7 +122,7 @@ tables:
 ```"""
 
         # Entity resolution
-        elif "extract entities" in prompt_lower or "identify entities" in prompt_lower:
+        if "extract entities" in prompt_lower or "identify entities" in prompt_lower:
             return """```yaml
 entities:
   - text: "salary"
@@ -133,14 +132,14 @@ entities:
 ```"""
 
         # Query clarification
-        elif "ambiguous" in prompt_lower or "clarify" in prompt_lower:
+        if "ambiguous" in prompt_lower or "clarify" in prompt_lower:
             return """```yaml
 is_ambiguous: false
 reason: "Query is clear and specific"
 ```"""
 
         # Planning
-        elif "create a plan" in prompt_lower or "analysis plan" in prompt_lower:
+        if "create a plan" in prompt_lower or "analysis plan" in prompt_lower:
             return """```yaml
 plan: |
   1. Load the employees table
@@ -149,25 +148,25 @@ plan: |
 ```"""
 
         # Code generation
-        elif "generate python code" in prompt_lower or "write code" in prompt_lower:
+        if "generate python code" in prompt_lower or "write code" in prompt_lower:
             return """```python
 # Calculate average salary
 final_result = dfs['employees']['salary'].mean()
 ```"""
 
         # Safety check (should be done via AST, but for fallback)
-        elif "safety" in prompt_lower:
+        if "safety" in prompt_lower:
             return "The code appears safe."
 
         # Result validation
-        elif "validate" in prompt_lower or "verify" in prompt_lower:
+        if "validate" in prompt_lower or "verify" in prompt_lower:
             return """```yaml
 is_valid: true
 reason: "Result correctly answers the question"
 ```"""
 
         # Deep analysis
-        elif "deep analysis" in prompt_lower or "statistical analysis" in prompt_lower:
+        if "deep analysis" in prompt_lower or "statistical analysis" in prompt_lower:
             return """```yaml
 insights:
   - The average salary is $84,000
@@ -176,19 +175,18 @@ distribution: "Salaries range from $75,000 to $95,000"
 ```"""
 
         # Response synthesis
-        elif "synthesize" in prompt_lower or "narrative" in prompt_lower:
+        if "synthesize" in prompt_lower or "narrative" in prompt_lower:
             return "The average salary across all employees is $84,000, with Engineering having a higher average compared to Marketing."
 
         # Error fixing
-        elif "fix the error" in prompt_lower or "debug" in prompt_lower:
+        if "fix the error" in prompt_lower or "debug" in prompt_lower:
             return """```python
 # Fixed code
 final_result = dfs['employees']['salary'].mean()
 ```"""
 
         # Default response
-        else:
-            return "Mock LLM response for testing purposes."
+        return "Mock LLM response for testing purposes."
 
     return _mock_response
 
@@ -197,10 +195,10 @@ final_result = dfs['employees']['salary'].mean()
 def mock_call_llm(mock_llm_response):
     """
     Patch `backend.utils.call_llm.call_llm` to use the provided mock LLM response and yield the mock object.
-    
+
     Parameters:
         mock_llm_response (callable): A function used as the `side_effect` for the patched `call_llm` to simulate LLM responses.
-    
+
     Returns:
         mock: The mocked object that replaced `call_llm`.
     """
@@ -211,17 +209,61 @@ def mock_call_llm(mock_llm_response):
 @pytest.fixture
 def mock_call_llm_in_nodes(mock_llm_response):
     """
-    Provide a patched `backend.nodes.entity.call_llm` that returns a fixed mock response for tests.
-    
+    Provide patched `call_llm` in all node modules that use it.
+
+    This patches call_llm in entity, code_generation, planning, and analysis modules
+    to prevent real LLM calls during tests.
+
     Parameters:
         mock_llm_response: Fixture dependency that ensures the LLM response mock is available in the test context.
-    
+
     Returns:
-        mock: A mock object that replaces `backend.nodes.entity.call_llm`. Calling it returns the string "Mock LLM response for testing purposes.".
+        mock: A mock object that replaces call_llm in node modules.
     """
-    with patch("backend.nodes.entity.call_llm") as mock:
-        mock.return_value = "Mock LLM response for testing purposes."
-        yield mock
+    with patch("backend.nodes.entity.call_llm") as entity_mock, \
+         patch("backend.nodes.code_generation.call_llm") as codegen_mock, \
+         patch("backend.nodes.planning.call_llm") as planning_mock, \
+         patch("backend.nodes.analysis.call_llm") as analysis_mock:
+        # Set default return values
+        default_response = "Mock LLM response for testing purposes."
+        entity_mock.return_value = default_response
+        codegen_mock.return_value = default_response
+        planning_mock.return_value = default_response
+        analysis_mock.return_value = default_response
+        # Return the entity mock for backward compatibility (tests can set return_value on it)
+        # But configure all mocks to use the same side_effect/return_value when set
+        class MultiMock:
+            def __init__(self, mocks):
+                self._mocks = mocks
+                self._return_value = default_response
+
+            @property
+            def return_value(self):
+                return self._return_value
+
+            @return_value.setter
+            def return_value(self, value):
+                self._return_value = value
+                for m in self._mocks:
+                    m.return_value = value
+
+            @property
+            def side_effect(self):
+                return self._mocks[0].side_effect
+
+            @side_effect.setter
+            def side_effect(self, value):
+                for m in self._mocks:
+                    m.side_effect = value
+
+            def assert_called(self):
+                return any(m.called for m in self._mocks)
+
+            def assert_called_once(self):
+                call_count = sum(m.call_count for m in self._mocks)
+                assert call_count == 1
+
+        yield MultiMock([entity_mock, codegen_mock, planning_mock, analysis_mock])
 
 
 # ============================================================================
@@ -242,7 +284,7 @@ def mock_env_vars():
 def reset_knowledge_store():
     """Ensures knowledge store is clean between tests."""
     # This will run before each test
-    yield
+    return
     # Cleanup after test if needed
 
 
@@ -254,11 +296,11 @@ def reset_knowledge_store():
 def mock_openai_client():
     """
     Provide a MagicMock OpenAI client and patch the OpenAI constructor used by backend.utils.call_llm.
-    
+
     The fixture yields a mock client whose chat completions create method returns a mock response
     with a single choice whose message content is "Mock LLM response". The backend.utils.call_llm.OpenAI
     constructor is patched to return this mock client for the duration of the fixture.
-    
+
     Returns:
         MagicMock: The mocked OpenAI client with .chat.completions.create configured.
     """

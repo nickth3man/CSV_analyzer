@@ -6,17 +6,17 @@ import shutil
 import chainlit as cl
 
 from backend.utils.file_sanitizer import sanitize_csv_filename
-from .config import HELP_TEXT
-from .data_utils import (
+from src.frontend.config import HELP_TEXT
+from src.frontend.data_utils import (
     get_csv_files,
-    get_schema_info,
     get_data_profile,
-    invalidate_dataframe_cache
+    get_schema_info,
+    invalidate_dataframe_cache,
 )
 
 
 @cl.action_callback("upload_csv")
-async def on_upload_action(action: cl.Action):
+async def on_upload_action(action: cl.Action) -> str:
     """Handle the upload CSV action button."""
     files = await cl.AskFileMessage(
         content="Please upload your CSV file(s)",
@@ -37,7 +37,7 @@ async def on_upload_action(action: cl.Action):
                 continue  # Skip invalid filenames
             dest = os.path.join(csv_dir, filename)
             shutil.copy(file.path, dest)
-            uploaded.append(filename.replace('.csv', ''))
+            uploaded.append(filename.replace(".csv", ""))
 
         # Invalidate cache after upload
         invalidate_dataframe_cache()
@@ -47,14 +47,14 @@ async def on_upload_action(action: cl.Action):
 
 
 @cl.action_callback("list_tables")
-async def on_list_tables(action: cl.Action):
+async def on_list_tables(action: cl.Action) -> str:
     """Handle the list tables action button."""
     tables = get_csv_files()
     if tables:
         content = "## Loaded Tables\n\n"
         for t in tables:
             content += f"- **{t}**\n"
-        content += f"\nUse `/preview <table_name>` to preview a table."
+        content += "\nUse `/preview <table_name>` to preview a table."
     else:
         content = "No tables loaded. Use the 📁 button to upload CSV files."
 
@@ -63,7 +63,7 @@ async def on_list_tables(action: cl.Action):
 
 
 @cl.action_callback("view_schema")
-async def on_view_schema(action: cl.Action):
+async def on_view_schema(action: cl.Action) -> str:
     """Handle the view schema action button."""
     schema = get_schema_info()
     profile = get_data_profile()
@@ -74,7 +74,7 @@ async def on_view_schema(action: cl.Action):
 
 
 @cl.action_callback("view_profile")
-async def on_view_profile(action: cl.Action):
+async def on_view_profile(action: cl.Action) -> str:
     """Handle the view profile action button."""
     profile = get_data_profile()
     await cl.Message(content=f"## Data Profile\n\n{profile}").send()
@@ -82,7 +82,7 @@ async def on_view_profile(action: cl.Action):
 
 
 @cl.action_callback("show_help")
-async def on_show_help(action: cl.Action):
+async def on_show_help(action: cl.Action) -> str:
     """Handle the show help action button."""
     await cl.Message(content=HELP_TEXT).send()
     return "Showed help"
