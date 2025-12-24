@@ -93,4 +93,24 @@ coverage/
 .eslintcache
 
 # Optional REPL history
-.node_repl_history .coverage
+.node_repl_history
+
+# Coverage
+.coverage
+htmlcov/
+coverage.xml
+
+# MkDocs
+site/
+
+# Ruff
+.ruff_cache/
+
+# mypy
+.mypy_cache/
+
+# pytest
+.pytest_cache/
+
+# interrogate badge
+interrogate_badge.svg
