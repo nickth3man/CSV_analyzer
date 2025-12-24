@@ -20,6 +20,7 @@ An LLM-powered data analyst that answers natural language questions about your C
 - **Learning System**: Remembers successful patterns for future queries
 - **Honest Reporting**: Clearly reports when data is missing or incomplete
 
+
 ## Quick Start
 
 1. **Add your API key**: Set the `OPENROUTER_API_KEY` environment variable, or enter it in the Settings panel

@@ -335,7 +335,7 @@ async def on_settings_update(settings):
     
     model = settings.get("model", "")
     if model:
-        os.environ["LLM_MODEL"] = model
+        os.environ["OPENROUTER_MODEL"] = model
     
     await cl.Message(content="⚙️ Settings updated!").send()
 
@@ -516,7 +516,7 @@ async def step_run_analysis(question: str, settings: dict):
     if api_key:
         os.environ["OPENROUTER_API_KEY"] = api_key
     if model:
-        os.environ["LLM_MODEL"] = model
+        os.environ["OPENROUTER_MODEL"] = model
     
     dfs = load_dataframes()
     if not dfs:
