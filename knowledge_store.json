@@ -15,6 +15,9 @@
       ],
       "draft_history": [
         "player_name"
+      ],
+      "players": [
+        "player_name"
       ]
     },
     "Tracy McGrady": {
@@ -28,6 +31,42 @@
       ],
       "draft_history": [
         "player_name"
+      ]
+    },
+    "Alice": {
+      "employees": [
+        "name",
+        "full_name",
+        "display_name"
+      ],
+      "roster": [
+        "name"
+      ]
+    },
+    "Bob": {
+      "employees": [
+        "name"
+      ]
+    },
+    "Charlie": {
+      "employees": [
+        "name"
+      ]
+    },
+    "alice": {
+      "employees": [
+        "name"
+      ]
+    },
+    "Alice Johnson": {
+      "employees": [
+        "first_name",
+        "last_name"
+      ]
+    },
+    "Engineering": {
+      "employees": [
+        "department"
       ]
     }
   },
