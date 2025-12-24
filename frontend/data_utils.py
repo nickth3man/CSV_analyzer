@@ -1,9 +1,13 @@
-"""Utilities for data loading, schema, and profiling."""
+"""Utilities for data loading, schema, and profiling.
+
+This module provides UI-agnostic data utilities. All functions return
+data structures (dicts, DataFrames, strings) rather than sending UI messages.
+For Chainlit-specific display functions, see the display module.
+"""
 
 import os
 import logging
 import pandas as pd
-import chainlit as cl
 from .cache import get_dataframe_cache
 
 logger = logging.getLogger(__name__)
@@ -87,74 +91,90 @@ def preview_table(table_name):
     return "Table not found"
 
 
-async def display_table_preview(table_name: str, max_rows: int = 10):
+def get_table_preview_data(table_name: str, max_rows: int = 10) -> dict | None:
     """
-    Display a table preview using Chainlit's native elements.
+    Get table preview data for display.
+
+    This is a UI-agnostic function that returns data structures
+    suitable for rendering by any UI layer.
 
     Args:
         table_name: Name of the table to preview
         max_rows: Maximum number of rows to display
 
     Returns:
-        True if table was found and displayed, False otherwise
+        Dictionary with preview data, or None if table not found:
+        {
+            'table_name': str,
+            'preview_df': DataFrame,
+            'total_rows': int,
+            'total_cols': int,
+            'num_cols': int,
+            'str_cols': int,
+            'rows_shown': int
+        }
     """
-    logger.info(f"Displaying preview for table '{table_name}' with max_rows={max_rows}")
+    logger.info(f"Getting preview data for table '{table_name}' with max_rows={max_rows}")
     dfs = load_dataframes()
 
     if table_name not in dfs:
         logger.warning(f"Table '{table_name}' not found for preview")
-        await cl.Message(content=f"❌ Table `{table_name}` not found.").send()
-        return False
+        return None
 
     df = dfs[table_name]
     preview_df = df.head(max_rows)
 
-    # Create DataFrame element for native display
-    elements = [
-        cl.Dataframe(data=preview_df, name=f"{table_name}_preview", display="inline")
-    ]
-
     # Build summary stats - use is_string_dtype for robust string detection
     num_cols = len([c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])])
     str_cols = len([c for c in df.columns if pd.api.types.is_string_dtype(df[c])])
+    
     logger.debug(f"Table '{table_name}': {len(df)} rows, {len(df.columns)} cols ({num_cols} numeric, {str_cols} text)")
 
-    await cl.Message(
-        content=f"""## 📋 Preview: {table_name}
-
-**Stats:** {len(df):,} rows x {len(df.columns)} columns ({num_cols} numeric, {str_cols} text)
-
-*Showing first {min(max_rows, len(df))} rows:*
-""",
-        elements=elements
-    ).send()
-    logger.info(f"Successfully displayed preview for table '{table_name}' with {len(preview_df)} rows")
-    return True
+    return {
+        'table_name': table_name,
+        'preview_df': preview_df,
+        'total_rows': len(df),
+        'total_cols': len(df.columns),
+        'num_cols': num_cols,
+        'str_cols': str_cols,
+        'rows_shown': len(preview_df)
+    }
 
 
-async def display_schema_summary():
-    """Display an enhanced schema summary with DataFrames for each table."""
-    logger.info("Displaying schema summary")
+def get_schema_summary_data() -> dict | None:
+    """
+    Get schema summary data for all loaded tables.
+
+    This is a UI-agnostic function that returns data structures
+    suitable for rendering by any UI layer.
+
+    Returns:
+        Dictionary with schema data, or None if no tables loaded:
+        {
+            'table_count': int,
+            'tables': [
+                {
+                    'name': str,
+                    'rows': int,
+                    'cols': int,
+                    'num_cols': int,
+                    'col_info': DataFrame  # Column, Type, Non-Null, Sample
+                },
+                ...
+            ]
+        }
+    """
+    logger.info("Getting schema summary data")
     dfs = load_dataframes()
 
     if not dfs:
         logger.warning("No tables loaded for schema summary")
-        await cl.Message(content="📂 No tables loaded. Upload CSV files to get started!").send()
-        return
+        return None
 
-    # Build overview message
-    overview = f"## 📊 Data Schema Overview\n\n**{len(dfs)} tables loaded:**\n\n"
-
+    tables = []
     for name, df in dfs.items():
         num_cols = len([c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])])
-        overview += f"- **{name}**: {len(df):,} rows x {len(df.columns)} cols ({num_cols} numeric)\n"
-
-    overview += "\n---\n\n**Column Details:**\n"
-
-    await cl.Message(content=overview).send()
-
-    # Show column info for each table
-    for name, df in dfs.items():
+        
         # Create a summary DataFrame of column info
         col_info = pd.DataFrame({
             'Column': df.columns,
@@ -162,14 +182,18 @@ async def display_schema_summary():
             'Non-Null': [df[c].notna().sum() for c in df.columns],
             'Sample': [str(df[c].iloc[0])[:30] if len(df) > 0 else '' for c in df.columns]
         })
-
-        elements = [
-            cl.Dataframe(data=col_info, name=f"{name}_schema", display="inline")
-        ]
-
-        await cl.Message(
-            content=f"### {name}",
-            elements=elements
-        ).send()
+        
+        tables.append({
+            'name': name,
+            'rows': len(df),
+            'cols': len(df.columns),
+            'num_cols': num_cols,
+            'col_info': col_info
+        })
     
-    logger.info(f"Successfully displayed schema summary for {len(dfs)} tables")
+    logger.info(f"Retrieved schema summary data for {len(tables)} tables")
+    
+    return {
+        'table_count': len(tables),
+        'tables': tables
+    }
