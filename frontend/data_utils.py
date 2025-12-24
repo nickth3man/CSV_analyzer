@@ -76,7 +76,15 @@ def get_data_profile():
 
 
 def preview_table(table_name):
-    """Get a preview of a table as markdown."""
+    """
+    Create a markdown-formatted preview of the specified table.
+    
+    Parameters:
+        table_name (str): Name of the table (key in the loaded dataframe cache) to preview.
+    
+    Returns:
+        A Markdown string representing the first 20 rows of the table as a table, or the literal "Table not found" if the table does not exist.
+    """
     dfs = load_dataframes()
     if table_name in dfs:
         df = dfs[table_name]
@@ -86,14 +94,10 @@ def preview_table(table_name):
 
 async def display_table_preview(table_name: str, max_rows: int = 10):
     """
-    Display a table preview using Chainlit's native elements.
-
-    Args:
-        table_name: Name of the table to preview
-        max_rows: Maximum number of rows to display
-
+    Show an inline preview of a table using Chainlit elements.
+    
     Returns:
-        True if table was found and displayed, False otherwise
+        `true` if the table was found and displayed, `false` otherwise.
     """
     dfs = load_dataframes()
 
@@ -126,7 +130,11 @@ async def display_table_preview(table_name: str, max_rows: int = 10):
 
 
 async def display_schema_summary():
-    """Display an enhanced schema summary with DataFrames for each table."""
+    """
+    Display an interactive schema overview for all loaded DataFrames using Chainlit messages and Dataframe elements.
+    
+    When no tables are loaded, sends an informational message and returns. Otherwise sends a summary message listing each table with row and column counts and the number of numeric columns, then sends one message per table containing a DataFrame with per-column details (name, dtype, non-null count, and a short sample).
+    """
     dfs = load_dataframes()
 
     if not dfs:

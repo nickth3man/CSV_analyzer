@@ -21,7 +21,12 @@ from .steps import step_load_data, step_schema, step_run_analysis, display_resul
 
 @cl.set_starters
 async def set_starters():
-    """Define starter suggestions for users."""
+    """
+    Return a list of predefined starter suggestions for the chat UI.
+    
+    Returns:
+        list[cl.Starter]: Starter objects each containing a label, a sample message, and an icon path to present as quick-start prompts.
+    """
     return [
         cl.Starter(
             label="Compare Player Careers",
@@ -48,7 +53,14 @@ async def set_starters():
 
 @cl.set_chat_profiles
 async def chat_profile():
-    """Define chat profiles for different analysis modes."""
+    """
+    Provide predefined chat profiles tailored to quick or deep NBA data analysis.
+    
+    Each profile includes a name, markdown description, icon path, and a list of starter prompts that users can select to begin a conversation.
+    
+    Returns:
+        list[cl.ChatProfile]: Available chat profiles with their metadata and starter messages.
+    """
     return [
         cl.ChatProfile(
             name="Quick Analysis",
@@ -89,7 +101,11 @@ async def chat_profile():
 
 @cl.on_chat_start
 async def on_chat_start():
-    """Initialize the chat session."""
+    """
+    Initialize the chat session and present the startup UI.
+    
+    Ensures an OpenRouter API key is available (falls back to a default if absent), fetches available LLM models, and displays a ChatSettings UI with fields for the API key and model selection. Stores the chosen settings and an empty chat history in the user session, computes a brief data status from available CSV tables, and sends a welcome message with context and action buttons (upload, tables, schema, profile, help).
+    """
     # Use default API key if none is set in environment
     current_api_key = os.environ.get("OPENROUTER_API_KEY", "")
     if not current_api_key:
@@ -226,7 +242,10 @@ async def on_settings_update(settings):
 
 @cl.on_message
 async def on_message(message: cl.Message):
-    """Handle incoming messages."""
+    """Process an incoming chat message, handling uploads, commands, validation, and analysis.
+    
+    If the message contains file elements, saves uploaded CSVs to the local CSV directory and invalidates the dataframe cache. If the content is a recognized command, delegates to the command handler. Validates the configured OpenRouter API key and prompts the user if it is missing or malformed. If no data is loaded, prompts the user to upload CSV files. Otherwise, runs the analysis pipeline while updating a progress message (loading data, analyzing schema, running analysis) and presents the final result via streaming. On error, updates progress to indicate failure and sends an error message with troubleshooting suggestions.
+    """
     # Handle file uploads via message elements
     if message.elements:
         csv_dir = "CSV"
