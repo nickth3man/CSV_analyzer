@@ -6,6 +6,16 @@ from backend.utils.call_llm import DEFAULT_API_KEY, should_force_chutes_provider
 
 
 def call_llm_streaming(prompt, model=None):
+    """
+    Stream response tokens from an OpenRouter-backed language model for the given prompt.
+    
+    Parameters:
+        prompt (str): Text prompt sent as the user's message to the model.
+        model (str, optional): Model identifier to use. If omitted, the function uses the OPENROUTER_MODEL environment variable or the default "meta-llama/llama-3.3-70b-instruct".
+    
+    Returns:
+        generator: An iterator that yields successive string tokens (pieces of response text) as they become available from the streaming API.
+    """
     api_key = os.environ.get("OPENROUTER_API_KEY", "")
     if not api_key:
         api_key = DEFAULT_API_KEY

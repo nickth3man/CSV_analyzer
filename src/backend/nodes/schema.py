@@ -10,9 +10,27 @@ class SchemaInference(Node):
     """Infer schema details from loaded dataframes and expose summaries."""
 
     def prep(self, shared):
+        """
+        Provide the pipeline's loaded DataFrame mapping from the shared context.
+        
+        Returns:
+            dict: Mapping from table name (str) to pandas.DataFrame stored under shared["dfs"].
+        """
         return shared["dfs"]
 
     def exec(self, prep_res):
+        """
+        Infer column lists and split schemas by observed source.
+        
+        Parameters:
+            prep_res (dict): Mapping of table name to pandas DataFrame.
+        
+        Returns:
+            tuple: A 3-tuple (schemas, csv_schema, api_schema) where
+                - schemas (dict): table name -> list of column names for every DataFrame.
+                - csv_schema (dict): table name -> list of column names for tables labeled with `_source == "csv"`.
+                - api_schema (dict): table name -> list of column names for tables labeled with `_source == "api"`.
+        """
         dfs = prep_res
         schemas = {}
         csv_schema = {}
@@ -31,6 +49,20 @@ class SchemaInference(Node):
         return schemas, csv_schema, api_schema
 
     def post(self, shared, prep_res, exec_res):
+        """
+        Store inferred schema information in the shared state and produce human-readable schema strings.
+        
+        This writes the following keys into the shared dictionary:
+        - "schemas": mapping of table name to list of column names.
+        - "csv_schema_str": formatted multi-line string of CSV-only table schemas.
+        - "api_schema_str": formatted multi-line string of API-only table schemas.
+        - "schema_str": formatted multi-line string listing each table with its source (from shared["data_sources"] or "MERGED") and columns.
+        
+        Also prints a brief schema summary to stdout.
+        
+        Returns:
+            result (str): The string "default".
+        """
         schemas, csv_schema, api_schema = exec_res
         shared["schemas"] = schemas
         shared["csv_schema_str"] = "\n".join(
@@ -52,9 +84,34 @@ class DataProfiler(Node):
     """Analyze data quality, column types, and identify key columns for each table."""
 
     def prep(self, shared):
+        """
+        Provide the pipeline's loaded DataFrame mapping from the shared context.
+        
+        Returns:
+            dict: Mapping from table name (str) to pandas.DataFrame stored under shared["dfs"].
+        """
         return shared["dfs"]
 
     def exec(self, prep_res):
+        """
+        Builds a profiling summary for each DataFrame in the provided mapping.
+        
+        Parameters:
+            prep_res (dict): Mapping from table name (str) to pandas DataFrame to be profiled.
+        
+        Returns:
+            dict: A mapping from table name to a profile dictionary with the following keys:
+                - row_count (int): Number of rows in the table.
+                - column_count (int): Number of columns in the table.
+                - columns (dict): Per-column metadata mapping column name to a dict with:
+                    - dtype (str): Column dtype as a string.
+                    - null_count (int): Number of null values in the column.
+                    - unique_count (int): Number of unique values in the column.
+                - name_columns / name_cols (list[str]): Columns whose names suggest person/name fields.
+                - id_columns / id_cols (list[str]): Columns whose names contain "id".
+                - numeric_columns / numeric_cols (list[str]): Columns with numeric dtype.
+                - date_columns / date_cols (list[str]): Columns whose names suggest date or year fields.
+        """
         dfs = prep_res
         profile = {}
         for table_name, df in dfs.items():
@@ -100,6 +157,14 @@ class DataProfiler(Node):
         return profile
 
     def post(self, shared, prep_res, exec_res):
+        """
+        Store the profiling results in the shared state and print a brief summary.
+        
+        Stores the provided profiling dictionary into shared["data_profile"] and shared["profiles"], counts how many tables include detected name columns, and prints a one-line summary of total profiled tables and how many contain name columns.
+        
+        Returns:
+            str: The string "default".
+        """
         shared["data_profile"] = exec_res
         shared["profiles"] = exec_res
         tables_with_names = [t for t, p in exec_res.items() if p["name_columns"]]

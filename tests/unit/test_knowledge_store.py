@@ -323,7 +323,14 @@ class TestKnowledgeStorePersistence:
     """Test data persistence functionality."""
 
     def test_saves_to_file(self, temp_knowledge_file):
-        """Test that data is saved to file."""
+        """
+        Verifies that adding an entity mapping causes the store to persist data to the configured knowledge file.
+        
+        This test temporarily points the store's KNOWLEDGE_FILE at a provided temporary file, adds an entity mapping, and asserts the file is created and contains the new entity mapping.
+        
+        Parameters:
+            temp_knowledge_file (str | pathlib.Path): Temporary filesystem path used as the knowledge file for this test.
+        """
         from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
