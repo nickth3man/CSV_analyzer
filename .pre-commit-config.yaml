@@ -25,9 +25,8 @@ repos:
       - id: check-merge-conflict
       - id: debug-statements
       - id: detect-private-key
-      # Temporarily disabled for initial setup commit - will re-enable after
-      # - id: no-commit-to-branch
-      #   args: ['--branch', 'main']
+      - id: no-commit-to-branch
+        args: ['--branch', 'main']
 
   - repo: https://github.com/psf/black
     rev: 23.11.0
