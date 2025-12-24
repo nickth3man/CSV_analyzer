@@ -233,10 +233,10 @@ Make sure you're patching the correct import path:
 
 ```python
 # Patch where the function is USED, not where it's DEFINED
-with patch("nodes.call_llm"):  # Correct
+with patch("backend.nodes.call_llm"):  # Correct
     # test code
 
-with patch("utils.call_llm.call_llm"):  # Wrong (usually)
+with patch("backend.utils.call_llm.call_llm"):  # Wrong (usually)
     # test code
 ```
 

@@ -1,9 +1,11 @@
 """Integration tests for full analysis flow."""
 
-import pytest
-import pandas as pd
 from unittest.mock import patch
-from flow import create_analyst_flow
+
+import pandas as pd
+import pytest
+
+from backend.flow import create_analyst_flow
 
 
 class TestFullAnalysisFlow:
@@ -180,7 +182,7 @@ class TestFlowDataPropagation:
 
     def test_shared_store_updated_by_nodes(self, sample_df):
         """Test that nodes update the shared store."""
-        from nodes import LoadData
+        from backend.nodes import LoadData
 
         shared = {"data_dir": "/test"}
 

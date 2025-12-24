@@ -1,12 +1,20 @@
 """Shared fixtures and mocks for all tests."""
 
 import os
-import pytest
-import pandas as pd
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+import sys
 import tempfile
 import shutil
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
+import pandas as pd
+import pytest
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SRC_DIR = PROJECT_ROOT / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 
 # ============================================================================
@@ -188,14 +196,14 @@ final_result = dfs['employees']['salary'].mean()
 @pytest.fixture
 def mock_call_llm(mock_llm_response):
     """Mocks the call_llm function."""
-    with patch("utils.call_llm.call_llm", side_effect=mock_llm_response) as mock:
+    with patch("backend.utils.call_llm.call_llm", side_effect=mock_llm_response) as mock:
         yield mock
 
 
 @pytest.fixture
 def mock_call_llm_in_nodes(mock_llm_response):
     """Mocks the call_llm function as imported in nodes.py."""
-    with patch("nodes.call_llm") as mock:
+    with patch("backend.nodes.entity.call_llm") as mock:
         mock.return_value = "Mock LLM response for testing purposes."
         yield mock
 
@@ -236,7 +244,7 @@ def mock_openai_client():
     mock_client = MagicMock()
     mock_client.chat.completions.create.return_value = mock_response
 
-    with patch("utils.call_llm.OpenAI", return_value=mock_client):
+    with patch("backend.utils.call_llm.OpenAI", return_value=mock_client):
         yield mock_client
 
 

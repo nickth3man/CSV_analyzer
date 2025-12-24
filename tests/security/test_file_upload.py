@@ -4,7 +4,7 @@ import pytest
 import os
 import tempfile
 from pathlib import Path
-from utils.file_sanitizer import sanitize_csv_filename
+from backend.utils.file_sanitizer import sanitize_csv_filename
 
 
 class TestFileUploadSecurity:

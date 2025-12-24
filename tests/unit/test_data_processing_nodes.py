@@ -1,10 +1,12 @@
 """Tests for data processing nodes - Schema, Profiler, CodeGenerator, Visualizer."""
 
-import pytest
-import pandas as pd
 import os
-from unittest.mock import patch, MagicMock
-from nodes import SchemaInference, DataProfiler, CodeGenerator, Visualizer
+from unittest.mock import MagicMock, patch
+
+import pandas as pd
+import pytest
+
+from backend.nodes import CodeGenerator, DataProfiler, SchemaInference, Visualizer
 
 
 class TestSchemaInference:
@@ -261,7 +263,7 @@ class TestVisualizer:
         """Test that output directory is created if it doesn't exist."""
         node = Visualizer()
 
-        with patch("nodes.os.makedirs") as mock_makedirs:
+        with patch("backend.nodes.analysis.os.makedirs") as mock_makedirs:
             shared = {"exec_result": sample_df}
             node.prep(shared)
             node.exec(sample_df)
@@ -280,10 +282,10 @@ class TestVisualizer:
             chart_file = assets_dir / f"chart_{i}.png"
             chart_file.write_text("fake chart")
 
-        with patch("nodes.os.makedirs"):
-            with patch("nodes.os.listdir", return_value=[f"chart_{i}.png" for i in range(15)]):
-                with patch("nodes.os.path.getmtime", side_effect=lambda x: int(x.split("_")[1].split(".")[0])):
-                    with patch("nodes.os.remove") as mock_remove:
+        with patch("backend.nodes.analysis.os.makedirs"):
+            with patch("backend.nodes.analysis.os.listdir", return_value=[f"chart_{i}.png" for i in range(15)]):
+                with patch("backend.nodes.analysis.os.path.getmtime", side_effect=lambda x: int(x.split("_")[1].split(".")[0])):
+                    with patch("backend.nodes.analysis.os.remove") as mock_remove:
                         node = Visualizer()
                         shared = {"exec_result": sample_df}
                         node.prep(shared)
@@ -318,7 +320,7 @@ class TestVisualizer:
         node = Visualizer()
         shared = {"exec_result": sample_df}
 
-        with patch("nodes.time.time", return_value=1234567890):
+        with patch("backend.nodes.analysis.time.time", return_value=1234567890):
             prep_res = node.prep(shared)
             exec_res = node.exec(prep_res)
 

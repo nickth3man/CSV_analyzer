@@ -3,7 +3,7 @@
 import pytest
 import pandas as pd
 import os
-from nodes import LoadData
+from backend.nodes import LoadData
 
 
 class TestLoadDataBasicLoading:

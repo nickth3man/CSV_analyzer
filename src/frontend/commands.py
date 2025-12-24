@@ -2,8 +2,10 @@
 
 import os
 import shutil
+
 import chainlit as cl
-from utils.file_sanitizer import sanitize_csv_filename
+
+from backend.utils.file_sanitizer import sanitize_csv_filename
 from .config import HELP_TEXT
 from .data_utils import (
     get_csv_files,

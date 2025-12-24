@@ -7,7 +7,7 @@ import chainlit as cl
 
 logger = logging.getLogger(__name__)
 from chainlit.input_widget import Select, TextInput
-from utils.file_sanitizer import sanitize_csv_filename
+from backend.utils.file_sanitizer import sanitize_csv_filename
 from .config import (
     DEFAULT_API_KEY,
     EXAMPLE_QUESTIONS,

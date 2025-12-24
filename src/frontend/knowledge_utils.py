@@ -1,6 +1,6 @@
 """Utilities for managing the knowledge store."""
 
-from utils.knowledge_store import knowledge_store
+from backend.utils.knowledge_store import knowledge_store
 
 
 def get_knowledge_store_data():

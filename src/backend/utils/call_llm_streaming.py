@@ -1,9 +1,8 @@
-from openai import OpenAI
 import os
-from utils.call_llm import (
-    DEFAULT_API_KEY,
-    should_force_chutes_provider
-)
+
+from openai import OpenAI
+
+from backend.utils.call_llm import DEFAULT_API_KEY, should_force_chutes_provider
 
 
 def call_llm_streaming(prompt, model=None):

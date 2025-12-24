@@ -3,9 +3,11 @@
 import os
 import asyncio
 import logging
+
 import chainlit as cl
-from flow import create_analyst_flow
-from .data_utils import load_dataframes, get_schema_info
+
+from backend.flow import create_analyst_flow
+from .data_utils import get_schema_info, load_dataframes
 
 logger = logging.getLogger(__name__)
 

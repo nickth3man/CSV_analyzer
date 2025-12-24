@@ -3,7 +3,7 @@
 import pytest
 import pandas as pd
 from unittest.mock import patch, MagicMock
-from nodes import EntityResolver
+from backend.nodes import EntityResolver
 
 
 class TestEntityResolverEntityExtraction:

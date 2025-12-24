@@ -1,17 +1,21 @@
-from flow import create_analyst_flow
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+SRC_PATH = PROJECT_ROOT / "src"
+for path in (SRC_PATH, PROJECT_ROOT):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+
+from backend.flow import create_analyst_flow
+
+DEFAULT_QUESTION = "Compare the careers of LeBron James and Tracy McGrady"
+
 
 def main():
-    # 1. Initialize the Shared Store
-    # We start with the user's question.
-    # 'dfs' and 'schema_str' will be populated by the LoadData and SchemaInference nodes.
-    
-    # Get question from command line or use default
-    import sys
-    if len(sys.argv) > 1:
-        question = " ".join(sys.argv[1:])
-    else:
-        question = "Compare the careers of LeBron James and Tracy McGrady"
-    
+    """Entry point for running the analyst flow from the command line."""
+    question = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else DEFAULT_QUESTION
+
     shared = {
         "question": question,
         "retry_count": 0,
@@ -23,18 +27,14 @@ def main():
     # This wires together the 10 nodes including the Safety and Error loops.
     analyst_flow = create_analyst_flow()
 
-    # 3. Run the Flow
     print("--- Starting Analyst Agent ---")
     print(f"User Question: {shared['question']}\n")
 
-    # The flow executes starting from 'LoadData' and follows the transitions 
-    # defined in flow.py until it reaches a terminal state.
     analyst_flow.run(shared)
 
-    # 4. Final Output
-    print("\n" + "="*30)
+    print("\n" + "=" * 30)
     print("         SESSION COMPLETE      ")
-    print("="*30)
+    print("=" * 30)
 
     if "final_text" in shared:
         print(f"\n🤖 Agent Response:\n{shared['final_text']}")

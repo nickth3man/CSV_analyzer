@@ -2,6 +2,8 @@ import json
 import os
 import threading
 
+from backend.config import SUCCESSFUL_PATTERN_LIMIT
+
 KNOWLEDGE_FILE = "knowledge_store.json"
 
 class KnowledgeStore:
@@ -65,9 +67,9 @@ class KnowledgeStore:
                 self.data["successful_patterns"][query_type] = []
             if pattern not in self.data["successful_patterns"][query_type]:
                 self.data["successful_patterns"][query_type].append(pattern)
-                if len(self.data["successful_patterns"][query_type]) > 10:
+                if len(self.data["successful_patterns"][query_type]) > SUCCESSFUL_PATTERN_LIMIT:
                     self.data["successful_patterns"][query_type] = \
-                        self.data["successful_patterns"][query_type][-10:]
+                        self.data["successful_patterns"][query_type][-SUCCESSFUL_PATTERN_LIMIT:]
         self.save()
 
     def add_column_hint(self, description, table, column):

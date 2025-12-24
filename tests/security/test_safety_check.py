@@ -1,7 +1,7 @@
 """Security tests for SafetyCheck node - CRITICAL for preventing code injection."""
 
 import pytest
-from nodes import SafetyCheck
+from backend.nodes import SafetyCheck
 
 
 class TestSafetyCheckForbiddenImports:

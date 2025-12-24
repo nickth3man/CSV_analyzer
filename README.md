@@ -120,29 +120,28 @@ When the CLI detects an ambiguous query:
 ## File Structure
 
 ```
-├── app.py                 # Chainlit web interface (main entry point)
-├── chainlit_app.py        # Legacy entry point (deprecated, use app.py)
-├── main.py                # CLI entry point
-├── nodes.py               # Node definitions (17 nodes)
-├── flow.py                # Flow creation and connections
-├── frontend/              # Modular frontend components
-│   ├── __init__.py        # Module initialization
-│   ├── config.py          # Configuration and constants
-│   ├── cache.py           # Dataframe caching
-│   ├── data_utils.py      # Data loading and schema utilities
-│   ├── knowledge_utils.py # Knowledge store utilities
-│   ├── commands.py        # Command handling
-│   ├── actions.py         # Action callbacks
-│   ├── steps.py           # Analysis pipeline steps
-│   └── handlers.py        # Main event handlers
-├── utils/
-│   ├── call_llm.py        # LLM API calls
-│   ├── call_llm_streaming.py  # Streaming LLM calls
-│   └── knowledge_store.py # Persistent learning storage
-├── CSV/                   # Data directory for CSV files
+├── app.py                      # Chainlit web interface (adds src/ to PYTHONPATH)
+├── src/
+│   ├── backend/                # Backend logic and utilities
+│   │   ├── flow.py             # Flow creation and connections
+│   │   ├── main.py             # CLI entry point
+│   │   ├── config.py           # Shared configuration constants
+│   │   ├── nodes/              # Modular node definitions
+│   │   └── utils/              # Backend utilities (LLM wrappers, knowledge store, etc.)
+│   └── frontend/               # Chainlit frontend components
+│       ├── __init__.py         # Module initialization
+│       ├── config.py           # Configuration and constants
+│       ├── cache.py            # Dataframe caching
+│       ├── data_utils.py       # Data loading and schema utilities
+│       ├── knowledge_utils.py  # Knowledge store utilities
+│       ├── commands.py         # Command handling
+│       ├── actions.py          # Action callbacks
+│       ├── steps.py            # Analysis pipeline steps
+│       └── handlers.py         # Main event handlers
+├── CSV/                        # Data directory for CSV files
 ├── docs/
-│   └── design.md          # High-level design documentation
-└── requirements.txt       # Project dependencies
+│   └── design.md               # High-level design documentation
+└── requirements.txt            # Project dependencies
 ```
 
 ## Dependencies

@@ -1,7 +1,7 @@
 """Tests for ClarifyQuery node."""
 
 import pytest
-from nodes import ClarifyQuery
+from backend.nodes import ClarifyQuery
 
 
 class TestClarifyQueryBasics:

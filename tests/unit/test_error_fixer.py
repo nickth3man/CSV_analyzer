@@ -1,7 +1,7 @@
 """Tests for ErrorFixer node - retry logic and error handling."""
 
 import pytest
-from nodes import ErrorFixer
+from backend.nodes import ErrorFixer
 
 
 class TestErrorFixerRetryLogic:

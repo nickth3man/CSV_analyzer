@@ -2,7 +2,7 @@
 
 import pytest
 import pandas as pd
-from nodes import Executor
+from backend.nodes import Executor
 
 
 class TestExecutorSandboxing:

@@ -1,11 +1,13 @@
 """Tests for KnowledgeStore - persistent learning storage."""
 
-import pytest
 import json
 import os
 import threading
 import time
-from utils.knowledge_store import KnowledgeStore
+
+import pytest
+
+from backend.utils.knowledge_store import KnowledgeStore
 
 
 class TestKnowledgeStoreInitialization:
@@ -14,7 +16,7 @@ class TestKnowledgeStoreInitialization:
     def test_initializes_with_empty_data(self, temp_knowledge_file):
         """Test that KnowledgeStore initializes with empty data structure."""
         # Override the global KNOWLEDGE_FILE for this test
-        from utils import knowledge_store as ks_module
+        from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -46,7 +48,7 @@ class TestKnowledgeStoreInitialization:
         with open(temp_knowledge_file, 'w') as f:
             json.dump(existing_data, f)
 
-        from utils import knowledge_store as ks_module
+        from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -66,7 +68,7 @@ class TestKnowledgeStoreInitialization:
         with open(temp_knowledge_file, 'w') as f:
             f.write("This is not valid JSON {{{")
 
-        from utils import knowledge_store as ks_module
+        from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -85,7 +87,7 @@ class TestKnowledgeStoreEntityMappings:
 
     def test_adds_entity_mapping(self, temp_knowledge_file):
         """Test adding a new entity mapping."""
-        from utils import knowledge_store as ks_module
+        from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -102,7 +104,7 @@ class TestKnowledgeStoreEntityMappings:
 
     def test_avoids_duplicate_columns(self, temp_knowledge_file):
         """Test that duplicate columns are not added."""
-        from utils import knowledge_store as ks_module
+        from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -117,7 +119,7 @@ class TestKnowledgeStoreEntityMappings:
 
     def test_adds_multiple_tables_for_entity(self, temp_knowledge_file):
         """Test adding same entity to multiple tables."""
-        from utils import knowledge_store as ks_module
+        from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -133,7 +135,7 @@ class TestKnowledgeStoreEntityMappings:
 
     def test_get_entity_hints(self, temp_knowledge_file):
         """Test retrieving entity hints."""
-        from utils import knowledge_store as ks_module
+        from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -158,7 +160,7 @@ class TestKnowledgeStoreSuccessfulPatterns:
 
     def test_adds_successful_pattern(self, temp_knowledge_file):
         """Test adding a successful query pattern."""
-        from utils import knowledge_store as ks_module
+        from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -173,7 +175,7 @@ class TestKnowledgeStoreSuccessfulPatterns:
 
     def test_avoids_duplicate_patterns(self, temp_knowledge_file):
         """Test that duplicate patterns are not added."""
-        from utils import knowledge_store as ks_module
+        from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -189,7 +191,7 @@ class TestKnowledgeStoreSuccessfulPatterns:
 
     def test_limits_pattern_count(self, temp_knowledge_file):
         """Test that patterns are limited to 10 per type."""
-        from utils import knowledge_store as ks_module
+        from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -210,7 +212,7 @@ class TestKnowledgeStoreSuccessfulPatterns:
 
     def test_get_patterns_by_type(self, temp_knowledge_file):
         """Test retrieving patterns by query type."""
-        from utils import knowledge_store as ks_module
+        from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -227,7 +229,7 @@ class TestKnowledgeStoreSuccessfulPatterns:
 
     def test_get_all_patterns(self, temp_knowledge_file):
         """Test retrieving all patterns."""
-        from utils import knowledge_store as ks_module
+        from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -248,7 +250,7 @@ class TestKnowledgeStoreColumnHints:
 
     def test_adds_column_hint(self, temp_knowledge_file):
         """Test adding a column hint."""
-        from utils import knowledge_store as ks_module
+        from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -265,7 +267,7 @@ class TestKnowledgeStoreColumnHints:
 
     def test_case_insensitive_hint_storage(self, temp_knowledge_file):
         """Test that hints are stored case-insensitively."""
-        from utils import knowledge_store as ks_module
+        from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -284,7 +286,7 @@ class TestKnowledgeStoreJoinPatterns:
 
     def test_adds_join_pattern(self, temp_knowledge_file):
         """Test adding a join pattern."""
-        from utils import knowledge_store as ks_module
+        from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -301,7 +303,7 @@ class TestKnowledgeStoreJoinPatterns:
 
     def test_avoids_duplicate_join_patterns(self, temp_knowledge_file):
         """Test that duplicate join patterns are not added."""
-        from utils import knowledge_store as ks_module
+        from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -322,7 +324,7 @@ class TestKnowledgeStorePersistence:
 
     def test_saves_to_file(self, temp_knowledge_file):
         """Test that data is saved to file."""
-        from utils import knowledge_store as ks_module
+        from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -342,7 +344,7 @@ class TestKnowledgeStorePersistence:
 
     def test_loads_from_file(self, temp_knowledge_file):
         """Test that data persists across instances."""
-        from utils import knowledge_store as ks_module
+        from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -363,7 +365,7 @@ class TestKnowledgeStoreThreadSafety:
 
     def test_concurrent_writes(self, temp_knowledge_file):
         """Test concurrent writes don't corrupt data."""
-        from utils import knowledge_store as ks_module
+        from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -391,7 +393,7 @@ class TestKnowledgeStoreThreadSafety:
 
     def test_concurrent_reads_and_writes(self, temp_knowledge_file):
         """Test concurrent reads and writes."""
-        from utils import knowledge_store as ks_module
+        from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -431,7 +433,7 @@ class TestKnowledgeStoreGetAllHints:
 
     def test_returns_all_hints(self, temp_knowledge_file):
         """Test that get_all_hints returns all stored data."""
-        from utils import knowledge_store as ks_module
+        from backend.utils import knowledge_store as ks_module
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
