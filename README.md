@@ -120,10 +120,21 @@ When the CLI detects an ambiguous query:
 ## File Structure
 
 ```
-├── chainlit_app.py        # Chainlit web interface (main entry point)
+├── app.py                 # Chainlit web interface (main entry point)
+├── chainlit_app.py        # Legacy entry point (deprecated, use app.py)
 ├── main.py                # CLI entry point
 ├── nodes.py               # Node definitions (17 nodes)
 ├── flow.py                # Flow creation and connections
+├── frontend/              # Modular frontend components
+│   ├── __init__.py        # Module initialization
+│   ├── config.py          # Configuration and constants
+│   ├── cache.py           # Dataframe caching
+│   ├── data_utils.py      # Data loading and schema utilities
+│   ├── knowledge_utils.py # Knowledge store utilities
+│   ├── commands.py        # Command handling
+│   ├── actions.py         # Action callbacks
+│   ├── steps.py           # Analysis pipeline steps
+│   └── handlers.py        # Main event handlers
 ├── utils/
 │   ├── call_llm.py        # LLM API calls
 │   ├── call_llm_streaming.py  # Streaming LLM calls

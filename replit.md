@@ -14,7 +14,7 @@ This project, "Pocket Flow," is a minimalist LLM framework designed for agentic 
 The core of Pocket Flow is modeled as a **Graph + Shared Store**.
 
 ### UI/UX Decisions
-- **Chainlit Web Interface** (`chainlit_app.py`): Modern chat-first UI running on port 5000
+- **Chainlit Web Interface** (`app.py` with modular `frontend/` components): Modern chat-first UI running on port 5000
   - Conversational interface with action buttons
   - Settings panel (gear icon) for API key and model selection
   - File upload via paperclip icon or `/upload` command
@@ -22,6 +22,7 @@ The core of Pocket Flow is modeled as a **Graph + Shared Store**.
   - Real-time step indicators during analysis (Loading Data, Analyzing Schema, Running Analysis)
   - Inline chart display in chat messages
   - Example questions for easy onboarding
+  - Modular architecture with separate modules for config, caching, data utilities, commands, actions, and handlers
 - Mermaid diagrams are used for visualizing workflow in documentation.
 
 ### Technical Implementations
@@ -41,10 +42,20 @@ The core of Pocket Flow is modeled as a **Graph + Shared Store**.
     - **Structured Output**: Guides LLMs to produce specific data structures (e.g., YAML) using prompt engineering and validation. YAML is preferred over JSON for better handling of escaping and newlines.
 - **File Structure**:
     - `my_project/`
-        - `chainlit_app.py`: Chainlit web interface (main entry point).
+        - `app.py`: Chainlit web interface (main entry point).
         - `main.py`: CLI entry point for running analysis without GUI.
         - `nodes.py`: Node definitions (18 nodes including EntityResolver, DeepAnalyzer, ResponseSynthesizer).
         - `flow.py`: Flow creation and connections.
+        - `frontend/`: Modular frontend components
+          - `__init__.py`: Module initialization
+          - `config.py`: Configuration and constants
+          - `cache.py`: Dataframe caching
+          - `data_utils.py`: Data loading and schema utilities
+          - `knowledge_utils.py`: Knowledge store utilities
+          - `commands.py`: Command handling
+          - `actions.py`: Action callbacks
+          - `steps.py`: Analysis pipeline steps
+          - `handlers.py`: Main event handlers
         - `chainlit.md`: Chainlit welcome markdown displayed to users.
         - `.chainlit/config.toml`: Chainlit configuration (file upload, CoT display, etc).
         - `utils/`: Utility functions
@@ -56,7 +67,13 @@ The core of Pocket Flow is modeled as a **Graph + Shared Store**.
         - `docs/design.md`: High-level, no-code design documentation.
 
 ## Recent Changes (December 2024)
-- **Migrated to Chainlit UI** (`chainlit_app.py`) - Modern chat-first interface replacing Gradio:
+- **Refactored to modular frontend architecture** (`app.py` with `frontend/` components) - Organized Chainlit interface into reusable modules:
+  - Config module for constants and model filtering
+  - Cache module for efficient dataframe loading
+  - Data utilities for schema and profiling
+  - Separate modules for commands, actions, and handlers
+  - Improved maintainability and testability
+- **Migrated to Chainlit UI** - Modern chat-first interface replacing Gradio:
   - Action buttons for Upload CSV, Tables, Schema, Help
   - ChatSettings panel with model selection and API key input
   - Slash commands for data management (`/upload`, `/tables`, `/preview`, `/delete`, `/schema`, `/knowledge`, `/help`)

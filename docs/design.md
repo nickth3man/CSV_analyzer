@@ -725,10 +725,20 @@ shared = {
 
 ```
 project/
-├── main.py                    # Entry point - runs the flow
-├── chainlit_app.py            # Web UI entry point (Chainlit)
+├── main.py                    # CLI entry point - runs the flow
+├── app.py                     # Web UI entry point (Chainlit)
 ├── nodes.py                   # All node class definitions (21 nodes)
 ├── flow.py                    # Flow creation and node wiring
+├── frontend/                  # Modular frontend components
+│   ├── __init__.py            # Module initialization
+│   ├── config.py              # Configuration and constants
+│   ├── cache.py               # Dataframe caching
+│   ├── data_utils.py          # Data loading and schema utilities
+│   ├── knowledge_utils.py     # Knowledge store utilities
+│   ├── commands.py            # Command handling
+│   ├── actions.py             # Action callbacks
+│   ├── steps.py               # Analysis pipeline steps
+│   └── handlers.py            # Main event handlers
 ├── utils/
 │   ├── __init__.py
 │   ├── call_llm.py            # OpenRouter LLM wrapper
@@ -782,7 +792,7 @@ nba_api             # NBA.com API client (NEW)
 
 ### Web Interface (Chainlit)
 
-1. Run: `chainlit run chainlit_app.py`
+1. Run: `chainlit run app.py`
 2. Upload CSVs in the UI and ask questions in chat
 
 ### Example Queries
