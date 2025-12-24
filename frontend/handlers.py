@@ -2,7 +2,10 @@
 
 import os
 import shutil
+import logging
 import chainlit as cl
+
+logger = logging.getLogger(__name__)
 from chainlit.input_widget import Select, TextInput
 from utils.file_sanitizer import sanitize_csv_filename
 from .config import (
@@ -340,6 +343,7 @@ I need some data to analyze! Please upload your CSV files first.
         await display_result_with_streaming(final_text, chart_path)
 
     except Exception as e:
+        logger.exception("Analysis failed with unexpected error")
         await progress_msg.update(content="❌ Analysis failed.")
         await cl.Message(
             content=f"""## ❌ Analysis Error
@@ -347,7 +351,7 @@ I need some data to analyze! Please upload your CSV files first.
 An unexpected error occurred during analysis:
 
 ```
-{str(e)}
+{e!s}
 ```
 
 **Try:**

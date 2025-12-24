@@ -2,9 +2,12 @@
 
 import os
 import asyncio
+import logging
 import chainlit as cl
 from flow import create_analyst_flow
 from .data_utils import load_dataframes, get_schema_info
+
+logger = logging.getLogger(__name__)
 
 
 @cl.step(type="tool", name="Loading Data")
@@ -64,7 +67,7 @@ async def step_run_analysis(question: str, settings: dict):
         return None, f"An error occurred: {str(e)}", None
 
 
-async def stream_response(content: str, elements: list = None):
+async def stream_response(content: str, elements: list | None = None):
     """
     Stream a response to the user for a more interactive feel.
 
@@ -78,25 +81,25 @@ async def stream_response(content: str, elements: list = None):
     msg = cl.Message(content="", elements=elements or [])
     await msg.send()
 
-    # Stream the content word by word for natural feel
-    words = content.split()
-    buffer = ""
+    # Stream the content in chunks to preserve formatting (whitespace, line breaks)
+    # Use fixed-size chunks instead of splitting by words to preserve markdown
+    chunk_size = 50  # characters per chunk
+    position = 0
 
-    for i, word in enumerate(words):
-        buffer += word + " "
-
-        # Stream in chunks of ~5 words for efficiency
-        if i % 5 == 4 or i == len(words) - 1:
-            await msg.stream_token(buffer)
-            buffer = ""
-            # Small delay for natural streaming effect
-            await asyncio.sleep(0.02)
+    while position < len(content):
+        # Stream in chunks, preserving original formatting
+        end_pos = min(position + chunk_size, len(content))
+        chunk = content[position:end_pos]
+        await msg.stream_token(chunk)
+        position = end_pos
+        # Small delay for natural streaming effect
+        await asyncio.sleep(0.02)
 
     await msg.update()
     return msg
 
 
-async def display_result_with_streaming(final_text: str, chart_path: str = None):
+async def display_result_with_streaming(final_text: str, chart_path: str | None = None):
     """
     Display the analysis result with optional streaming and chart.
 
@@ -109,7 +112,7 @@ async def display_result_with_streaming(final_text: str, chart_path: str = None)
         try:
             elements.append(cl.Image(path=chart_path, name="chart", display="inline"))
         except (FileNotFoundError, OSError) as e:
-            print(f"Warning: Could not load chart image: {e}")
+            logger.warning(f"Could not load chart image: {e}")
 
     # For shorter responses, stream for effect
     # For longer responses, just send directly to avoid delay
