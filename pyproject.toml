@@ -1,0 +1,224 @@
+[project]
+name = "webapp"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+    "ruff>=0.14.10",
+    "pre-commit>=3.0.0",
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "F",    # Pyflakes
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "C90",  # McCabe complexity
+    "I",    # isort
+    "N",    # pep8-naming
+    "D",    # pydocstyle
+    "UP",   # pyupgrade
+    "YTT",  # flake8-2020
+    "ANN",  # flake8-annotations
+    "ASYNC",# flake8-async
+    "S",    # flake8-bandit
+    "BLE",  # flake8-blind-except
+    "FBT",  # flake8-boolean-trap
+    "B",    # flake8-bugbear
+    "A",    # flake8-builtins
+    "COM",  # flake8-commas
+    "C4",   # flake8-comprehensions
+    "DTZ",  # flake8-datetimez
+    "T10",  # flake8-debugger
+    "FA",   # flake8-future-annotations
+    "ISC",  # flake8-implicit-str-concat
+    "G",    # flake8-logging-format
+    "PIE",  # flake8-pie
+    "T20",  # flake8-print
+    "PT",   # flake8-pytest-style
+    "Q",    # flake8-quotes
+    "RSE",  # flake8-raise
+    "RET",  # flake8-return
+    "SLF",  # flake8-self
+    "SLOT", # flake8-slots
+    "SIM",  # flake8-simplify
+    "TID",  # flake8-tidy-imports
+    "TCH",  # flake8-type-checking
+    "INT",  # flake8-gettext
+    "FIX",  # flake8-fixme
+    "ERA",  # flake8-eradicate
+    "PD",   # flake8-pandas-vet
+    "PGH",  # pygrep-hooks
+    "PL",   # Pylint
+    "TRY",  # tryceratops
+    "FLY",  # flynt
+    "NPY",  # NumPy-specific rules
+    "AIR",  # Airflow
+    "PERF", # Perflint
+    "FURB", # Refurb
+    "RUF",  # Ruff-specific rules
+]
+ignore = [
+    "D100",  # Missing docstring in public module
+    "D104",  # Missing docstring in public package
+    "D107",  # Missing docstring for __init__
+    "D203",  # 1 blank line required before class docstring
+    "D212",  # Multi-line docstring summary should start at the first line
+    "D400",  # First line of docstring should end with a period
+    "D401",  # First line of docstring should be in imperative mood
+    "D403",  # First word of the first line should be properly capitalized
+    "D404",  # First word of the docstring should not be This
+    "D415",  # First line should end with a period, question mark, or exclamation point
+    "E501",  # Line too long (handled by line-length setting)
+    "E731",  # Do not assign a lambda expression, use a def
+    "FBT001",# Boolean-typed positional argument in function definition
+    "FBT002",# Boolean-typed default argument in function definition
+    "FBT003",# Boolean-typed positional argument in function call
+    "PD011", # Use df.to_json() instead of json.dumps(df.to_dict())
+    "PD013", # Use df.to_dict() instead of json.loads(df.to_json())
+    "PGH003",# Use specific rule codes when ignoring type checking
+    "PLW0603",# Using the global statement is discouraged
+    "PT001", # Use @pytest.fixture() over @pytest.fixture scope='function'
+    "PT006", # Use @pytest.fixture() over @pytest.fixture(scope='class')
+    "PT007", # Use @pytest.fixture() over @pytest.fixture(scope='session')
+    "PT009", # Use @pytest.mark.parametrize() over multiple @pytest.mark.parametrize() calls
+    "PT011", # Use @pytest.mark.parametrize() over multiple @pytest.mark.parametrize() calls with same arguments
+    "PT012", # Use @pytest.mark.parametrize() over multiple @pytest.mark.parametrize() calls with different arguments
+    "PT013", # Use @pytest.mark.parametrize() over multiple @pytest.mark.parametrize() calls with same and different arguments
+    "TRY003",  # Avoid specifying long messages outside the exception class
+    "COM812",  # Conflicts with ruff format
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "S101",  # Use of assert detected (allowed in tests)
+    "D",     # Docstring requirements (relaxed for tests)
+    "ANN",   # Type annotations (relaxed for tests)
+]
+"__init__.py" = ["D104"]  # Missing docstring in public package
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 88
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+extra_checks = true
+strict_optional = true
+allow_redefinition = false
+show_error_codes = true
+follow_imports = "normal"
+namespace_packages = true
+explicit_package_bases = true
+
+# Per-module mypy settings can be configured here if needed
+# Example: disable strict typing for test files
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_untyped_calls = false
+
+[tool.black]
+line-length = 88
+target-version = ['py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["webapp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--verbose",
+    "--cov=src",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__main__.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv", "htmlcov"]
+skips = ["B101"]  # Skip assert warnings
