@@ -12,7 +12,7 @@ class TestErrorFixerRetryLogic:
         node = ErrorFixer()
         shared = {
             "exec_error": "NameError: name 'x' is not defined",
-            "code_snippet": "final_result = x",
+            "csv_code_snippet": "final_result = x",
             "retry_count": 0
         }
 
@@ -26,7 +26,7 @@ class TestErrorFixerRetryLogic:
         node = ErrorFixer()
         shared = {
             "exec_error": "NameError: name 'x' is not defined",
-            "code_snippet": "final_result = x",
+            "csv_code_snippet": "final_result = x",
             "retry_count": 1
         }
 
@@ -40,7 +40,7 @@ class TestErrorFixerRetryLogic:
         node = ErrorFixer()
         shared = {
             "exec_error": "NameError: name 'x' is not defined",
-            "code_snippet": "final_result = x",
+            "csv_code_snippet": "final_result = x",
             "retry_count": 2
         }
 
@@ -54,7 +54,7 @@ class TestErrorFixerRetryLogic:
         node = ErrorFixer()
         shared = {
             "exec_error": "NameError: name 'x' is not defined",
-            "code_snippet": "final_result = x",
+            "csv_code_snippet": "final_result = x",
             "retry_count": 3  # Already tried 3 times
         }
 
@@ -68,7 +68,7 @@ class TestErrorFixerRetryLogic:
         node = ErrorFixer()
         shared = {
             "exec_error": "Some error",
-            "code_snippet": "some code",
+            "csv_code_snippet": "some code",
             "retry_count": 10
         }
 
@@ -86,7 +86,7 @@ class TestErrorFixerPostMethod:
         node = ErrorFixer()
         shared = {
             "exec_error": "Error message",
-            "code_snippet": "code",
+            "csv_code_snippet": "code",
             "retry_count": 0
         }
 
@@ -102,7 +102,7 @@ class TestErrorFixerPostMethod:
         node = ErrorFixer()
         shared = {
             "exec_error": "Error message",
-            "code_snippet": "code",
+            "csv_code_snippet": "code",
             "retry_count": 1
         }
 
@@ -118,7 +118,7 @@ class TestErrorFixerPostMethod:
         node = ErrorFixer()
         shared = {
             "exec_error": "Persistent error",
-            "code_snippet": "bad code",
+            "csv_code_snippet": "bad code",
             "retry_count": 3
         }
 
@@ -156,14 +156,14 @@ class TestErrorFixerPrepMethod:
         node = ErrorFixer()
         shared = {
             "exec_error": "Some error",
-            "code_snippet": "some code",
+            "csv_code_snippet": "some code",
             "retry_count": 2
         }
 
         error, code, retry_count = node.prep(shared)
 
         assert error == "Some error"
-        assert code == "some code"
+        assert code["csv"] == "some code"
         assert retry_count == 2
 
     def test_prep_without_retry_count(self):
@@ -171,13 +171,13 @@ class TestErrorFixerPrepMethod:
         node = ErrorFixer()
         shared = {
             "exec_error": "Some error",
-            "code_snippet": "some code"
+            "csv_code_snippet": "some code"
         }
 
         error, code, retry_count = node.prep(shared)
 
         assert error == "Some error"
-        assert code == "some code"
+        assert code["csv"] == "some code"
         assert retry_count == 0  # Defaults to 0
 
 
@@ -196,7 +196,7 @@ class TestErrorFixerMaxRetriesConstant:
         # retry_count = MAX_RETRIES - 1 should allow retry
         shared_just_under = {
             "exec_error": "Error",
-            "code_snippet": "code",
+            "csv_code_snippet": "code",
             "retry_count": node.MAX_RETRIES - 1
         }
         prep_res = node.prep(shared_just_under)
@@ -206,7 +206,7 @@ class TestErrorFixerMaxRetriesConstant:
         # retry_count = MAX_RETRIES should give up
         shared_at_max = {
             "exec_error": "Error",
-            "code_snippet": "code",
+            "csv_code_snippet": "code",
             "retry_count": node.MAX_RETRIES
         }
         prep_res = node.prep(shared_at_max)
@@ -223,7 +223,7 @@ class TestErrorFixerErrorMessages:
         error_msg = "KeyError: 'nonexistent_column'"
         shared = {
             "exec_error": error_msg,
-            "code_snippet": "df['nonexistent_column']",
+            "csv_code_snippet": "df['nonexistent_column']",
             "retry_count": 3
         }
 
@@ -238,7 +238,7 @@ class TestErrorFixerErrorMessages:
         """Test behavior when exec_error is missing."""
         node = ErrorFixer()
         shared = {
-            "code_snippet": "some code",
+            "csv_code_snippet": "some code",
             "retry_count": 3
         }
 
@@ -258,7 +258,7 @@ class TestErrorFixerFullCycle:
         node = ErrorFixer()
         shared = {
             "exec_error": "Initial error",
-            "code_snippet": "bad code"
+            "csv_code_snippet": "bad code"
         }
 
         # First attempt (retry_count starts at 0)

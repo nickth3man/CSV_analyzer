@@ -18,11 +18,14 @@ class TestSchemaInference:
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
 
-        assert "employees" in exec_res
+        # exec returns (schemas, csv_schema, api_schema)
+        schemas = exec_res[0]
+        
+        assert "employees" in schemas
         # Should have identified columns
-        assert "name" in str(exec_res["employees"])
-        assert "age" in str(exec_res["employees"])
-        assert "salary" in str(exec_res["employees"])
+        assert "name" in str(schemas["employees"])
+        assert "age" in str(schemas["employees"])
+        assert "salary" in str(schemas["employees"])
 
     def test_stores_schema_in_shared(self, sample_df):
         """Test that schema is stored in shared store."""
@@ -49,8 +52,10 @@ class TestSchemaInference:
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
 
-        assert "employees" in exec_res
-        assert "sales" in exec_res
+        schemas = exec_res[0]
+
+        assert "employees" in schemas
+        assert "sales" in schemas
 
     def test_handles_empty_dataframe(self):
         """Test handling of empty DataFrame."""
@@ -61,7 +66,9 @@ class TestSchemaInference:
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
 
-        assert "empty" in exec_res
+        schemas = exec_res[0]
+
+        assert "empty" in schemas
 
 
 class TestDataProfiler:
@@ -205,7 +212,7 @@ final_result = dfs['employees']['salary'].mean()
         exec_res = node.exec(prep_res)
         node.post(shared, prep_res, exec_res)
 
-        assert "code_snippet" in shared
+        assert "csv_code_snippet" in shared
 
 
 class TestVisualizer:
@@ -420,5 +427,5 @@ final_result = dfs['employees']
         # All nodes should have completed
         assert "schemas" in shared
         assert "profiles" in shared
-        assert "code_snippet" in shared
+        assert "csv_code_snippet" in shared
         assert "chart_path" in shared or shared["chart_path"] is None

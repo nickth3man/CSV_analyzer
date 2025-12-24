@@ -17,12 +17,13 @@ available_vars = list(locals().keys())
 final_result = sorted([v for v in available_vars if not v.startswith('_')])
 """
         shared = {
-            "code_snippet": code,
+            "csv_code_snippet": code,
             "dfs": {"employees": sample_df}
         }
 
         prep_res = node.prep(shared)
-        status, result = node.exec(prep_res)
+        exec_res = node.exec(prep_res)
+        status, result = exec_res["csv"]
 
         assert status == "success"
         # Should only have 'dfs', 'pd', and 'final_result' (created by the code)
@@ -41,12 +42,13 @@ except NameError:
     final_result = "SAFE"
 """
         shared = {
-            "code_snippet": code,
+            "csv_code_snippet": code,
             "dfs": {"employees": sample_df}
         }
 
         prep_res = node.prep(shared)
-        status, result = node.exec(prep_res)
+        exec_res = node.exec(prep_res)
+        status, result = exec_res["csv"]
 
         # Should fail because globals() is not in scope
         assert status == "error"
@@ -57,12 +59,13 @@ except NameError:
         code = "final_result = list(dfs.keys())"
 
         shared = {
-            "code_snippet": code,
+            "csv_code_snippet": code,
             "dfs": {"employees": sample_df, "sales": sample_df}
         }
 
         prep_res = node.prep(shared)
-        status, result = node.exec(prep_res)
+        exec_res = node.exec(prep_res)
+        status, result = exec_res["csv"]
 
         assert status == "success"
         assert set(result) == {"employees", "sales"}
@@ -75,12 +78,13 @@ df = dfs['employees']
 final_result = df['salary'].mean()
 """
         shared = {
-            "code_snippet": code,
+            "csv_code_snippet": code,
             "dfs": {"employees": sample_df}
         }
 
         prep_res = node.prep(shared)
-        status, result = node.exec(prep_res)
+        exec_res = node.exec(prep_res)
+        status, result = exec_res["csv"]
 
         assert status == "success"
         assert result == sample_df['salary'].mean()
@@ -95,12 +99,13 @@ class TestExecutorResultExtraction:
         code = "final_result = 42"
 
         shared = {
-            "code_snippet": code,
+            "csv_code_snippet": code,
             "dfs": {"employees": sample_df}
         }
 
         prep_res = node.prep(shared)
-        status, result = node.exec(prep_res)
+        exec_res = node.exec(prep_res)
+        status, result = exec_res["csv"]
 
         assert status == "success"
         assert result == 42
@@ -111,12 +116,13 @@ class TestExecutorResultExtraction:
         code = "x = 42"  # No final_result defined
 
         shared = {
-            "code_snippet": code,
+            "csv_code_snippet": code,
             "dfs": {"employees": sample_df}
         }
 
         prep_res = node.prep(shared)
-        status, result = node.exec(prep_res)
+        exec_res = node.exec(prep_res)
+        status, result = exec_res["csv"]
 
         assert status == "error"
         assert "final_result" in result
@@ -129,12 +135,13 @@ df = dfs['employees']
 final_result = df[df['age'] > 30]
 """
         shared = {
-            "code_snippet": code,
+            "csv_code_snippet": code,
             "dfs": {"employees": sample_df}
         }
 
         prep_res = node.prep(shared)
-        status, result = node.exec(prep_res)
+        exec_res = node.exec(prep_res)
+        status, result = exec_res["csv"]
 
         assert status == "success"
         assert isinstance(result, pd.DataFrame)
@@ -146,12 +153,13 @@ final_result = df[df['age'] > 30]
         code = "final_result = dfs['employees']['salary'].max()"
 
         shared = {
-            "code_snippet": code,
+            "csv_code_snippet": code,
             "dfs": {"employees": sample_df}
         }
 
         prep_res = node.prep(shared)
-        status, result = node.exec(prep_res)
+        exec_res = node.exec(prep_res)
+        status, result = exec_res["csv"]
 
         assert status == "success"
         assert result == 95000
@@ -162,12 +170,13 @@ final_result = df[df['age'] > 30]
         code = "final_result = dfs['employees']['name'].tolist()"
 
         shared = {
-            "code_snippet": code,
+            "csv_code_snippet": code,
             "dfs": {"employees": sample_df}
         }
 
         prep_res = node.prep(shared)
-        status, result = node.exec(prep_res)
+        exec_res = node.exec(prep_res)
+        status, result = exec_res["csv"]
 
         assert status == "success"
         assert result == ["Alice", "Bob", "Charlie"]
@@ -183,12 +192,13 @@ final_result = {
 }
 """
         shared = {
-            "code_snippet": code,
+            "csv_code_snippet": code,
             "dfs": {"employees": sample_df}
         }
 
         prep_res = node.prep(shared)
-        status, result = node.exec(prep_res)
+        exec_res = node.exec(prep_res)
+        status, result = exec_res["csv"]
 
         assert status == "success"
         assert result['count'] == 3
@@ -204,12 +214,13 @@ class TestExecutorErrorHandling:
         code = "final_result = dfs['employees'].nonexistent_column"
 
         shared = {
-            "code_snippet": code,
+            "csv_code_snippet": code,
             "dfs": {"employees": sample_df}
         }
 
         prep_res = node.prep(shared)
-        status, result = node.exec(prep_res)
+        exec_res = node.exec(prep_res)
+        status, result = exec_res["csv"]
 
         assert status == "error"
         assert "nonexistent_column" in result.lower() or "attribute" in result.lower()
@@ -220,12 +231,13 @@ class TestExecutorErrorHandling:
         code = "final_result = dfs['nonexistent_table']"
 
         shared = {
-            "code_snippet": code,
+            "csv_code_snippet": code,
             "dfs": {"employees": sample_df}
         }
 
         prep_res = node.prep(shared)
-        status, result = node.exec(prep_res)
+        exec_res = node.exec(prep_res)
+        status, result = exec_res["csv"]
 
         assert status == "error"
         assert "nonexistent_table" in result or "KeyError" in result
@@ -236,12 +248,13 @@ class TestExecutorErrorHandling:
         code = "final_result = 'string' + 123"
 
         shared = {
-            "code_snippet": code,
+            "csv_code_snippet": code,
             "dfs": {"employees": sample_df}
         }
 
         prep_res = node.prep(shared)
-        status, result = node.exec(prep_res)
+        exec_res = node.exec(prep_res)
+        status, result = exec_res["csv"]
 
         assert status == "error"
         assert "type" in result.lower() or "str" in result.lower()
@@ -252,12 +265,13 @@ class TestExecutorErrorHandling:
         code = "final_result = 1 / 0"
 
         shared = {
-            "code_snippet": code,
+            "csv_code_snippet": code,
             "dfs": {"employees": sample_df}
         }
 
         prep_res = node.prep(shared)
-        status, result = node.exec(prep_res)
+        exec_res = node.exec(prep_res)
+        status, result = exec_res["csv"]
 
         assert status == "error"
         assert "division" in result.lower() or "zero" in result.lower()
@@ -268,12 +282,13 @@ class TestExecutorErrorHandling:
         code = "final_result = dfs['employees']['name'].iloc[999]"
 
         shared = {
-            "code_snippet": code,
+            "csv_code_snippet": code,
             "dfs": {"employees": sample_df}
         }
 
         prep_res = node.prep(shared)
-        status, result = node.exec(prep_res)
+        exec_res = node.exec(prep_res)
+        status, result = exec_res["csv"]
 
         assert status == "error"
         assert "index" in result.lower() or "out of" in result.lower()
@@ -288,7 +303,7 @@ class TestExecutorPostMethod:
         code = "final_result = 42"
 
         shared = {
-            "code_snippet": code,
+            "csv_code_snippet": code,
             "dfs": {"employees": sample_df}
         }
 
@@ -297,7 +312,7 @@ class TestExecutorPostMethod:
         action = node.post(shared, prep_res, exec_res)
 
         assert action == "success"
-        assert shared["exec_result"] == 42
+        assert shared["csv_exec_result"] == 42
         assert "exec_error" not in shared
 
     def test_post_on_error(self, sample_df):
@@ -306,7 +321,7 @@ class TestExecutorPostMethod:
         code = "x = 1 / 0"  # Will cause error
 
         shared = {
-            "code_snippet": code,
+            "csv_code_snippet": code,
             "dfs": {"employees": sample_df}
         }
 
@@ -316,7 +331,7 @@ class TestExecutorPostMethod:
 
         assert action == "error"
         assert "exec_error" in shared
-        assert "exec_result" not in shared or shared.get("exec_result") is None
+        assert "csv_exec_result" not in shared or shared.get("csv_exec_result") is None
 
 
 class TestExecutorDataOperations:
@@ -331,12 +346,13 @@ filtered = df[df['department'] == 'Engineering']
 final_result = len(filtered)
 """
         shared = {
-            "code_snippet": code,
+            "csv_code_snippet": code,
             "dfs": {"employees": sample_df}
         }
 
         prep_res = node.prep(shared)
-        status, result = node.exec(prep_res)
+        exec_res = node.exec(prep_res)
+        status, result = exec_res["csv"]
 
         assert status == "success"
         assert result == 2  # Alice and Charlie
@@ -350,12 +366,13 @@ grouped = df.groupby('department')['salary'].mean()
 final_result = grouped.to_dict()
 """
         shared = {
-            "code_snippet": code,
+            "csv_code_snippet": code,
             "dfs": {"employees": sample_df}
         }
 
         prep_res = node.prep(shared)
-        status, result = node.exec(prep_res)
+        exec_res = node.exec(prep_res)
+        status, result = exec_res["csv"]
 
         assert status == "success"
         assert 'Engineering' in result
@@ -373,12 +390,13 @@ final_result = {
 }
 """
         shared = {
-            "code_snippet": code,
+            "csv_code_snippet": code,
             "dfs": {"employees": sample_df}
         }
 
         prep_res = node.prep(shared)
-        status, result = node.exec(prep_res)
+        exec_res = node.exec(prep_res)
+        status, result = exec_res["csv"]
 
         assert status == "success"
         assert result['mean'] == 84000
@@ -396,12 +414,13 @@ merged = df1.merge(df2, on='department')
 final_result = len(merged)
 """
         shared = {
-            "code_snippet": code,
+            "csv_code_snippet": code,
             "dfs": {"employees": sample_df}
         }
 
         prep_res = node.prep(shared)
-        status, result = node.exec(prep_res)
+        exec_res = node.exec(prep_res)
+        status, result = exec_res["csv"]
 
         assert status == "success"
         assert result == 3  # All 3 employees should match
@@ -416,15 +435,17 @@ class TestExecutorIsolation:
 
         # First execution
         code1 = "final_result = 42"
-        shared1 = {"code_snippet": code1, "dfs": {"employees": sample_df}}
+        shared1 = {"csv_code_snippet": code1, "dfs": {"employees": sample_df}}
         prep_res1 = node.prep(shared1)
-        status1, result1 = node.exec(prep_res1)
+        exec_res1 = node.exec(prep_res1)
+        status1, result1 = exec_res1["csv"]
 
         # Second execution
         code2 = "final_result = 99"
-        shared2 = {"code_snippet": code2, "dfs": {"employees": sample_df}}
+        shared2 = {"csv_code_snippet": code2, "dfs": {"employees": sample_df}}
         prep_res2 = node.prep(shared2)
-        status2, result2 = node.exec(prep_res2)
+        exec_res2 = node.exec(prep_res2)
+        status2, result2 = exec_res2["csv"]
 
         assert status1 == "success"
         assert result1 == 42

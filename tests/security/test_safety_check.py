@@ -11,10 +11,10 @@ class TestSafetyCheckForbiddenImports:
         """Test that 'import os' is blocked."""
         node = SafetyCheck()
         code = "import os\nos.system('rm -rf /')"
-        shared = {"code_snippet": code}
+        shared = {"csv_code_snippet": code}
 
         node.prep(shared)
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "Forbidden import: os" in reason
@@ -23,9 +23,9 @@ class TestSafetyCheckForbiddenImports:
         """Test that 'import subprocess' is blocked."""
         node = SafetyCheck()
         code = "import subprocess\nsubprocess.call(['ls'])"
-        shared = {"code_snippet": code}
+        shared = {"csv_code_snippet": code}
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "subprocess" in reason
@@ -35,7 +35,7 @@ class TestSafetyCheckForbiddenImports:
         node = SafetyCheck()
         code = "import sys\nsys.exit()"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "sys" in reason
@@ -45,7 +45,7 @@ class TestSafetyCheckForbiddenImports:
         node = SafetyCheck()
         code = "import socket\ns = socket.socket()"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "socket" in reason
@@ -55,7 +55,7 @@ class TestSafetyCheckForbiddenImports:
         node = SafetyCheck()
         code = "import requests\nrequests.get('http://evil.com')"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "requests" in reason
@@ -65,7 +65,7 @@ class TestSafetyCheckForbiddenImports:
         node = SafetyCheck()
         code = "import urllib"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "urllib" in reason
@@ -75,7 +75,7 @@ class TestSafetyCheckForbiddenImports:
         node = SafetyCheck()
         code = "import importlib"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "importlib" in reason
@@ -85,7 +85,7 @@ class TestSafetyCheckForbiddenImports:
         node = SafetyCheck()
         code = "import shutil\nshutil.rmtree('/')"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "shutil" in reason
@@ -95,7 +95,7 @@ class TestSafetyCheckForbiddenImports:
         node = SafetyCheck()
         code = "from os import system\nsystem('ls')"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "Forbidden from-import: os" in reason
@@ -105,7 +105,7 @@ class TestSafetyCheckForbiddenImports:
         node = SafetyCheck()
         code = "import os.path"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "os" in reason
@@ -119,7 +119,7 @@ class TestSafetyCheckForbiddenFunctions:
         node = SafetyCheck()
         code = "result = eval('1 + 1')"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "eval" in reason
@@ -129,7 +129,7 @@ class TestSafetyCheckForbiddenFunctions:
         node = SafetyCheck()
         code = "exec('print(1)')"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "exec" in reason
@@ -139,7 +139,7 @@ class TestSafetyCheckForbiddenFunctions:
         node = SafetyCheck()
         code = "compile('1+1', '<string>', 'eval')"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "compile" in reason
@@ -149,7 +149,7 @@ class TestSafetyCheckForbiddenFunctions:
         node = SafetyCheck()
         code = "f = open('/etc/passwd', 'r')"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "open" in reason
@@ -159,7 +159,7 @@ class TestSafetyCheckForbiddenFunctions:
         node = SafetyCheck()
         code = "user_input = input('Enter something: ')"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "input" in reason
@@ -169,7 +169,7 @@ class TestSafetyCheckForbiddenFunctions:
         node = SafetyCheck()
         code = "getattr(obj, '__dict__')"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "getattr" in reason
@@ -179,7 +179,7 @@ class TestSafetyCheckForbiddenFunctions:
         node = SafetyCheck()
         code = "setattr(obj, 'attr', 'value')"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "setattr" in reason
@@ -189,7 +189,7 @@ class TestSafetyCheckForbiddenFunctions:
         node = SafetyCheck()
         code = "delattr(obj, 'attr')"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "delattr" in reason
@@ -199,7 +199,7 @@ class TestSafetyCheckForbiddenFunctions:
         node = SafetyCheck()
         code = "g = globals()"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "globals" in reason
@@ -209,7 +209,7 @@ class TestSafetyCheckForbiddenFunctions:
         node = SafetyCheck()
         code = "l = locals()"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "locals" in reason
@@ -219,7 +219,7 @@ class TestSafetyCheckForbiddenFunctions:
         node = SafetyCheck()
         code = "os = __import__('os')"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "__import__" in reason
@@ -233,7 +233,7 @@ class TestSafetyCheckForbiddenAttributes:
         node = SafetyCheck()
         code = "b = some_obj.__builtins__"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "__builtins__" in reason
@@ -243,7 +243,7 @@ class TestSafetyCheckForbiddenAttributes:
         node = SafetyCheck()
         code = "g = func.__globals__"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "__globals__" in reason
@@ -253,7 +253,7 @@ class TestSafetyCheckForbiddenAttributes:
         node = SafetyCheck()
         code = "c = func.__code__"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "__code__" in reason
@@ -263,7 +263,7 @@ class TestSafetyCheckForbiddenAttributes:
         node = SafetyCheck()
         code = "c = obj.__class__"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "__class__" in reason
@@ -273,7 +273,7 @@ class TestSafetyCheckForbiddenAttributes:
         node = SafetyCheck()
         code = "d = obj.__dict__"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "__dict__" in reason
@@ -283,7 +283,7 @@ class TestSafetyCheckForbiddenAttributes:
         node = SafetyCheck()
         code = "b = some_dict['__builtins__']"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "__builtins__" in reason
@@ -293,7 +293,7 @@ class TestSafetyCheckForbiddenAttributes:
         node = SafetyCheck()
         code = "g = some_dict['__globals__']"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "__globals__" in reason
@@ -307,7 +307,7 @@ class TestSafetyCheckSyntaxErrors:
         node = SafetyCheck()
         code = "if True\n    print('missing colon')"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "Syntax Error" in reason
@@ -317,7 +317,7 @@ class TestSafetyCheckSyntaxErrors:
         node = SafetyCheck()
         code = "this is not valid python at all @@@ ###"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "Syntax Error" in reason
@@ -334,7 +334,7 @@ import pandas as pd
 df = pd.DataFrame({'a': [1, 2, 3]})
 final_result = df['a'].mean()
 """
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "safe"
         assert reason is None
@@ -347,7 +347,7 @@ import numpy as np
 arr = np.array([1, 2, 3])
 final_result = arr.mean()
 """
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "safe"
         assert reason is None
@@ -357,7 +357,7 @@ final_result = arr.mean()
         node = SafetyCheck()
         code = "final_result = 1 + 2 * 3"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "safe"
         assert reason is None
@@ -368,7 +368,7 @@ final_result = arr.mean()
         code = """
 final_result = dfs['employees']['salary'].mean()
 """
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "safe"
         assert reason is None
@@ -380,7 +380,7 @@ final_result = dfs['employees']['salary'].mean()
 filtered = dfs['employees'][dfs['employees']['age'] > 30]
 final_result = filtered['salary'].sum()
 """
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "safe"
         assert reason is None
@@ -392,11 +392,11 @@ class TestSafetyCheckPostMethod:
     def test_post_unsafe_code(self):
         """Test post() method when code is unsafe."""
         node = SafetyCheck()
-        shared = {"code_snippet": "import os"}
+        shared = {"csv_code_snippet": "import os"}
 
         node.prep(shared)
-        status, reason = node.exec("import os")
-        action = node.post(shared, "import os", (status, reason))
+        status, reason = node.exec(("import os", ""))
+        action = node.post(shared, ("import os", ""), (status, reason))
 
         assert action == "unsafe"
         assert "exec_error" in shared
@@ -405,11 +405,11 @@ class TestSafetyCheckPostMethod:
     def test_post_safe_code(self):
         """Test post() method when code is safe."""
         node = SafetyCheck()
-        shared = {"code_snippet": "final_result = 1 + 1"}
+        shared = {"csv_code_snippet": "final_result = 1 + 1"}
 
         code = "final_result = 1 + 1"
-        status, reason = node.exec(code)
-        action = node.post(shared, code, (status, reason))
+        status, reason = node.exec((code, ""))
+        action = node.post(shared, (code, ""), (status, reason))
 
         assert action == "safe"
         assert "exec_error" not in shared
@@ -423,7 +423,7 @@ class TestSafetyCheckEvasionAttempts:
         node = SafetyCheck()
         code = "__import__('os').system('ls')"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "__import__" in reason
@@ -433,7 +433,7 @@ class TestSafetyCheckEvasionAttempts:
         node = SafetyCheck()
         code = "x = obj.method.__globals__"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
         assert "__globals__" in reason
@@ -443,7 +443,7 @@ class TestSafetyCheckEvasionAttempts:
         node = SafetyCheck()
         code = "value = dfs['employees']['name'][0]"
 
-        status, reason = node.exec(code)
+        status, reason = node.exec((code, ""))
 
         assert status == "safe"
         assert reason is None
