@@ -7,6 +7,8 @@ import matplotlib
 from pocketflow import Node
 from utils.call_llm import call_llm
 from utils.knowledge_store import knowledge_store
+from utils.nba_api_client import nba_client
+from utils.data_source_manager import data_source_manager
 
 class LoadData(Node):
     def prep(self, shared):
@@ -39,14 +41,126 @@ class LoadData(Node):
         return data
 
     def post(self, shared, prep_res, exec_res):
-        shared["dfs"] = exec_res
-        print(f"Loaded {len(exec_res)} dataframes.")
+        shared["csv_dfs"] = exec_res
+        shared["dfs"] = exec_res  # seed with CSV before merging
+        shared["data_sources"] = {name: "csv" for name in exec_res}
+        print(f"Loaded {len(exec_res)} dataframes from CSV.")
         if not exec_res:
             shared["final_text"] = (
                 "No CSV files found in the CSV/ directory. "
                 "Please upload data before asking a question."
             )
             return "no_data"
+        return "default"
+
+class NBAApiDataLoader(Node):
+    """
+    Fetches relevant data from the NBA API based on the question context.
+    Uses static endpoints for ID resolution and dynamic endpoints for stats.
+    """
+
+    DEFAULT_SEASON = os.environ.get("NBA_API_DEFAULT_SEASON", "2023-24")
+
+    def prep(self, shared):
+        return {
+            "question": shared.get("question", ""),
+            "entities": shared.get("entities") or data_source_manager.detect_query_entities(shared.get("question", "")),
+        }
+
+    def _resolve_ids(self, entities):
+        entity_ids = {}
+        for entity in entities:
+            player = nba_client.find_player(entity)
+            if player:
+                entity_ids[entity] = {"player_id": player.get("id")}
+                continue
+            team = nba_client.find_team(entity)
+            if team:
+                entity_ids[entity] = {"team_id": team.get("id")}
+        return entity_ids
+
+    def exec(self, prep_res):
+        question = prep_res["question"]
+        entities = prep_res["entities"]
+        entity_ids = self._resolve_ids(entities)
+
+        endpoints_to_call = data_source_manager.determine_api_endpoints(entities, question)
+        api_dfs = {}
+        errors = []
+        used = []
+
+        for endpoint in endpoints_to_call:
+            name = endpoint["name"]
+            params = endpoint.get("params", {})
+            used.append({"name": name, "params": params})
+            try:
+                if name == "player_career":
+                    ent = params.get("entity")
+                    player_id = entity_ids.get(ent, {}).get("player_id")
+                    if not player_id:
+                        continue
+                    career = nba_client.get_player_career_stats(player_id)
+                    for key, df in career.items():
+                        api_dfs[f"{ent}_career_{key}"] = df
+                elif name == "league_leaders":
+                    season = self.DEFAULT_SEASON
+                    leaders = nba_client.get_league_leaders(season=season, stat_category="PTS")
+                    api_dfs[f"league_leaders_{season}"] = leaders
+                elif name == "common_team_roster":
+                    ent = params.get("entity")
+                    team_id = entity_ids.get(ent, {}).get("team_id")
+                    if not team_id:
+                        continue
+                    roster = nba_client.get_common_team_roster(team_id=team_id, season=self.DEFAULT_SEASON)
+                    api_dfs[f"{ent}_roster"] = roster
+                elif name == "player_game_log":
+                    ent = params.get("entity")
+                    player_id = entity_ids.get(ent, {}).get("player_id")
+                    if not player_id:
+                        continue
+                    game_log = nba_client.get_player_game_log(player_id=player_id, season=self.DEFAULT_SEASON)
+                    api_dfs[f"{ent}_game_log"] = game_log
+                elif name == "scoreboard":
+                    api_dfs["live_scoreboard"] = nba_client.get_scoreboard()
+                else:
+                    errors.append({"endpoint": name, "error": "Unknown endpoint"})
+            except Exception as exc:  # noqa: BLE001
+                errors.append({"endpoint": name, "error": str(exc)})
+
+        return {"api_dfs": api_dfs, "errors": errors, "used": used, "entity_ids": entity_ids}
+
+    def post(self, shared, prep_res, exec_res):
+        shared["api_dfs"] = exec_res["api_dfs"]
+        shared["api_errors"] = exec_res["errors"]
+        shared["api_endpoints_used"] = exec_res["used"]
+        # Merge entity IDs discovered here with future resolution
+        shared["entity_ids"] = exec_res.get("entity_ids", {})
+        print(f"NBA API loader fetched {len(exec_res['api_dfs'])} tables with {len(exec_res['errors'])} errors.")
+        return "default"
+
+class DataMerger(Node):
+    """
+    Combines CSV and API dataframes with source tracking and discrepancy flags.
+    """
+
+    def prep(self, shared):
+        return {
+            "csv_dfs": shared.get("csv_dfs", {}),
+            "api_dfs": shared.get("api_dfs", {}),
+        }
+
+    def exec(self, prep_res):
+        merged, discrepancies, sources = data_source_manager.merge_data_sources(
+            prep_res["csv_dfs"], prep_res["api_dfs"]
+        )
+        return merged, discrepancies, sources
+
+    def post(self, shared, prep_res, exec_res):
+        merged, discrepancies, sources = exec_res
+        shared["dfs"] = merged
+        shared["discrepancies"] = discrepancies
+        shared["data_sources"] = sources
+        print(f"Data merged: {len(merged)} tables ({len(discrepancies)} discrepancies flagged).")
         return "default"
 
 class SchemaInference(Node):
@@ -56,17 +170,35 @@ class SchemaInference(Node):
     def exec(self, prep_res):
         dfs = prep_res
         schemas = {}
+        csv_schema = {}
+        api_schema = {}
         # TODO: Ensure schema inference supports dataframes originating from Excel/JSON/DB sources
         # by preserving source metadata (e.g., sheet names, JSON paths, DB schemas).
         for name, df in dfs.items():
             schemas[name] = list(df.columns)
-        return schemas
+        for name, df in (dfs.items()):
+            source = None
+            if name in dfs and "_source" in df.columns:
+                source = df["_source"].iloc[0] if not df.empty else None
+            if source == "api" and name not in csv_schema:
+                api_schema[name] = list(df.columns)
+            elif source == "csv" and name not in api_schema:
+                csv_schema[name] = list(df.columns)
+        return schemas, csv_schema, api_schema
 
     def post(self, shared, prep_res, exec_res):
-        shared["schemas"] = exec_res
+        schemas, csv_schema, api_schema = exec_res
+        shared["schemas"] = schemas
+        shared["csv_schema_str"] = "\n".join(
+            [f"Table '{name}' [CSV]: [{', '.join(cols)}]" for name, cols in csv_schema.items()]
+        )
+        shared["api_schema_str"] = "\n".join(
+            [f"Table '{name}' [API]: [{', '.join(cols)}]" for name, cols in api_schema.items()]
+        )
         schema_lines = []
-        for name, cols in exec_res.items():
-            schema_lines.append(f"Table '{name}': [{', '.join(cols)}]")
+        for name, cols in schemas.items():
+            source = shared.get("data_sources", {}).get(name, "merged")
+            schema_lines.append(f"Table '{name}' [{source.upper()}]: [{', '.join(cols)}]")
         shared["schema_str"] = "\n".join(schema_lines)
         print(f"Schema inferred:\n{shared['schema_str']}")
         # TODO: Generate schema-driven query suggestions (e.g., common aggregations)
@@ -186,7 +318,8 @@ class EntityResolver(Node):
             "question": shared["question"],
             "schema": shared["schema_str"],
             "dfs": shared["dfs"],
-            "sample_size": shared.get("config", {}).get("entity_sample_size", self.DEFAULT_SAMPLE_SIZE)
+            "sample_size": shared.get("config", {}).get("entity_sample_size", self.DEFAULT_SAMPLE_SIZE),
+            "entity_ids": shared.get("entity_ids", {}),
         }
 
     def _get_sample(self, df, col, sample_size):
@@ -207,6 +340,7 @@ class EntityResolver(Node):
         schema = prep_res["schema"]
         dfs = prep_res["dfs"]
         sample_size = prep_res["sample_size"]
+        entity_ids = dict(prep_res.get("entity_ids", {}))
         
         knowledge_hints = knowledge_store.get_all_hints()
         
@@ -238,6 +372,14 @@ Return ONLY the JSON array, nothing else."""
             entity_map[entity] = {}
             entity_lower = entity.lower()
             entity_parts = entity_lower.split()
+            # Resolve official IDs via nba_api static data
+            player = nba_client.find_player(entity)
+            if player:
+                entity_ids[entity] = {"player_id": player.get("id")}
+            else:
+                team = nba_client.find_team(entity)
+                if team:
+                    entity_ids[entity] = {"team_id": team.get("id")}
             
             for table_name, df in dfs.items():
                 matching_cols = []
@@ -288,7 +430,8 @@ Return ONLY the JSON array, nothing else."""
         return {
             "entities": entities,
             "entity_map": entity_map,
-            "knowledge_hints": knowledge_hints
+            "knowledge_hints": knowledge_hints,
+            "entity_ids": entity_ids,
         }
 
     def exec_fallback(self, prep_res, exc):
@@ -303,6 +446,7 @@ Return ONLY the JSON array, nothing else."""
         shared["entities"] = exec_res["entities"]
         shared["entity_map"] = exec_res["entity_map"]
         shared["knowledge_hints"] = exec_res["knowledge_hints"]
+        shared["entity_ids"] = exec_res["entity_ids"]
         print(f"Resolved {len(exec_res['entities'])} entities across tables.")
         if exec_res["entity_map"]:
             for entity, tables in exec_res["entity_map"].items():
@@ -318,7 +462,9 @@ class Planner(Node):
             "question": shared["question"],
             "schema": shared["schema_str"],
             "entity_map": shared.get("entity_map", {}),
-            "knowledge_hints": shared.get("knowledge_hints", {})
+            "knowledge_hints": shared.get("knowledge_hints", {}),
+            "aggregated_context": shared.get("aggregated_context", {}),
+            "entity_ids": shared.get("entity_ids", {}),
         }
 
     def exec(self, prep_res):
@@ -326,6 +472,8 @@ class Planner(Node):
         schema = prep_res["schema"]
         entity_map = prep_res["entity_map"]
         knowledge_hints = prep_res["knowledge_hints"]
+        aggregated_context = prep_res.get("aggregated_context", {})
+        entity_ids = prep_res.get("entity_ids", {})
         
         entity_info = ""
         if entity_map:
@@ -341,19 +489,23 @@ class Planner(Node):
             for pattern in knowledge_hints["join_patterns"][:3]:
                 hints_info += f"  - Tables {pattern['tables']} can be joined on {pattern['keys']}\n"
         
-        prompt = f"""You are a data analyst. Given the database schema, user question, and entity locations, create a comprehensive analysis plan.
+        prompt = f"""You are a data analyst. Given the unified schema, user question, entity locations, and official NBA IDs, create a comprehensive analysis plan that uses BOTH CSV and NBA API data.
 
 DATABASE SCHEMA:
 {schema}
 {entity_info}
 {hints_info}
+ENTITY IDS (for nba_api calls): {json.dumps(entity_ids, indent=2)}
+DATA CONTEXT: {json.dumps(aggregated_context, indent=2)}
 USER QUESTION: <user_question>{question}</user_question>
 
 Create a detailed step-by-step plan (4-6 steps) to thoroughly answer the question. Include:
-1. Which tables to query and how to join them
-2. What filters to apply for the specific entities
-3. What aggregations or comparisons to perform
-4. What insights to extract
+1. Which CSV tables to query and how to join them
+2. Which NBA API endpoints to call (using entity IDs) and what fields to extract
+3. What filters to apply for the specific entities
+4. What aggregations or comparisons to perform across BOTH data sources
+5. How to cross-validate results and highlight discrepancies
+6. For lineup optimization, outline candidate selection, metrics, constraints, and selection steps
 
 Be thorough - this is for deep analysis, not just a simple lookup."""
 
@@ -415,9 +567,11 @@ Only query tables listed there - don't assume tables exist.
             "entity_map": shared.get("entity_map", {}),
             "entities": shared.get("entities", []),
             "error": shared.get("exec_error"),
-            "previous_code": shared.get("code_snippet"),
+            "previous_code": shared.get("csv_code_snippet"),
             "context_summary": shared.get("context_summary", ""),
-            "cross_references": shared.get("cross_references", {})
+            "cross_references": shared.get("cross_references", {}),
+            "data_sources": shared.get("data_sources", {}),
+            "aggregated_context": shared.get("aggregated_context", {}),
         }
 
     def exec(self, prep_res):
@@ -480,7 +634,7 @@ The dataframes are in a dict called 'dfs' where keys are table names.
 Store your final answer in a variable called 'final_result' (a dictionary).
 Do NOT include markdown code blocks. Just raw Python code."""
         else:
-            prompt = f"""You are a Python data analyst. Write comprehensive code to answer the user's question.
+            prompt = f"""You are a Python data analyst. Write comprehensive code to answer the user's question using CSV data.
 {self.DYNAMIC_GUIDANCE}
 DATABASE SCHEMA (available as dfs dictionary):
 {prep_res['schema']}
@@ -514,7 +668,64 @@ Write Python code to thoroughly analyze and answer the question.
         return "print('Code generation failed due to LLM error.')\nfinal_result = {}"
 
     def post(self, shared, prep_res, exec_res):
-        shared["code_snippet"] = exec_res
+        shared["csv_code_snippet"] = exec_res
+        return "default"
+
+class NBAApiCodeGenerator(Node):
+    """
+    Generates nba_api specific analysis code leveraging the shared nba_client helper.
+    """
+
+    def prep(self, shared):
+        return {
+            "plan": shared["plan_steps"],
+            "api_schema": shared.get("api_schema_str", ""),
+            "question": shared.get("question", ""),
+            "entity_ids": shared.get("entity_ids", {}),
+            "aggregated_context": shared.get("aggregated_context", {}),
+            "previous_code": shared.get("api_code_snippet"),
+            "error": shared.get("exec_error"),
+        }
+
+    def exec(self, prep_res):
+        context = json.dumps(prep_res.get("aggregated_context", {}), indent=2)
+        entity_ids = json.dumps(prep_res.get("entity_ids", {}), indent=2)
+        plan = prep_res.get("plan", "")
+        error = prep_res.get("error")
+
+        base_prompt = f"""You are a Python engineer generating code that uses nba_api via the helper `nba_client` from utils.nba_api_client.
+Available helper methods: get_player_career_stats, get_player_game_log, get_team_game_log, get_league_leaders, get_common_team_roster, get_scoreboard.
+Use pandas as pd. Do NOT import os/sys/subprocess/requests.
+Schema (API data already loaded): {prep_res.get('api_schema', '')}
+Entity IDs (use these for API calls): {entity_ids}
+Context: {context}
+PLAN: {plan}
+USER QUESTION: <user_question>{prep_res['question']}</user_question>
+Requirements:
+- Store results in variable `api_result`
+- Prefer cached helper methods instead of direct HTTP
+- Include source attribution (e.g., api_result['source'] = 'api')
+- Keep code defensive: handle missing IDs gracefully
+- Do NOT wrap code in markdown fences.
+"""
+
+        if error:
+            prompt = base_prompt + f"\nPrevious error: {error}\nRewrite the code fixing the issue. Provide only raw Python."
+        else:
+            prompt = base_prompt + "\nGenerate robust Python code now. Provide only raw Python."
+
+        code = call_llm(prompt)
+        code = (code or "").replace("```python", "").replace("```", "").strip()
+        if not code:
+            raise ValueError("LLM returned empty API code - retrying")
+        return code
+
+    def exec_fallback(self, prep_res, exc):
+        print(f"NBAApiCodeGenerator failed: {exc}")
+        return "api_result = {}"
+
+    def post(self, shared, prep_res, exec_res):
+        shared["api_code_snippet"] = exec_res
         return "default"
 
 class SafetyCheck(Node):
@@ -539,42 +750,34 @@ class SafetyCheck(Node):
     }
 
     def prep(self, shared):
-        return shared["code_snippet"]
+        return shared.get("csv_code_snippet", ""), shared.get("api_code_snippet", "")
 
-    def exec(self, prep_res):
-        code = prep_res
+    def _check_code(self, code):
+        if not code:
+            return "safe", None
         try:
             tree = ast.parse(code)
         except SyntaxError as e:
             return "unsafe", f"Syntax Error: {e}"
 
         for node in ast.walk(tree):
-            # Block forbidden imports
             if isinstance(node, ast.Import):
                 for alias in node.names:
-                    module_root = alias.name.split('.')[0]
+                    module_root = alias.name.split(".")[0]
                     if module_root in self.FORBIDDEN_MODULES:
                         return "unsafe", f"Forbidden import: {alias.name}"
-
-            # Block 'from X import ...'
             elif isinstance(node, ast.ImportFrom):
                 if node.module:
-                    module_root = node.module.split('.')[0]
+                    module_root = node.module.split(".")[0]
                     if module_root in self.FORBIDDEN_MODULES:
                         return "unsafe", f"Forbidden from-import: {node.module}"
-
-            # Block forbidden function calls like __import__, eval, exec
             elif isinstance(node, ast.Call):
                 if isinstance(node.func, ast.Name):
                     if node.func.id in self.FORBIDDEN_FUNCTIONS:
                         return "unsafe", f"Forbidden function call: {node.func.id}"
-
-            # Block access to forbidden attributes like __builtins__, __globals__
             elif isinstance(node, ast.Attribute):
                 if node.attr in self.FORBIDDEN_ATTRIBUTES:
                     return "unsafe", f"Forbidden attribute access: {node.attr}"
-
-            # Block string-based attribute access that could be evasion
             elif isinstance(node, ast.Subscript):
                 if isinstance(node.slice, ast.Constant):
                     if isinstance(node.slice.value, str):
@@ -583,11 +786,22 @@ class SafetyCheck(Node):
 
         return "safe", None
 
+    def exec(self, prep_res):
+        csv_code, api_code = prep_res
+        csv_status, csv_reason = self._check_code(csv_code)
+        if csv_status == "unsafe":
+            return "unsafe", f"CSV code unsafe: {csv_reason}"
+
+        api_status, api_reason = self._check_code(api_code)
+        if api_status == "unsafe":
+            return "unsafe", f"API code unsafe: {api_reason}"
+
+        return "safe", None
+
     def post(self, shared, prep_res, exec_res):
         status, reason = exec_res
         if status == "unsafe":
             print(f"Safety Violation: {reason}")
-            # Inject the reason so CodeGenerator knows what to fix
             shared["exec_error"] = f"Security check failed: {reason}"
             return "unsafe"
         print("Safety Check Passed.")
@@ -598,12 +812,17 @@ class Executor(Node):
     Executes code in a restricted local scope with timeout and resource limits.
     """
     # Configuration: Maximum execution time in seconds
-    EXECUTION_TIMEOUT = 30  # seconds
+    EXECUTION_TIMEOUT = 30  # seconds for CSV
+    API_EXECUTION_TIMEOUT = 60  # seconds for API
     
     def prep(self, shared):
-        return shared["code_snippet"], shared["dfs"]
+        return {
+            "csv_code": shared.get("csv_code_snippet", ""),
+            "api_code": shared.get("api_code_snippet", ""),
+            "dfs": shared.get("dfs", {}),
+        }
 
-    def _execute_code_with_timeout(self, code, dfs):
+    def _execute_code_with_timeout(self, code, dfs, extra_scope=None, timeout=None):
         """
         Execute code in a separate thread with timeout.
         Uses threading for cross-platform compatibility.
@@ -658,6 +877,8 @@ class Executor(Node):
                     "final_result": final_result_sentinel,
                     "__builtins__": safe_builtins,
                 }
+                if extra_scope:
+                    local_scope.update(extra_scope)
                 
                 # execute the code string
                 exec(code, local_scope, local_scope)
@@ -672,13 +893,13 @@ class Executor(Node):
         
         thread = threading.Thread(target=target, daemon=True)
         thread.start()
-        thread.join(timeout=self.EXECUTION_TIMEOUT)
+        thread.join(timeout=timeout or self.EXECUTION_TIMEOUT)
         
         if thread.is_alive():
             # Thread is still running - timeout occurred
             # Note: We cannot forcibly kill the thread, but daemon=True ensures
             # it won't block program exit. We return a timeout error.
-            return "error", f"Execution timed out after {self.EXECUTION_TIMEOUT} seconds. The code may be stuck in an infinite loop or processing too much data."
+            return "error", f"Execution timed out after {timeout or self.EXECUTION_TIMEOUT} seconds. The code may be stuck in an infinite loop or processing too much data."
         
         try:
             return result_queue.get_nowait()
@@ -686,25 +907,55 @@ class Executor(Node):
             return "error", "Execution failed without producing a result"
 
     def exec(self, prep_res):
-        code, dfs = prep_res
-        return self._execute_code_with_timeout(code, dfs)
+        csv_status, api_status = ("skipped", None), ("skipped", None)
+        csv_code = prep_res["csv_code"]
+        api_code = prep_res["api_code"]
+        dfs = prep_res["dfs"]
+
+        if csv_code:
+            csv_status = self._execute_code_with_timeout(csv_code, dfs, timeout=self.EXECUTION_TIMEOUT)
+        if api_code:
+            api_scope = {"nba_client": nba_client, "time": time}
+            api_status = self._execute_code_with_timeout(
+                api_code, dfs, extra_scope=api_scope, timeout=self.API_EXECUTION_TIMEOUT
+            )
+        return {"csv": csv_status, "api": api_status}
 
     def post(self, shared, prep_res, exec_res):
-        status, payload = exec_res
-        if status == "error":
-            print(f"Execution Error: {payload}")
-            shared["exec_error"] = payload
+        csv_status, csv_payload = exec_res["csv"]
+        api_status, api_payload = exec_res["api"]
+
+        errors = []
+        if csv_status == "error":
+            errors.append(f"CSV code error: {csv_payload}")
+        else:
+            shared["csv_exec_result"] = csv_payload
+
+        if api_status == "error":
+            errors.append(f"API code error: {api_payload}")
+        else:
+            shared["api_exec_result"] = api_payload
+
+        if errors:
+            shared["exec_error"] = "; ".join(errors)
             return "error"
 
-        shared["exec_result"] = payload
-        print(f"Execution Success. Result: {payload}")
+        # If only one source executed, propagate that to exec_result for downstream nodes
+        shared["exec_result"] = {
+            "csv": shared.get("csv_exec_result"),
+            "api": shared.get("api_exec_result"),
+        }
+        print(f"Execution Success. CSV: {csv_status}, API: {api_status}")
         return "success"
 
 class ErrorFixer(Node):
     MAX_RETRIES = 3
     
     def prep(self, shared):
-        return shared.get("exec_error"), shared.get("code_snippet"), shared.get("retry_count", 0)
+        return shared.get("exec_error"), {
+            "csv": shared.get("csv_code_snippet"),
+            "api": shared.get("api_code_snippet"),
+        }, shared.get("retry_count", 0)
 
     def exec(self, prep_res):
         error, code, retry_count = prep_res
@@ -724,10 +975,14 @@ class ErrorFixer(Node):
 class DeepAnalyzer(Node):
     def prep(self, shared):
         return {
-            "exec_result": shared.get("exec_result"),
+            "exec_result": shared.get("exec_result") or {
+                "csv": shared.get("csv_exec_result"),
+                "api": shared.get("api_exec_result"),
+            },
             "question": shared["question"],
             "entity_map": shared.get("entity_map", {}),
-            "entities": shared.get("entities", [])
+            "entities": shared.get("entities", []),
+            "cross_validation": shared.get("cross_validation", {}),
         }
 
     def _check_data_completeness(self, exec_result, entities):
@@ -763,6 +1018,7 @@ class DeepAnalyzer(Node):
         exec_result = prep_res["exec_result"]
         question = prep_res["question"]
         entities = prep_res["entities"]
+        cross_validation = prep_res["cross_validation"]
         
         if exec_result is None:
             return None
@@ -790,6 +1046,8 @@ RAW DATA RESULTS:
 <raw_data>
 {result_str}
 </raw_data>
+CROSS VALIDATION SUMMARY:
+{json.dumps(cross_validation, indent=2, default=str)}
 
 Provide analysis based ONLY on data that is actually present:
 1. KEY STATISTICS: Summarize the most important numbers (only from actual data)
@@ -917,6 +1175,8 @@ class ResponseSynthesizer(Node):
             "question": shared["question"],
             "entities": shared.get("entities", []),
             "entity_map": shared.get("entity_map", {}),
+            "cross_validation": shared.get("cross_validation", {}),
+            "data_sources": shared.get("data_sources", {}),
             "from_error": "exec_result" not in shared
         }
 
@@ -928,6 +1188,8 @@ class ResponseSynthesizer(Node):
         deep_analysis = prep_res["deep_analysis"]
         question = prep_res["question"]
         entities = prep_res["entities"]
+        cross_validation = prep_res.get("cross_validation", {})
+        data_sources = prep_res.get("data_sources", {})
         
         result_str = str(exec_result)
         if len(result_str) > 3000:
@@ -970,6 +1232,10 @@ ANALYSIS:
 <analysis>
 {analysis_str}
 </analysis>
+CROSS VALIDATION:
+{json.dumps(cross_validation, indent=2, default=str)}
+DATA SOURCES:
+{json.dumps(data_sources, indent=2, default=str)}
 
 Write a well-structured response that:
 1. Directly addresses the user's question based on ACTUAL DATA ONLY
@@ -1240,6 +1506,83 @@ class ResultValidator(Node):
         
         return "default"
 
+class CrossValidator(Node):
+    """
+    Compares CSV and API execution results, flags discrepancies, and reconciles values.
+    """
+
+    def prep(self, shared):
+        return {
+            "csv_result": shared.get("csv_exec_result"),
+            "api_result": shared.get("api_exec_result"),
+            "entity_ids": shared.get("entity_ids", {}),
+        }
+
+    def _compare_scalars(self, csv_value, api_value):
+        if csv_value is None or api_value is None:
+            return None, None
+        try:
+            csv_float = float(csv_value)
+            api_float = float(api_value)
+            if api_float == 0:
+                return 0.0, 0.0
+            diff_pct = abs(csv_float - api_float) / abs(api_float)
+            severity = (
+                "minor"
+                if diff_pct < 0.02
+                else "moderate"
+                if diff_pct < 0.05
+                else "major"
+            )
+            return diff_pct, severity
+        except (TypeError, ValueError):
+            return None, None
+
+    def exec(self, prep_res):
+        csv_result = prep_res["csv_result"]
+        api_result = prep_res["api_result"]
+        discrepancies = []
+        reconciled = {}
+
+        if isinstance(csv_result, dict) and isinstance(api_result, dict):
+            keys = set(csv_result.keys()) | set(api_result.keys())
+            for key in keys:
+                csv_val = csv_result.get(key)
+                api_val = api_result.get(key)
+                diff_pct, severity = self._compare_scalars(csv_val, api_val)
+                preferred, source = data_source_manager.reconcile_conflicts(csv_val, api_val, key)
+                reconciled[key] = preferred
+                if diff_pct is not None and severity:
+                    discrepancies.append(
+                        {
+                            "field": key,
+                            "csv": csv_val,
+                            "api": api_val,
+                            "diff_pct": diff_pct,
+                            "severity": severity,
+                        }
+                    )
+        else:
+            reconciled = csv_result or api_result
+
+        agreement_score = 1.0
+        if discrepancies:
+            agreement_score = max(0.0, 1.0 - sum(d["diff_pct"] for d in discrepancies) / len(discrepancies))
+
+        return {
+            "agreement_score": agreement_score,
+            "discrepancies": discrepancies,
+            "reconciled": reconciled,
+        }
+
+    def post(self, shared, prep_res, exec_res):
+        shared["cross_validation"] = exec_res
+        # Store reconciled result for downstream deep analysis
+        if exec_res.get("reconciled") is not None:
+            shared["exec_result"] = exec_res["reconciled"]
+        print(f"Cross validation completed. Agreement score: {exec_res.get('agreement_score')}")
+        return "default"
+
 
 class ContextAggregator(Node):
     """
@@ -1255,7 +1598,9 @@ class ContextAggregator(Node):
             "data_profile": shared.get("data_profile", {}),
             "cross_references": shared.get("cross_references", {}),
             "plan_steps": shared.get("plan_steps", ""),
-            "knowledge_hints": knowledge_store.get_all_hints()
+            "knowledge_hints": knowledge_store.get_all_hints(),
+            "data_sources": shared.get("data_sources", {}),
+            "entity_ids": shared.get("entity_ids", {}),
         }
 
     def exec(self, prep_res):
@@ -1288,6 +1633,10 @@ class ContextAggregator(Node):
         
         if prep_res["cross_references"]:
             context["cross_references"] = prep_res["cross_references"]
+        if prep_res.get("data_sources"):
+            context["data_sources"] = prep_res["data_sources"]
+        if prep_res.get("entity_ids"):
+            context["entity_ids"] = prep_res["entity_ids"]
         
         context["recommended_tables"] = list(context["recommended_tables"])
         
@@ -1301,6 +1650,10 @@ AGGREGATED CONTEXT:
 """
         if context.get("cross_references"):
             context_summary += f"- Cross-References: {json.dumps(context['cross_references'], indent=2)}\n"
+        if context.get("data_sources"):
+            context_summary += f"- Data Sources: {json.dumps(context['data_sources'], indent=2)}\n"
+        if context.get("entity_ids"):
+            context_summary += f"- Entity IDs: {json.dumps(context['entity_ids'], indent=2)}\n"
         if context["data_quality_notes"]:
             context_summary += f"- Data Notes: {'; '.join(context['data_quality_notes'])}\n"
         
