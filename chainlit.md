@@ -1,12 +1,20 @@
-# Data Analyst Agent
+# 🏀 NBA Data Analyst
 
-Ask questions about your data in plain English. The agent will analyze your CSV files and provide insights.
+Your AI-powered assistant for analyzing NBA data. Ask questions in plain English and get detailed insights, comparisons, and visualizations.
 
 ## Quick Start
 
-1. **Upload data**: Click the paperclip icon or type `/upload`
-2. **Ask questions**: Type your question naturally
-3. **Get insights**: View analysis results and charts
+1. **Upload data**: Drag & drop CSV files or click 📁 Upload
+2. **Choose a starter**: Click a suggestion button to get started quickly
+3. **Ask anything**: Type your question naturally
+4. **Explore results**: View analysis, charts, and data insights
+
+## Features
+
+- **Player Comparisons**: Compare careers, stats, and achievements
+- **Team Analysis**: Explore team performance and history
+- **Draft Insights**: Analyze draft classes and picks
+- **Data Visualization**: Automatic chart generation for trends
 
 ## Commands
 
@@ -14,12 +22,20 @@ Ask questions about your data in plain English. The agent will analyze your CSV 
 |---------|-------------|
 | `/upload` | Upload CSV files |
 | `/tables` | List loaded tables |
-| `/preview <name>` | Preview a table |
-| `/schema` | View data schema |
-| `/help` | Show full help |
+| `/preview <name>` | Preview table data |
+| `/schema` | View data structure |
+| `/profile` | View data statistics |
+| `/knowledge` | View learned patterns |
+| `/help` | Show full help guide |
 
-## Examples
+## Example Questions
 
-- "Compare the careers of LeBron James and Tracy McGrady"
-- "Which team has the most draft picks?"
+- "Compare the careers of LeBron James and Michael Jordan"
+- "Which team has the most draft picks in the 2000s?"
 - "Show me the top 10 players by games played"
+- "Analyze the 2003 NBA draft class performance"
+- "What are the statistics for the Chicago Bulls?"
+
+---
+
+*Powered by AI*
