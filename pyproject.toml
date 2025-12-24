@@ -74,43 +74,53 @@ select = [
     "RUF",  # Ruff-specific rules
 ]
 ignore = [
-    "D100",  # Missing docstring in public module
-    "D104",  # Missing docstring in public package
-    "D107",  # Missing docstring for __init__
-    "D203",  # 1 blank line required before class docstring
-    "D212",  # Multi-line docstring summary should start at the first line
-    "D400",  # First line of docstring should end with a period
-    "D401",  # First line of docstring should be in imperative mood
-    "D403",  # First word of the first line should be properly capitalized
-    "D404",  # First word of the docstring should not be This
-    "D415",  # First line should end with a period, question mark, or exclamation point
-    "E501",  # Line too long (handled by line-length setting)
-    "E731",  # Do not assign a lambda expression, use a def
-    "FBT001",# Boolean-typed positional argument in function definition
-    "FBT002",# Boolean-typed default argument in function definition
-    "FBT003",# Boolean-typed positional argument in function call
-    "PD011", # Use df.to_json() instead of json.dumps(df.to_dict())
-    "PD013", # Use df.to_dict() instead of json.loads(df.to_json())
-    "PGH003",# Use specific rule codes when ignoring type checking
-    "PLW0603",# Using the global statement is discouraged
-    "PT001", # Use @pytest.fixture() over @pytest.fixture scope='function'
-    "PT006", # Use @pytest.fixture() over @pytest.fixture(scope='class')
-    "PT007", # Use @pytest.fixture() over @pytest.fixture(scope='session')
-    "PT009", # Use @pytest.mark.parametrize() over multiple @pytest.mark.parametrize() calls
-    "PT011", # Use @pytest.mark.parametrize() over multiple @pytest.mark.parametrize() calls with same arguments
-    "PT012", # Use @pytest.mark.parametrize() over multiple @pytest.mark.parametrize() calls with different arguments
-    "PT013", # Use @pytest.mark.parametrize() over multiple @pytest.mark.parametrize() calls with same and different arguments
-    "TRY003",  # Avoid specifying long messages outside the exception class
+    # Docstring rules - only ignore for conflicts
+    "D203",  # 1 blank line required before class docstring (conflicts with D211)
+    "D212",  # Multi-line docstring summary should start at the first line (conflicts with D213)
+    
+    # Formatting conflicts
+    "E501",  # Line too long (handled by formatter)
     "COM812",  # Conflicts with ruff format
+    "W505",   # Doc line too long (handled by formatter)
+    
+    # Pytest rules that are too strict for our test style
+    "PT009", # Multiple @pytest.mark.parametrize() calls allowed
+    "PT011", # Multiple @pytest.mark.parametrize() with same arguments allowed
+    "PT012", # Multiple @pytest.mark.parametrize() with different arguments allowed
+    
+    # Exception handling - allow inline exception messages for clarity
+    "TRY003",  # Avoid specifying long messages outside the exception class
+    "EM101",   # Exception must not use string literal
+    "EM102",   # Exception must not use f-string literal
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = [
-    "S101",  # Use of assert detected (allowed in tests)
-    "D",     # Docstring requirements (relaxed for tests)
-    "ANN",   # Type annotations (relaxed for tests)
+    "S101",    # Use of assert detected (allowed in tests)
+    "D",       # Docstring requirements (relaxed for tests)
+    "ANN001",  # Missing type annotation for function argument (relaxed for tests)
+    "ANN201",  # Missing return type annotation (relaxed for tests)
+    "PLR0913", # Too many arguments (common in test fixtures)
+    "PLR2004", # Magic value used in comparison (common in tests)
+    "T201",    # Print statements allowed in tests
 ]
-"__init__.py" = ["D104"]  # Missing docstring in public package
+"__init__.py" = [
+    "D104",    # Missing docstring in public package
+    "F401",    # Imported but unused (common in __init__.py for re-exports)
+]
+"**/migrations/*.py" = [
+    "D",       # No docstrings required in migrations
+    "E501",    # Allow long lines in migrations
+]
+# Legacy code - technical debt to be addressed
+"src/nodes/*.py" = [
+    "E101",    # Mixed spaces and tabs (legacy)
+    "W293",    # Blank lines with whitespace (legacy)
+    "D206",    # Docstring tab indentation (legacy)
+]
+"src/utils/*.py" = [
+    "T201",    # Print statements (legacy logging)
+]
 
 [tool.ruff.lint.pycodestyle]
 max-line-length = 88
@@ -120,6 +130,35 @@ max-complexity = 10
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.ruff.lint.flake8-annotations]
+allow-star-arg-any = false
+suppress-dummy-args = false
+suppress-none-returning = false
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query"]
+
+[tool.ruff.lint.flake8-builtins]
+builtins-ignorelist = ["id", "input"]
+
+[tool.ruff.lint.flake8-quotes]
+docstring-quotes = "double"
+inline-quotes = "double"
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.isort]
+known-first-party = ["webapp", "src"]
+force-single-line = false
+lines-after-imports = 2
+
+[tool.ruff.lint.pylint]
+max-args = 5
+max-branches = 12
+max-returns = 6
+max-statements = 50
 
 [tool.mypy]
 python_version = "3.12"

@@ -78,15 +78,40 @@ This project uses industry-standard Python development tools with best practices
 - **FURB** - refurb (modernization suggestions)
 - **RUF** - Ruff-specific rules
 
-#### Ignored Rules:
-The configuration selectively ignores rules that:
-- Conflict with the formatter (E501 for line length)
-- Are overly strict for pragmatic code (various docstring rules)
-- Don't fit the project style (boolean trap rules for function signatures)
+#### Strictness Level: High
+
+The configuration is **highly strict** with minimal ignores:
+
+**Ignored Rules (Minimal Set):**
+- **Formatting Conflicts**: E501, COM812, W505 (handled by formatter)
+- **Docstring Conflicts**: D203, D212 (conflicting style rules)
+- **Exception Messages**: TRY003, EM101, EM102 (allow inline exception messages for clarity)
+- **Pytest Style**: PT009, PT011, PT012 (allow flexible parametrize usage)
+
+**All Other Rules Enforced** including:
+- Complete type annotations (ANN)
+- Comprehensive docstrings (D)
+- Security checks (S)
+- Code complexity limits (C90, PLR)
+- Modern Python syntax (UP)
+- Import organization (I, TID)
+- And 700+ more rules...
 
 #### Per-File Ignores:
-- **tests/\***: Relaxed docstring and annotation requirements, allows assert statements
-- **\_\_init\_\_.py**: Allows missing module docstrings
+- **tests/\***: Relaxed docstring, type annotations, allows assert and print statements
+- **\_\_init\_\_.py**: Allows missing docstrings and unused imports (for re-exports)
+- **migrations/\***: No docstrings required, allows long lines
+- **Legacy code** (src/nodes/\*, src/utils/\*): Temporary ignores for technical debt
+
+#### Additional Strict Settings:
+- **Max function arguments**: 5
+- **Max branches**: 12
+- **Max returns**: 6
+- **Max statements per function**: 50
+- **Relative imports**: Banned (must use absolute imports)
+- **Quote style**: Enforced double quotes
+- **Type annotations**: Required on all function arguments and returns
+- **Immutable calls**: Enforced for FastAPI Depends/Query
 
 ### Mypy Configuration
 
