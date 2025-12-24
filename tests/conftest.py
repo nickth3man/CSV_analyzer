@@ -209,7 +209,7 @@ def mock_env_vars():
     """Sets up mock environment variables."""
     with patch.dict(os.environ, {
         "OPENROUTER_API_KEY": "test_api_key_12345",
-        "LLM_MODEL": "test-model"
+        "OPENROUTER_MODEL": "test-model"
     }):
         yield
 
