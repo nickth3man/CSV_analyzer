@@ -12,7 +12,7 @@ from backend.utils.nba_api_client import nba_client
 
 
 class LoadData(Node):
-    """Load CSV files from the configured data directory into dataframes."""
+    """Load CSV files from the configured data directory into DataFrames."""
 
     def prep(self, shared):
         """
@@ -226,7 +226,7 @@ class DataMerger(Node):
         Prepare merged-data inputs from the workflow shared state.
         
         Parameters:
-            shared (dict): Workflow shared state containing previously loaded dataframes.
+            shared (dict): Workflow shared state containing previously loaded DataFrames.
         
         Returns:
             dict: A mapping with keys:
@@ -240,7 +240,7 @@ class DataMerger(Node):
 
     def exec(self, prep_res):
         """
-        Merge CSV and API dataframes into a unified set and identify discrepancies and source metadata.
+        Merge CSV and API DataFrames into a unified set and identify discrepancies and source metadata.
         
         Parameters:
             prep_res (dict): Preparation result containing:
@@ -263,7 +263,7 @@ class DataMerger(Node):
         Finalize merging by storing merge results into shared state and returning the next node outcome.
         
         Parameters:
-        	shared (dict): Shared runtime state; will be updated with merged dataframes and metadata.
+        	shared (dict): Shared runtime state; will be updated with merged DataFrames and metadata.
         	prep_res: Preparation result (unused).
         	exec_res (tuple): Tuple (merged, discrepancies, sources) where:
         		merged (dict): Mapping of table name to merged DataFrame.

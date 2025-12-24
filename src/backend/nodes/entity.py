@@ -75,7 +75,7 @@ class EntityResolver(Node):
         Parameters:
             prep_res (dict): Preparation result containing:
                 - question (str): The user question to extract entities from.
-                - dfs (dict[str, pandas.DataFrame]): Mapping of table name to dataframe to search for entity occurrences.
+                - dfs (dict[str, pandas.DataFrame]): Mapping of table name to DataFrame to search for entity occurrences.
                 - sample_size (int): Number of rows/values to sample from columns when searching for matches.
                 - entity_ids (dict, optional): Existing mapping of entities to ID dicts (e.g., {"player_id": ...} or {"team_id": ...}).
         
@@ -238,7 +238,7 @@ class SearchExpander(Node):
             dict: A dictionary with the following keys:
                 - entity_map: existing entity-to-table mapping (default {}).
                 - entities: list of entities to expand (default []).
-                - dfs: dictionary of dataframes (required).
+                - dfs: dictionary of DataFrames (required).
                 - data_profile: data profiling information for tables (default {}).
                 - question: the original user question (required).
                 - sample_size: integer sample size from shared["config"]["search_sample_size"] or module default.
@@ -255,15 +255,15 @@ class SearchExpander(Node):
     @staticmethod
     def _get_sample(df, col, sample_size):
         """
-        Return a dataframe sample that preserves the input rows' context based on non-null values in a specified column.
+        Return a DataFrame sample that preserves the input rows' context based on non-null values in a specified column.
         
         Parameters:
-            df (pandas.DataFrame): The dataframe to sample.
-            col (str): Column name whose non-null count determines whether to return the full dataframe or a subset.
+            df (pandas.DataFrame): The DataFrame to sample.
+            col (str): Column name whose non-null count determines whether to return the full DataFrame or a subset.
             sample_size (int): Maximum number of rows to keep when sampling.
         
         Returns:
-            pandas.DataFrame: The original dataframe if the specified column has non-null entries less than or equal to sample_size; otherwise the first `sample_size` rows. Returns an empty dataframe (zero rows) if `col` is missing or `df` is not a DataFrame.
+            pandas.DataFrame: The original DataFrame if the specified column has non-null entries less than or equal to sample_size; otherwise the first `sample_size` rows. Returns an empty DataFrame (zero rows) if `col` is missing or `df` is not a DataFrame.
         """
         try:
             series = df[col].dropna()
@@ -283,7 +283,7 @@ class SearchExpander(Node):
                 - entities: list of entity strings to expand
                 - dfs: dict of table_name -> DataFrame to search
                 - data_profile: dict of table profile metadata (including `name_columns` and `id_columns`)
-                - sample_size: integer sample size used when sampling dataframes
+                - sample_size: integer sample size used when sampling DataFrames
         
         Returns:
             dict: {

@@ -235,7 +235,7 @@ Return ONLY valid JSON."""
 
 
 class Visualizer(Node):
-    """Generate simple bar chart visualizations from dataframe outputs."""
+    """Generate simple bar chart visualizations from DataFrame outputs."""
 
     def prep(self, shared):
         """

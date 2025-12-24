@@ -7,7 +7,7 @@ from pocketflow import Node
 
 
 class SchemaInference(Node):
-    """Infer schema details from loaded dataframes and expose summaries."""
+    """Infer schema details from loaded DataFrames and expose summaries."""
 
     def prep(self, shared):
         """
