@@ -137,7 +137,7 @@ jobs:
         run: interrogate --generate-badge . || true
 
       - name: Upload badge
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: interrogate-badge
           path: interrogate_badge.svg
