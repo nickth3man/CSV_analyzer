@@ -23,14 +23,6 @@ out/
 *.pyc
 __pycache__/
 
-# Environment files
-.env
-.env.local
-.env.*.local
-.env.development
-.env.test
-.env.production
-
 # IDE - VSCode
 .vscode/*
 !.vscode/settings.json
