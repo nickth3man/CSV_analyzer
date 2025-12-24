@@ -3,7 +3,7 @@ name = "webapp"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 dependencies = [
     "pandas>=2.0.0",
     "matplotlib>=3.7.0",
@@ -36,7 +36,7 @@ dev = [
 
 [tool.ruff]
 line-length = 88
-target-version = "py312"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = [
@@ -97,7 +97,8 @@ ignore = [
     "E501",  # Line too long (handled by formatter)
     "COM812",  # Conflicts with ruff format
     "W505",   # Doc line too long (handled by formatter)
-    
+    "I001",   # Import sorting (handled by isort)
+
     # Pytest rules that are too strict for our test style
     "PT009", # Multiple @pytest.mark.parametrize() calls allowed
     "PT011", # Multiple @pytest.mark.parametrize() with same arguments allowed
@@ -255,7 +256,7 @@ max-returns = 6
 max-statements = 50
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 check_untyped_defs = true
@@ -324,7 +325,7 @@ ignore_missing_imports = true
 
 [tool.black]
 line-length = 88
-target-version = ['py312']
+target-version = ['py311']
 include = '\.pyi?$'
 extend-exclude = '''
 /(

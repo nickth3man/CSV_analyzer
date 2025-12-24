@@ -49,7 +49,7 @@ def clear_knowledge_store() -> str:
         "entity_mappings": {},
         "successful_patterns": {},
         "column_hints": {},
-        "join_patterns": []
+        "join_patterns": [],
     }
     knowledge_store.save()
     return "Knowledge store cleared!"

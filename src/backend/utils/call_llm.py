@@ -4,11 +4,12 @@ import time
 
 from openai import OpenAI
 
-
 logger = logging.getLogger(__name__)
 
 # Default API key for testing (limited access, short expiration)
-DEFAULT_API_KEY = "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"
+DEFAULT_API_KEY = (
+    "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"
+)
 
 # Models hosted by Chutes provider (base model IDs without variant suffixes)
 CHUTES_HOSTED_MODELS = {
@@ -120,20 +121,12 @@ def call_llm(prompt, max_retries=3):
     # Build extra_body for provider routing if needed
     extra_body = None
     if should_force_chutes_provider(model, api_key):
-        extra_body = {
-            "provider": {
-                "only": ["chutes"],
-                "allow_fallbacks": False
-            }
-        }
+        extra_body = {"provider": {"only": ["chutes"], "allow_fallbacks": False}}
 
     # Retry logic with exponential backoff
     for attempt in range(max_retries):
         try:
-            kwargs = {
-                "model": model,
-                "messages": [{"role": "user", "content": prompt}]
-            }
+            kwargs = {"model": model, "messages": [{"role": "user", "content": prompt}]}
             if extra_body:
                 kwargs["extra_body"] = extra_body
 
@@ -141,17 +134,17 @@ def call_llm(prompt, max_retries=3):
             return r.choices[0].message.content
         except Exception as e:
             if "User not found" in str(e) or "401" in str(e):
-                 # Mock response for testing when API key is invalid
-                 logger.warning(f"Mocking LLM response due to auth error: {e}")
-                 if "Extract all named entities" in prompt:
-                     return '["LeBron James", "Tracy McGrady"]'
-                 if "create a comprehensive analysis plan" in prompt:
-                     return """1. Query the 'stats' table for LeBron James and Tracy McGrady.
+                # Mock response for testing when API key is invalid
+                logger.warning(f"Mocking LLM response due to auth error: {e}")
+                if "Extract all named entities" in prompt:
+                    return '["LeBron James", "Tracy McGrady"]'
+                if "create a comprehensive analysis plan" in prompt:
+                    return """1. Query the 'stats' table for LeBron James and Tracy McGrady.
 2. Filter for relevant years.
 3. Compare points.
 4. Generate insights."""
-                 if "Write comprehensive code" in prompt or "Fix it" in prompt:
-                     return """
+                if "Write comprehensive code" in prompt or "Fix it" in prompt:
+                    return """
 final_result = {}
 try:
     df = dfs['stats']
@@ -162,8 +155,8 @@ try:
 except Exception as e:
     final_result['error'] = str(e)
 """
-                 if "Analyze the following data" in prompt:
-                     return """
+                if "Analyze the following data" in prompt:
+                    return """
 ```json
 {
 "key_stats": {"LeBron Points": 30000, "Tracy Points": 18000},
@@ -173,17 +166,20 @@ except Exception as e:
 "narrative_points": ["LeBron is great", "Tracy was good"]
 }
 ```"""
-                 if "writing a response to a user's question" in prompt:
-                     return "LeBron James scored 30000 points and Tracy McGrady scored 18000 points. LeBron had a longer career."
-                 return "Mock response"
+                if "writing a response to a user's question" in prompt:
+                    return "LeBron James scored 30000 points and Tracy McGrady scored 18000 points. LeBron had a longer career."
+                return "Mock response"
 
             if attempt == max_retries - 1:
                 # Re-raise on last attempt
-                raise RuntimeError(f"LLM call failed after {max_retries} attempts: {e!s}") from e
+                raise RuntimeError(
+                    f"LLM call failed after {max_retries} attempts: {e!s}"
+                ) from e
             logger.warning(f"LLM call failed (attempt {attempt+1}/{max_retries}): {e}")
             # Exponential backoff: 2s, 4s, 8s
             time.sleep(2 ** (attempt + 1))
     return None
+
 
 if __name__ == "__main__":
     prompt = "What is the meaning of life?"

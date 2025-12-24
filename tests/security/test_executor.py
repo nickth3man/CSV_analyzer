@@ -16,10 +16,7 @@ class TestExecutorSandboxing:
 available_vars = list(locals().keys())
 final_result = sorted([v for v in available_vars if not v.startswith('_')])
 """
-        shared = {
-            "csv_code_snippet": code,
-            "dfs": {"employees": sample_df}
-        }
+        shared = {"csv_code_snippet": code, "dfs": {"employees": sample_df}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
@@ -41,10 +38,7 @@ try:
 except NameError:
     final_result = "SAFE"
 """
-        shared = {
-            "csv_code_snippet": code,
-            "dfs": {"employees": sample_df}
-        }
+        shared = {"csv_code_snippet": code, "dfs": {"employees": sample_df}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
@@ -60,7 +54,7 @@ except NameError:
 
         shared = {
             "csv_code_snippet": code,
-            "dfs": {"employees": sample_df, "sales": sample_df}
+            "dfs": {"employees": sample_df, "sales": sample_df},
         }
 
         prep_res = node.prep(shared)
@@ -77,10 +71,7 @@ except NameError:
 df = dfs['employees']
 final_result = df['salary'].mean()
 """
-        shared = {
-            "csv_code_snippet": code,
-            "dfs": {"employees": sample_df}
-        }
+        shared = {"csv_code_snippet": code, "dfs": {"employees": sample_df}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
@@ -98,10 +89,7 @@ class TestExecutorResultExtraction:
         node = Executor()
         code = "final_result = 42"
 
-        shared = {
-            "csv_code_snippet": code,
-            "dfs": {"employees": sample_df}
-        }
+        shared = {"csv_code_snippet": code, "dfs": {"employees": sample_df}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
@@ -115,10 +103,7 @@ class TestExecutorResultExtraction:
         node = Executor()
         code = "x = 42"  # No final_result defined
 
-        shared = {
-            "csv_code_snippet": code,
-            "dfs": {"employees": sample_df}
-        }
+        shared = {"csv_code_snippet": code, "dfs": {"employees": sample_df}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
@@ -134,10 +119,7 @@ class TestExecutorResultExtraction:
 df = dfs['employees']
 final_result = df[df['age'] > 30]
 """
-        shared = {
-            "csv_code_snippet": code,
-            "dfs": {"employees": sample_df}
-        }
+        shared = {"csv_code_snippet": code, "dfs": {"employees": sample_df}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
@@ -152,10 +134,7 @@ final_result = df[df['age'] > 30]
         node = Executor()
         code = "final_result = dfs['employees']['salary'].max()"
 
-        shared = {
-            "csv_code_snippet": code,
-            "dfs": {"employees": sample_df}
-        }
+        shared = {"csv_code_snippet": code, "dfs": {"employees": sample_df}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
@@ -169,10 +148,7 @@ final_result = df[df['age'] > 30]
         node = Executor()
         code = "final_result = dfs['employees']['name'].tolist()"
 
-        shared = {
-            "csv_code_snippet": code,
-            "dfs": {"employees": sample_df}
-        }
+        shared = {"csv_code_snippet": code, "dfs": {"employees": sample_df}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
@@ -191,10 +167,7 @@ final_result = {
     'avg_salary': df['salary'].mean()
 }
 """
-        shared = {
-            "csv_code_snippet": code,
-            "dfs": {"employees": sample_df}
-        }
+        shared = {"csv_code_snippet": code, "dfs": {"employees": sample_df}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
@@ -213,10 +186,7 @@ class TestExecutorErrorHandling:
         node = Executor()
         code = "final_result = dfs['employees'].nonexistent_column"
 
-        shared = {
-            "csv_code_snippet": code,
-            "dfs": {"employees": sample_df}
-        }
+        shared = {"csv_code_snippet": code, "dfs": {"employees": sample_df}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
@@ -230,10 +200,7 @@ class TestExecutorErrorHandling:
         node = Executor()
         code = "final_result = dfs['nonexistent_table']"
 
-        shared = {
-            "csv_code_snippet": code,
-            "dfs": {"employees": sample_df}
-        }
+        shared = {"csv_code_snippet": code, "dfs": {"employees": sample_df}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
@@ -247,10 +214,7 @@ class TestExecutorErrorHandling:
         node = Executor()
         code = "final_result = 'string' + 123"
 
-        shared = {
-            "csv_code_snippet": code,
-            "dfs": {"employees": sample_df}
-        }
+        shared = {"csv_code_snippet": code, "dfs": {"employees": sample_df}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
@@ -264,10 +228,7 @@ class TestExecutorErrorHandling:
         node = Executor()
         code = "final_result = 1 / 0"
 
-        shared = {
-            "csv_code_snippet": code,
-            "dfs": {"employees": sample_df}
-        }
+        shared = {"csv_code_snippet": code, "dfs": {"employees": sample_df}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
@@ -281,10 +242,7 @@ class TestExecutorErrorHandling:
         node = Executor()
         code = "final_result = dfs['employees']['name'].iloc[999]"
 
-        shared = {
-            "csv_code_snippet": code,
-            "dfs": {"employees": sample_df}
-        }
+        shared = {"csv_code_snippet": code, "dfs": {"employees": sample_df}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
@@ -302,10 +260,7 @@ class TestExecutorPostMethod:
         node = Executor()
         code = "final_result = 42"
 
-        shared = {
-            "csv_code_snippet": code,
-            "dfs": {"employees": sample_df}
-        }
+        shared = {"csv_code_snippet": code, "dfs": {"employees": sample_df}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
@@ -320,10 +275,7 @@ class TestExecutorPostMethod:
         node = Executor()
         code = "x = 1 / 0"  # Will cause error
 
-        shared = {
-            "csv_code_snippet": code,
-            "dfs": {"employees": sample_df}
-        }
+        shared = {"csv_code_snippet": code, "dfs": {"employees": sample_df}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
@@ -345,10 +297,7 @@ df = dfs['employees']
 filtered = df[df['department'] == 'Engineering']
 final_result = len(filtered)
 """
-        shared = {
-            "csv_code_snippet": code,
-            "dfs": {"employees": sample_df}
-        }
+        shared = {"csv_code_snippet": code, "dfs": {"employees": sample_df}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
@@ -365,10 +314,7 @@ df = dfs['employees']
 grouped = df.groupby('department')['salary'].mean()
 final_result = grouped.to_dict()
 """
-        shared = {
-            "csv_code_snippet": code,
-            "dfs": {"employees": sample_df}
-        }
+        shared = {"csv_code_snippet": code, "dfs": {"employees": sample_df}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
@@ -389,10 +335,7 @@ final_result = {
     'sum': df['salary'].sum()
 }
 """
-        shared = {
-            "csv_code_snippet": code,
-            "dfs": {"employees": sample_df}
-        }
+        shared = {"csv_code_snippet": code, "dfs": {"employees": sample_df}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
@@ -413,10 +356,7 @@ df2 = pd.DataFrame({'department': ['Engineering', 'Marketing'], 'budget': [10000
 merged = df1.merge(df2, on='department')
 final_result = len(merged)
 """
-        shared = {
-            "csv_code_snippet": code,
-            "dfs": {"employees": sample_df}
-        }
+        shared = {"csv_code_snippet": code, "dfs": {"employees": sample_df}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)

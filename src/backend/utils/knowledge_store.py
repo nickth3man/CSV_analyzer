@@ -5,10 +5,10 @@ import threading
 
 from backend.config import SUCCESSFUL_PATTERN_LIMIT
 
-
 logger = logging.getLogger(__name__)
 
 KNOWLEDGE_FILE = "knowledge_store.json"
+
 
 class KnowledgeStore:
     def __init__(self) -> None:
@@ -16,7 +16,7 @@ class KnowledgeStore:
             "entity_mappings": {},
             "successful_patterns": {},
             "column_hints": {},
-            "join_patterns": []
+            "join_patterns": [],
         }
         self._lock = threading.Lock()
         self.load()
@@ -80,9 +80,13 @@ class KnowledgeStore:
                 self.data["successful_patterns"][query_type] = []
             if pattern not in self.data["successful_patterns"][query_type]:
                 self.data["successful_patterns"][query_type].append(pattern)
-                if len(self.data["successful_patterns"][query_type]) > SUCCESSFUL_PATTERN_LIMIT:
-                    self.data["successful_patterns"][query_type] = \
-                        self.data["successful_patterns"][query_type][-SUCCESSFUL_PATTERN_LIMIT:]
+                if (
+                    len(self.data["successful_patterns"][query_type])
+                    > SUCCESSFUL_PATTERN_LIMIT
+                ):
+                    self.data["successful_patterns"][query_type] = self.data[
+                        "successful_patterns"
+                    ][query_type][-SUCCESSFUL_PATTERN_LIMIT:]
         self.save()
 
     def add_column_hint(self, description, table, column) -> None:
@@ -120,7 +124,8 @@ class KnowledgeStore:
                 "entity_mappings": self.data.get("entity_mappings", {}),
                 "column_hints": self.data.get("column_hints", {}),
                 "join_patterns": self.data.get("join_patterns", []),
-                "note": "These are hints from previous queries. Use as guidance, not absolute facts."
+                "note": "These are hints from previous queries. Use as guidance, not absolute facts.",
             }
+
 
 knowledge_store = KnowledgeStore()

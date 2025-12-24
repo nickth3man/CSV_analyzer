@@ -1,7 +1,5 @@
 """Integration tests for full analysis flow."""
 
-
-
 from backend.flow import create_analyst_flow
 
 
@@ -10,6 +8,7 @@ class TestFullAnalysisFlow:
 
     def test_simple_query_flow(self, mock_call_llm_in_nodes, temp_csv_dir):
         """Test a simple query through the full flow."""
+
         # Set up mock LLM responses for each node
         def mock_llm_response(prompt) -> str:
             prompt_lower = prompt.lower()
@@ -20,7 +19,10 @@ is_ambiguous: false
 reason: "Query is clear"
 ```"""
 
-            if "extract entities" in prompt_lower or "extract all named" in prompt_lower:
+            if (
+                "extract entities" in prompt_lower
+                or "extract all named" in prompt_lower
+            ):
                 return "[]"  # No entities
 
             if "create a plan" in prompt_lower or "analysis plan" in prompt_lower:
@@ -51,10 +53,7 @@ insights:
         mock_call_llm_in_nodes.side_effect = mock_llm_response
 
         # Create shared store
-        {
-            "data_dir": str(temp_csv_dir),
-            "question": "What is the average salary?"
-        }
+        {"data_dir": str(temp_csv_dir), "question": "What is the average salary?"}
 
         # Create and run flow
         flow = create_analyst_flow()
@@ -68,6 +67,7 @@ insights:
 
     def test_flow_handles_clear_query(self, mock_call_llm_in_nodes, sample_df):
         """Test flow with a clear, unambiguous query."""
+
         def mock_llm_response(prompt) -> str:
             if "ambiguous" in prompt.lower():
                 return """```yaml
@@ -78,13 +78,13 @@ reason: "Query is clear and specific"
 
         mock_call_llm_in_nodes.side_effect = mock_llm_response
 
-
         flow = create_analyst_flow()
         # The flow structure should be valid
         assert flow is not None
 
     def test_flow_handles_ambiguous_query(self, mock_call_llm_in_nodes, sample_df):
         """Test flow with an ambiguous query."""
+
         def mock_llm_response(prompt) -> str:
             if "ambiguous" in prompt.lower():
                 return """```yaml
@@ -97,7 +97,6 @@ suggested_questions:
             return "Mock response"
 
         mock_call_llm_in_nodes.side_effect = mock_llm_response
-
 
         flow = create_analyst_flow()
         # Should have ambiguous path in flow
@@ -181,7 +180,7 @@ class TestFlowDataPropagation:
         shared = {
             "data_dir": "/test",
             "question": "Test question",
-            "dfs": {"employees": sample_df}
+            "dfs": {"employees": sample_df},
         }
 
         # Shared store should persist across node executions

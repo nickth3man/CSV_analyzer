@@ -5,7 +5,6 @@ import logging
 
 from pocketflow import Node
 
-
 logger = logging.getLogger(__name__)
 
 from backend.config import MAX_PLAN_STEPS, MIN_PLAN_STEPS
@@ -75,11 +74,15 @@ class Planner(Node):
 
         entity_info = ""
         if entity_map:
-            entity_info = "\n\nENTITY LOCATIONS (where entities were found in the data):\n"
+            entity_info = (
+                "\n\nENTITY LOCATIONS (where entities were found in the data):\n"
+            )
             for entity, tables in entity_map.items():
                 if tables:
                     for table, cols in tables.items():
-                        entity_info += f"  - '{entity}' found in table '{table}' columns: {cols}\n"
+                        entity_info += (
+                            f"  - '{entity}' found in table '{table}' columns: {cols}\n"
+                        )
 
         hints_info = ""
         if knowledge_hints.get("join_patterns"):
@@ -259,11 +262,17 @@ AGGREGATED CONTEXT:
         if context.get("cross_references"):
             context_summary += f"- Cross-References: {json.dumps(context['cross_references'], indent=2)}\n"
         if context.get("data_sources"):
-            context_summary += f"- Data Sources: {json.dumps(context['data_sources'], indent=2)}\n"
+            context_summary += (
+                f"- Data Sources: {json.dumps(context['data_sources'], indent=2)}\n"
+            )
         if context.get("entity_ids"):
-            context_summary += f"- Entity IDs: {json.dumps(context['entity_ids'], indent=2)}\n"
+            context_summary += (
+                f"- Entity IDs: {json.dumps(context['entity_ids'], indent=2)}\n"
+            )
         if context["data_quality_notes"]:
-            context_summary += f"- Data Notes: {'; '.join(context['data_quality_notes'])}\n"
+            context_summary += (
+                f"- Data Notes: {'; '.join(context['data_quality_notes'])}\n"
+            )
 
         return {"context": context, "summary": context_summary}
 

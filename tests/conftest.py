@@ -9,7 +9,6 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
@@ -19,6 +18,7 @@ if str(SRC_DIR) not in sys.path:
 # ============================================================================
 # Path Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def test_data_dir():
@@ -50,28 +50,39 @@ def temp_knowledge_file(tmp_path):
 # Sample Data Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def sample_df():
     """Returns a sample DataFrame for testing."""
-    return pd.DataFrame({
-        "name": ["Alice", "Bob", "Charlie"],
-        "age": [28, 35, 42],
-        "salary": [75000, 82000, 95000],
-        "department": ["Engineering", "Marketing", "Engineering"]
-    })
+    return pd.DataFrame(
+        {
+            "name": ["Alice", "Bob", "Charlie"],
+            "age": [28, 35, 42],
+            "salary": [75000, 82000, 95000],
+            "department": ["Engineering", "Marketing", "Engineering"],
+        }
+    )
 
 
 @pytest.fixture
 def sample_sales_df():
     """Returns a sample sales DataFrame."""
-    return pd.DataFrame({
-        "product_id": [1, 2, 3, 4, 5],
-        "product_name": ["Laptop", "Mouse", "Desk Chair", "Notebook", "Monitor"],
-        "category": ["Electronics", "Electronics", "Furniture", "Stationery", "Electronics"],
-        "price": [1200.00, 25.50, 350.00, 5.99, 450.00],
-        "quantity_sold": [5, 20, 3, 50, 8],
-        "revenue": [6000.00, 510.00, 1050.00, 299.50, 3600.00]
-    })
+    return pd.DataFrame(
+        {
+            "product_id": [1, 2, 3, 4, 5],
+            "product_name": ["Laptop", "Mouse", "Desk Chair", "Notebook", "Monitor"],
+            "category": [
+                "Electronics",
+                "Electronics",
+                "Furniture",
+                "Stationery",
+                "Electronics",
+            ],
+            "price": [1200.00, 25.50, 350.00, 5.99, 450.00],
+            "quantity_sold": [5, 20, 3, 50, 8],
+            "revenue": [6000.00, 510.00, 1050.00, 299.50, 3600.00],
+        }
+    )
 
 
 @pytest.fixture
@@ -90,7 +101,7 @@ def sample_shared_store(sample_df):
         "error": None,
         "deep_analysis": {},
         "chart_path": None,
-        "response": ""
+        "response": "",
     }
 
 
@@ -98,9 +109,11 @@ def sample_shared_store(sample_df):
 # LLM Mock Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def mock_llm_response():
     """Returns a mock LLM response function."""
+
     def _mock_response(prompt) -> str:
         """Generate deterministic mock responses based on prompt content."""
         prompt_lower = prompt.lower()
@@ -202,7 +215,9 @@ def mock_call_llm(mock_llm_response):
     Returns:
         mock: The mocked object that replaced `call_llm`.
     """
-    with patch("backend.utils.call_llm.call_llm", side_effect=mock_llm_response) as mock:
+    with patch(
+        "backend.utils.call_llm.call_llm", side_effect=mock_llm_response
+    ) as mock:
         yield mock
 
 
@@ -220,16 +235,19 @@ def mock_call_llm_in_nodes(mock_llm_response):
     Returns:
         mock: A mock object that replaces call_llm in node modules.
     """
-    with patch("backend.nodes.entity.call_llm") as entity_mock, \
-         patch("backend.nodes.code_generation.call_llm") as codegen_mock, \
-         patch("backend.nodes.planning.call_llm") as planning_mock, \
-         patch("backend.nodes.analysis.call_llm") as analysis_mock:
+    with (
+        patch("backend.nodes.entity.call_llm") as entity_mock,
+        patch("backend.nodes.code_generation.call_llm") as codegen_mock,
+        patch("backend.nodes.planning.call_llm") as planning_mock,
+        patch("backend.nodes.analysis.call_llm") as analysis_mock,
+    ):
         # Set default return values
         default_response = "Mock LLM response for testing purposes."
         entity_mock.return_value = default_response
         codegen_mock.return_value = default_response
         planning_mock.return_value = default_response
         analysis_mock.return_value = default_response
+
         # Return the entity mock for backward compatibility (tests can set return_value on it)
         # But configure all mocks to use the same side_effect/return_value when set
         class MultiMock:
@@ -270,13 +288,14 @@ def mock_call_llm_in_nodes(mock_llm_response):
 # Environment Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def mock_env_vars():
     """Sets up mock environment variables."""
-    with patch.dict(os.environ, {
-        "OPENROUTER_API_KEY": "test_api_key_12345",
-        "OPENROUTER_MODEL": "test-model"
-    }):
+    with patch.dict(
+        os.environ,
+        {"OPENROUTER_API_KEY": "test_api_key_12345", "OPENROUTER_MODEL": "test-model"},
+    ):
         yield
 
 
@@ -291,6 +310,7 @@ def reset_knowledge_store():
 # ============================================================================
 # Mock OpenAI Client
 # ============================================================================
+
 
 @pytest.fixture
 def mock_openai_client():
@@ -319,18 +339,17 @@ def mock_openai_client():
 # Code Execution Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def safe_exec_scope(sample_df):
     """Returns a safe execution scope for testing code execution."""
-    return {
-        "dfs": {"employees": sample_df},
-        "pd": pd
-    }
+    return {"dfs": {"employees": sample_df}, "pd": pd}
 
 
 # ============================================================================
 # File System Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def mock_csv_files(tmp_path):
@@ -339,17 +358,12 @@ def mock_csv_files(tmp_path):
     csv_dir.mkdir()
 
     # Create test CSV files
-    employees = pd.DataFrame({
-        "name": ["Alice", "Bob"],
-        "age": [28, 35],
-        "salary": [75000, 82000]
-    })
+    employees = pd.DataFrame(
+        {"name": ["Alice", "Bob"], "age": [28, 35], "salary": [75000, 82000]}
+    )
     employees.to_csv(csv_dir / "employees.csv", index=False)
 
-    sales = pd.DataFrame({
-        "product": ["Laptop", "Mouse"],
-        "price": [1200, 25]
-    })
+    sales = pd.DataFrame({"product": ["Laptop", "Mouse"], "price": [1200, 25]})
     sales.to_csv(csv_dir / "sales.csv", index=False)
 
     return csv_dir
@@ -358,6 +372,7 @@ def mock_csv_files(tmp_path):
 # ============================================================================
 # Visualization Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 def mock_matplotlib():

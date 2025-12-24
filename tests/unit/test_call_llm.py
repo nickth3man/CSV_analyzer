@@ -13,7 +13,9 @@ class TestCallLLMBasicFunctionality:
 
     def test_successful_call(self, mock_openai_client, mock_env_vars):
         """Test a successful LLM API call."""
-        mock_openai_client.chat.completions.create.return_value.choices[0].message.content = "Test response"
+        mock_openai_client.chat.completions.create.return_value.choices[
+            0
+        ].message.content = "Test response"
 
         result = call_llm("Test prompt")
 
@@ -24,7 +26,9 @@ class TestCallLLMBasicFunctionality:
         """Test that API key is read from environment."""
         with patch("backend.utils.call_llm.OpenAI") as mock_client_class:
             mock_client = MagicMock()
-            mock_client.chat.completions.create.return_value.choices[0].message.content = "Response"
+            mock_client.chat.completions.create.return_value.choices[
+                0
+            ].message.content = "Response"
             mock_client_class.return_value = mock_client
 
             call_llm("Test prompt")
@@ -38,7 +42,9 @@ class TestCallLLMBasicFunctionality:
         """Test that OpenRouter base URL is used."""
         with patch("backend.utils.call_llm.OpenAI") as mock_client_class:
             mock_client = MagicMock()
-            mock_client.chat.completions.create.return_value.choices[0].message.content = "Response"
+            mock_client.chat.completions.create.return_value.choices[
+                0
+            ].message.content = "Response"
             mock_client_class.return_value = mock_client
 
             call_llm("Test prompt")
@@ -50,7 +56,9 @@ class TestCallLLMBasicFunctionality:
         """Test that timeout is set."""
         with patch("backend.utils.call_llm.OpenAI") as mock_client_class:
             mock_client = MagicMock()
-            mock_client.chat.completions.create.return_value.choices[0].message.content = "Response"
+            mock_client.chat.completions.create.return_value.choices[
+                0
+            ].message.content = "Response"
             mock_client_class.return_value = mock_client
 
             call_llm("Test prompt")
@@ -69,7 +77,9 @@ class TestCallLLMEnvironmentValidation:
         with patch.dict(os.environ, {}, clear=True):
             with patch("backend.utils.call_llm.OpenAI") as mock_client_class:
                 mock_client = MagicMock()
-                mock_client.chat.completions.create.return_value.choices[0].message.content = "Response"
+                mock_client.chat.completions.create.return_value.choices[
+                    0
+                ].message.content = "Response"
                 mock_client_class.return_value = mock_client
 
                 call_llm("Test prompt")
@@ -84,7 +94,9 @@ class TestCallLLMEnvironmentValidation:
         with patch.dict(os.environ, {"OPENROUTER_API_KEY": "test_key"}, clear=True):
             with patch("backend.utils.call_llm.OpenAI") as mock_client_class:
                 mock_client = MagicMock()
-                mock_client.chat.completions.create.return_value.choices[0].message.content = "Response"
+                mock_client.chat.completions.create.return_value.choices[
+                    0
+                ].message.content = "Response"
                 mock_client_class.return_value = mock_client
 
                 call_llm("Test prompt")
@@ -97,7 +109,9 @@ class TestCallLLMEnvironmentValidation:
         """Test custom model is used when OPENROUTER_MODEL is set."""
         with patch("backend.utils.call_llm.OpenAI") as mock_client_class:
             mock_client = MagicMock()
-            mock_client.chat.completions.create.return_value.choices[0].message.content = "Response"
+            mock_client.chat.completions.create.return_value.choices[
+                0
+            ].message.content = "Response"
             mock_client_class.return_value = mock_client
 
             call_llm("Test prompt")
@@ -117,7 +131,7 @@ class TestCallLLMRetryLogic:
             mock_client.chat.completions.create.side_effect = [
                 Exception("Network error"),
                 Exception("Network error"),
-                MagicMock(choices=[MagicMock(message=MagicMock(content="Success"))])
+                MagicMock(choices=[MagicMock(message=MagicMock(content="Success"))]),
             ]
             mock_client_class.return_value = mock_client
 
@@ -136,7 +150,7 @@ class TestCallLLMRetryLogic:
             mock_client.chat.completions.create.side_effect = [
                 Exception("Error 1"),
                 Exception("Error 2"),
-                MagicMock(choices=[MagicMock(message=MagicMock(content="Success"))])
+                MagicMock(choices=[MagicMock(message=MagicMock(content="Success"))]),
             ]
             mock_client_class.return_value = mock_client
 
@@ -158,7 +172,9 @@ class TestCallLLMRetryLogic:
             mock_client_class.return_value = mock_client
 
             with patch("backend.utils.call_llm.time.sleep"):
-                with pytest.raises(RuntimeError, match="LLM call failed after 3 attempts"):
+                with pytest.raises(
+                    RuntimeError, match="LLM call failed after 3 attempts"
+                ):
                     call_llm("Test prompt")
 
                 # Should have been called exactly 3 times
@@ -184,7 +200,9 @@ class TestCallLLMRetryLogic:
         """Test successful call on first attempt (no retries)."""
         with patch("backend.utils.call_llm.OpenAI") as mock_client_class:
             mock_client = MagicMock()
-            mock_client.chat.completions.create.return_value.choices[0].message.content = "Success"
+            mock_client.chat.completions.create.return_value.choices[
+                0
+            ].message.content = "Success"
             mock_client_class.return_value = mock_client
 
             with patch("backend.utils.call_llm.time.sleep") as mock_sleep:
@@ -204,7 +222,9 @@ class TestCallLLMMessageFormat:
         """Test that message is formatted correctly for API."""
         with patch("backend.utils.call_llm.OpenAI") as mock_client_class:
             mock_client = MagicMock()
-            mock_client.chat.completions.create.return_value.choices[0].message.content = "Response"
+            mock_client.chat.completions.create.return_value.choices[
+                0
+            ].message.content = "Response"
             mock_client_class.return_value = mock_client
 
             call_llm("Test prompt")
@@ -260,7 +280,7 @@ class TestCallLLMErrorHandling:
             mock_client = MagicMock()
             mock_client.chat.completions.create.side_effect = [
                 Exception("Connection timeout"),
-                MagicMock(choices=[MagicMock(message=MagicMock(content="Success"))])
+                MagicMock(choices=[MagicMock(message=MagicMock(content="Success"))]),
             ]
             mock_client_class.return_value = mock_client
 
@@ -274,7 +294,7 @@ class TestCallLLMErrorHandling:
             mock_client = MagicMock()
             mock_client.chat.completions.create.side_effect = [
                 Exception("Rate limit exceeded"),
-                MagicMock(choices=[MagicMock(message=MagicMock(content="Success"))])
+                MagicMock(choices=[MagicMock(message=MagicMock(content="Success"))]),
             ]
             mock_client_class.return_value = mock_client
 
@@ -286,7 +306,9 @@ class TestCallLLMErrorHandling:
         """Test handling of authentication errors."""
         with patch("backend.utils.call_llm.OpenAI") as mock_client_class:
             mock_client = MagicMock()
-            mock_client.chat.completions.create.side_effect = Exception("Invalid API key")
+            mock_client.chat.completions.create.side_effect = Exception(
+                "Invalid API key"
+            )
             mock_client_class.return_value = mock_client
 
             with patch("backend.utils.call_llm.time.sleep"):
@@ -301,7 +323,9 @@ class TestCallLLMEdgeCases:
         """Test handling of empty prompt."""
         with patch("backend.utils.call_llm.OpenAI") as mock_client_class:
             mock_client = MagicMock()
-            mock_client.chat.completions.create.return_value.choices[0].message.content = "Response"
+            mock_client.chat.completions.create.return_value.choices[
+                0
+            ].message.content = "Response"
             mock_client_class.return_value = mock_client
 
             result = call_llm("")
@@ -312,7 +336,9 @@ class TestCallLLMEdgeCases:
         """Test handling of very long prompts."""
         with patch("backend.utils.call_llm.OpenAI") as mock_client_class:
             mock_client = MagicMock()
-            mock_client.chat.completions.create.return_value.choices[0].message.content = "Response"
+            mock_client.chat.completions.create.return_value.choices[
+                0
+            ].message.content = "Response"
             mock_client_class.return_value = mock_client
 
             long_prompt = "A" * 100000
@@ -324,7 +350,9 @@ class TestCallLLMEdgeCases:
         """Test handling of unicode characters in prompt."""
         with patch("backend.utils.call_llm.OpenAI") as mock_client_class:
             mock_client = MagicMock()
-            mock_client.chat.completions.create.return_value.choices[0].message.content = "Réponse"
+            mock_client.chat.completions.create.return_value.choices[
+                0
+            ].message.content = "Réponse"
             mock_client_class.return_value = mock_client
 
             result = call_llm("Bonjour 世界 🌍")

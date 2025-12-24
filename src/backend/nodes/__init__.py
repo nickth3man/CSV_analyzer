@@ -14,7 +14,6 @@ from backend.utils.data_source_manager import data_source_manager
 from backend.utils.knowledge_store import knowledge_store
 from backend.utils.nba_api_client import nba_client
 
-
 __all__ = [
     "AskUser",
     "ClarifyQuery",

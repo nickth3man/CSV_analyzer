@@ -17,7 +17,7 @@ class TestEntityResolverEntityExtraction:
         shared = {
             "question": "What is Alice's salary?",
             "schema_str": "employees: name, age, salary",
-            "dfs": sample_shared_store["dfs"]
+            "dfs": sample_shared_store["dfs"],
         }
 
         prep_res = node.prep(shared)
@@ -26,7 +26,9 @@ class TestEntityResolverEntityExtraction:
         assert "entities" in exec_res
         assert "Alice" in exec_res["entities"]
 
-    def test_extracts_multiple_entities(self, mock_call_llm_in_nodes, sample_shared_store):
+    def test_extracts_multiple_entities(
+        self, mock_call_llm_in_nodes, sample_shared_store
+    ):
         """Test extracting multiple entities."""
         mock_call_llm_in_nodes.return_value = '["Alice", "Bob", "Charlie"]'
 
@@ -34,7 +36,7 @@ class TestEntityResolverEntityExtraction:
         shared = {
             "question": "Compare Alice, Bob, and Charlie",
             "schema_str": "employees: name, age, salary",
-            "dfs": sample_shared_store["dfs"]
+            "dfs": sample_shared_store["dfs"],
         }
 
         prep_res = node.prep(shared)
@@ -53,7 +55,7 @@ class TestEntityResolverEntityExtraction:
         shared = {
             "question": "Compare Alice and Bob",
             "schema_str": "employees: name, age, salary",
-            "dfs": sample_shared_store["dfs"]
+            "dfs": sample_shared_store["dfs"],
         }
 
         prep_res = node.prep(shared)
@@ -70,7 +72,7 @@ class TestEntityResolverEntityExtraction:
         shared = {
             "question": "What is the salary?",
             "schema_str": "employees: name, age, salary",
-            "dfs": sample_shared_store["dfs"]
+            "dfs": sample_shared_store["dfs"],
         }
 
         prep_res = node.prep(shared)
@@ -87,7 +89,7 @@ class TestEntityResolverEntityExtraction:
         shared = {
             "question": "What is the average?",
             "schema_str": "employees: name, age, salary",
-            "dfs": sample_shared_store["dfs"]
+            "dfs": sample_shared_store["dfs"],
         }
 
         prep_res = node.prep(shared)
@@ -107,7 +109,7 @@ class TestEntityResolverTableMatching:
         shared = {
             "question": "What is Alice's salary?",
             "schema_str": "employees: name, age, salary",
-            "dfs": {"employees": sample_df}
+            "dfs": {"employees": sample_df},
         }
 
         prep_res = node.prep(shared)
@@ -123,14 +125,14 @@ class TestEntityResolverTableMatching:
         # Create multiple tables with Alice
         dfs = {
             "employees": sample_df,
-            "roster": pd.DataFrame({"name": ["Alice", "Diana"], "team": ["A", "B"]})
+            "roster": pd.DataFrame({"name": ["Alice", "Diana"], "team": ["A", "B"]}),
         }
 
         node = EntityResolver()
         shared = {
             "question": "Find Alice",
             "schema_str": "employees, roster",
-            "dfs": dfs
+            "dfs": dfs,
         }
 
         prep_res = node.prep(shared)
@@ -148,7 +150,7 @@ class TestEntityResolverTableMatching:
         shared = {
             "question": "Find Zorro",
             "schema_str": "employees: name, age, salary",
-            "dfs": {"employees": sample_df}
+            "dfs": {"employees": sample_df},
         }
 
         prep_res = node.prep(shared)
@@ -165,7 +167,7 @@ class TestEntityResolverTableMatching:
         shared = {
             "question": "Find alice",
             "schema_str": "employees: name, age, salary",
-            "dfs": {"employees": sample_df}
+            "dfs": {"employees": sample_df},
         }
 
         prep_res = node.prep(shared)
@@ -183,17 +185,19 @@ class TestEntityResolverMultiPartNames:
         """Test matching full names across first_name and last_name columns."""
         mock_call_llm_in_nodes.return_value = '["Alice Johnson"]'
 
-        df = pd.DataFrame({
-            "first_name": ["Alice", "Bob"],
-            "last_name": ["Johnson", "Smith"],
-            "salary": [75000, 82000]
-        })
+        df = pd.DataFrame(
+            {
+                "first_name": ["Alice", "Bob"],
+                "last_name": ["Johnson", "Smith"],
+                "salary": [75000, 82000],
+            }
+        )
 
         node = EntityResolver()
         shared = {
             "question": "Find Alice Johnson",
             "schema_str": "employees: first_name, last_name, salary",
-            "dfs": {"employees": df}
+            "dfs": {"employees": df},
         }
 
         prep_res = node.prep(shared)
@@ -210,16 +214,15 @@ class TestEntityResolverMultiPartNames:
         """Test matching with player_name style columns."""
         mock_call_llm_in_nodes.return_value = '["LeBron James"]'
 
-        df = pd.DataFrame({
-            "player_name": ["LeBron James", "Kevin Durant"],
-            "points": [2500, 2300]
-        })
+        df = pd.DataFrame(
+            {"player_name": ["LeBron James", "Kevin Durant"], "points": [2500, 2300]}
+        )
 
         node = EntityResolver()
         shared = {
             "question": "Find LeBron James",
             "schema_str": "players: player_name, points",
-            "dfs": {"players": df}
+            "dfs": {"players": df},
         }
 
         prep_res = node.prep(shared)
@@ -236,17 +239,19 @@ class TestEntityResolverColumnDetection:
         """Test identification of name-related columns."""
         mock_call_llm_in_nodes.return_value = '["Alice"]'
 
-        df = pd.DataFrame({
-            "full_name": ["Alice Smith", "Bob Jones"],
-            "display_name": ["Alice S.", "Bob J."],
-            "salary": [75000, 82000]
-        })
+        df = pd.DataFrame(
+            {
+                "full_name": ["Alice Smith", "Bob Jones"],
+                "display_name": ["Alice S.", "Bob J."],
+                "salary": [75000, 82000],
+            }
+        )
 
         node = EntityResolver()
         shared = {
             "question": "Find Alice",
             "schema_str": "employees: full_name, display_name, salary",
-            "dfs": {"employees": df}
+            "dfs": {"employees": df},
         }
 
         prep_res = node.prep(shared)
@@ -262,17 +267,19 @@ class TestEntityResolverColumnDetection:
         """Test that string/object columns are searched."""
         mock_call_llm_in_nodes.return_value = '["Engineering"]'
 
-        df = pd.DataFrame({
-            "name": ["Alice", "Bob"],
-            "department": ["Engineering", "Marketing"],
-            "salary": [75000, 82000]
-        })
+        df = pd.DataFrame(
+            {
+                "name": ["Alice", "Bob"],
+                "department": ["Engineering", "Marketing"],
+                "salary": [75000, 82000],
+            }
+        )
 
         node = EntityResolver()
         shared = {
             "question": "Find Engineering",
             "schema_str": "employees: name, department, salary",
-            "dfs": {"employees": df}
+            "dfs": {"employees": df},
         }
 
         prep_res = node.prep(shared)
@@ -286,16 +293,13 @@ class TestEntityResolverColumnDetection:
         """Test that numeric columns are handled appropriately."""
         mock_call_llm_in_nodes.return_value = '["75000"]'
 
-        df = pd.DataFrame({
-            "name": ["Alice", "Bob"],
-            "salary": [75000, 82000]
-        })
+        df = pd.DataFrame({"name": ["Alice", "Bob"], "salary": [75000, 82000]})
 
         node = EntityResolver()
         shared = {
             "question": "Find 75000",
             "schema_str": "employees: name, salary",
-            "dfs": {"employees": df}
+            "dfs": {"employees": df},
         }
 
         prep_res = node.prep(shared)
@@ -317,7 +321,7 @@ class TestEntityResolverPostMethod:
         shared = {
             "question": "Compare Alice and Bob",
             "schema_str": "employees: name, salary",
-            "dfs": {"employees": sample_df}
+            "dfs": {"employees": sample_df},
         }
 
         prep_res = node.prep(shared)
@@ -336,7 +340,7 @@ class TestEntityResolverPostMethod:
         shared = {
             "question": "Find Alice",
             "schema_str": "employees: name, salary",
-            "dfs": {"employees": sample_df}
+            "dfs": {"employees": sample_df},
         }
 
         prep_res = node.prep(shared)
@@ -354,16 +358,13 @@ class TestEntityResolverErrorHandling:
         mock_call_llm_in_nodes.return_value = '["Alice"]'
 
         # DataFrame with no name columns
-        df = pd.DataFrame({
-            "id": [1, 2],
-            "value": [100, 200]
-        })
+        df = pd.DataFrame({"id": [1, 2], "value": [100, 200]})
 
         node = EntityResolver()
         shared = {
             "question": "Find Alice",
             "schema_str": "data: id, value",
-            "dfs": {"data": df}
+            "dfs": {"data": df},
         }
 
         prep_res = node.prep(shared)
@@ -382,7 +383,7 @@ class TestEntityResolverErrorHandling:
         shared = {
             "question": "Find Alice",
             "schema_str": "employees: name, salary",
-            "dfs": {"employees": df}
+            "dfs": {"employees": df},
         }
 
         prep_res = node.prep(shared)
@@ -395,16 +396,15 @@ class TestEntityResolverErrorHandling:
         """Test handling of null values in data."""
         mock_call_llm_in_nodes.return_value = '["Alice"]'
 
-        df = pd.DataFrame({
-            "name": ["Alice", None, "Bob"],
-            "salary": [75000, 82000, 95000]
-        })
+        df = pd.DataFrame(
+            {"name": ["Alice", None, "Bob"], "salary": [75000, 82000, 95000]}
+        )
 
         node = EntityResolver()
         shared = {
             "question": "Find Alice",
             "schema_str": "employees: name, salary",
-            "dfs": {"employees": df}
+            "dfs": {"employees": df},
         }
 
         prep_res = node.prep(shared)
@@ -423,7 +423,7 @@ class TestEntityResolverPrepMethod:
         shared = {
             "question": "Test question",
             "schema_str": "test schema",
-            "dfs": sample_shared_store["dfs"]
+            "dfs": sample_shared_store["dfs"],
         }
 
         result = node.prep(shared)

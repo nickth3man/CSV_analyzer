@@ -6,7 +6,6 @@ import shutil
 
 import chainlit as cl
 
-
 logger = logging.getLogger(__name__)
 from chainlit.input_widget import Select, TextInput
 
@@ -104,7 +103,7 @@ async def on_chat_start() -> None:
         os.environ["OPENROUTER_API_KEY"] = DEFAULT_API_KEY
 
     # Determine if we should filter models (when using default key)
-    using_default_key = (current_api_key == DEFAULT_API_KEY)
+    using_default_key = current_api_key == DEFAULT_API_KEY
     models = fetch_openrouter_models(current_api_key, filter_models=using_default_key)
 
     settings = await cl.ChatSettings(
@@ -113,14 +112,9 @@ async def on_chat_start() -> None:
                 id="api_key",
                 label="OpenRouter API Key",
                 initial=current_api_key,
-                placeholder="sk-or-v1-..."
+                placeholder="sk-or-v1-...",
             ),
-            Select(
-                id="model",
-                label="LLM Model",
-                values=models,
-                initial_index=0
-            ),
+            Select(id="model", label="LLM Model", values=models, initial_index=0),
         ]
     ).send()
 
@@ -140,18 +134,38 @@ async def on_chat_start() -> None:
     # Organized action buttons
     actions = [
         # Data Management
-        cl.Action(name="upload_csv", payload={"action": "upload"},
-                  label="📁 Upload", description="Upload CSV files"),
-        cl.Action(name="list_tables", payload={"action": "tables"},
-                  label="📋 Tables", description="View loaded tables"),
+        cl.Action(
+            name="upload_csv",
+            payload={"action": "upload"},
+            label="📁 Upload",
+            description="Upload CSV files",
+        ),
+        cl.Action(
+            name="list_tables",
+            payload={"action": "tables"},
+            label="📋 Tables",
+            description="View loaded tables",
+        ),
         # Analysis Tools
-        cl.Action(name="view_schema", payload={"action": "schema"},
-                  label="📊 Schema", description="View data structure"),
-        cl.Action(name="view_profile", payload={"action": "profile"},
-                  label="📈 Profile", description="View data statistics"),
+        cl.Action(
+            name="view_schema",
+            payload={"action": "schema"},
+            label="📊 Schema",
+            description="View data structure",
+        ),
+        cl.Action(
+            name="view_profile",
+            payload={"action": "profile"},
+            label="📈 Profile",
+            description="View data statistics",
+        ),
         # Help
-        cl.Action(name="show_help", payload={"action": "help"},
-                  label="❓ Help", description="Show usage guide"),
+        cl.Action(
+            name="show_help",
+            payload={"action": "help"},
+            label="❓ Help",
+            description="Show usage guide",
+        ),
     ]
 
     welcome_msg = f"""# 🏀 NBA Data Analyst
@@ -169,10 +183,7 @@ Ask me anything about NBA data! I can analyze player stats, compare careers, fin
 **Tip:** Select a starter suggestion above to get started quickly!
 """
 
-    await cl.Message(
-        content=welcome_msg,
-        actions=actions
-    ).send()
+    await cl.Message(content=welcome_msg, actions=actions).send()
 
 
 @cl.on_settings_update
@@ -189,7 +200,7 @@ async def on_settings_update(settings) -> None:
     os.environ["OPENROUTER_API_KEY"] = api_key
 
     # Determine if we should filter models (when using default key)
-    using_default_key = (api_key == DEFAULT_API_KEY)
+    using_default_key = api_key == DEFAULT_API_KEY
 
     # Fetch latest models with the (potentially new) API key
     # Filter models if using the default API key
@@ -213,22 +224,26 @@ async def on_settings_update(settings) -> None:
                 id="api_key",
                 label="OpenRouter API Key",
                 initial=api_key,
-                placeholder="sk-or-v1-..."
+                placeholder="sk-or-v1-...",
             ),
             Select(
                 id="model",
                 label="LLM Model",
                 values=models,
-                initial_index=initial_index
+                initial_index=initial_index,
             ),
         ]
     ).send()
 
     # Notify user about the model filtering
     if using_default_key:
-        await cl.Message(content="⚙️ Settings updated! Using default API key - showing free models and MistralAI models only.").send()
+        await cl.Message(
+            content="⚙️ Settings updated! Using default API key - showing free models and MistralAI models only."
+        ).send()
     else:
-        await cl.Message(content="⚙️ Settings updated! Using your API key - all models available.").send()
+        await cl.Message(
+            content="⚙️ Settings updated! Using your API key - all models available."
+        ).send()
 
 
 @cl.on_message
@@ -254,7 +269,9 @@ async def on_message(message: cl.Message) -> None:
         if uploaded:
             # Invalidate cache after upload
             invalidate_dataframe_cache()
-            await cl.Message(content=f"✅ Uploaded: {', '.join(uploaded)}\n\nYou can now ask questions about your data!").send()
+            await cl.Message(
+                content=f"✅ Uploaded: {', '.join(uploaded)}\n\nYou can now ask questions about your data!"
+            ).send()
             return
 
     # Handle commands
@@ -308,7 +325,7 @@ OpenRouter API keys should start with `sk-or-`.
             name="upload_csv",
             payload={"action": "upload"},
             label="📁 Upload CSV Now",
-            description="Upload your data files"
+            description="Upload your data files",
         )
         await cl.Message(
             content="""## 📂 No Data Loaded
@@ -322,7 +339,7 @@ I need some data to analyze! Please upload your CSV files first.
 
 **Supported formats:** `.csv` files up to 50MB each
 """,
-            actions=[upload_action]
+            actions=[upload_action],
         ).send()
         return
 

@@ -31,7 +31,7 @@ async def handle_command(message_content: str) -> bool:
             content="Please upload your CSV file(s)",
             accept=["text/csv", "application/vnd.ms-excel", ".csv"],
             max_size_mb=50,
-            max_files=10
+            max_files=10,
         ).send()
 
         if files:

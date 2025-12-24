@@ -9,7 +9,6 @@ import matplotlib
 import pandas as pd
 from pocketflow import Node
 
-
 logger = logging.getLogger(__name__)
 
 from backend.config import (
@@ -78,9 +77,13 @@ class DeepAnalyzer(Node):
                 for key, value in exec_result.items():
                     if entity_lower in str(key).lower():
                         if isinstance(value, dict):
-                            if not value or all(v is None or v in ({}, []) for v in value.values()):
+                            if not value or all(
+                                v is None or v in ({}, []) for v in value.values()
+                            ):
                                 missing_entities.append(entity)
-                                data_warnings.append(f"Data for '{entity}' appears incomplete or empty")
+                                data_warnings.append(
+                                    f"Data for '{entity}' appears incomplete or empty"
+                                )
                             else:
                                 found = True
                         elif value is not None and value not in ({}, []):
@@ -92,7 +95,9 @@ class DeepAnalyzer(Node):
                             break
                     if not found:
                         missing_entities.append(entity)
-                        data_warnings.append(f"Could not find data for '{entity}' in results")
+                        data_warnings.append(
+                            f"Could not find data for '{entity}' in results"
+                        )
 
         return missing_entities, data_warnings
 
@@ -125,7 +130,9 @@ class DeepAnalyzer(Node):
         if exec_result is None:
             return None
 
-        missing_entities, data_warnings = self._check_data_completeness(exec_result, entities)
+        missing_entities, data_warnings = self._check_data_completeness(
+            exec_result, entities
+        )
 
         result_str = str(exec_result)
         if len(result_str) > RAW_RESULT_TRUNCATION:
@@ -135,7 +142,9 @@ class DeepAnalyzer(Node):
 
         warning_note = ""
         if data_warnings:
-            warning_note = "\n\nDATA QUALITY WARNING:\n" + "\n".join(f"- {warn}" for warn in data_warnings)
+            warning_note = "\n\nDATA QUALITY WARNING:\n" + "\n".join(
+                f"- {warn}" for warn in data_warnings
+            )
             warning_note += (
                 "\nIMPORTANT: Only analyze data that is actually present. "
                 "Do NOT make up statistics for missing entities."
@@ -228,7 +237,9 @@ Return ONLY valid JSON."""
         shared["deep_analysis"] = exec_res
         if exec_res:
             if exec_res.get("_data_warnings"):
-                logger.warning(f"Deep analysis completed with warnings: {exec_res['_data_warnings']}")
+                logger.warning(
+                    f"Deep analysis completed with warnings: {exec_res['_data_warnings']}"
+                )
             else:
                 logger.info("Deep analysis completed.")
         return "default"
@@ -266,7 +277,11 @@ class Visualizer(Node):
         if prep_res is None:
             return None
         if isinstance(prep_res, pd.DataFrame):
-            numeric_cols = [col for col in prep_res.columns if pd.api.types.is_numeric_dtype(prep_res[col])]
+            numeric_cols = [
+                col
+                for col in prep_res.columns
+                if pd.api.types.is_numeric_dtype(prep_res[col])
+            ]
             if not numeric_cols:
                 return None
 
@@ -278,7 +293,11 @@ class Visualizer(Node):
 
             try:
                 chart_files = sorted(
-                    [file for file in os.listdir(output_dir) if file.startswith("chart_")],
+                    [
+                        file
+                        for file in os.listdir(output_dir)
+                        if file.startswith("chart_")
+                    ],
                     key=lambda name: os.path.getmtime(os.path.join(output_dir, name)),
                 )
                 for old_file in chart_files[:-CHART_HISTORY_LIMIT]:
@@ -390,11 +409,21 @@ class ResponseSynthesizer(Node):
         if len(result_str) > EXEC_RESULT_TRUNCATION:
             result_str = result_str[:EXEC_RESULT_TRUNCATION] + "... [truncated]"
 
-        missing_entities = deep_analysis.get("_missing_entities", []) if deep_analysis else []
+        missing_entities = (
+            deep_analysis.get("_missing_entities", []) if deep_analysis else []
+        )
         data_warnings = deep_analysis.get("_data_warnings", []) if deep_analysis else []
 
-        safe_analysis = {key: value for key, value in (deep_analysis or {}).items() if not key.startswith("_")}
-        analysis_str = json.dumps(safe_analysis, indent=2, default=str) if safe_analysis else "No deep analysis available"
+        safe_analysis = {
+            key: value
+            for key, value in (deep_analysis or {}).items()
+            if not key.startswith("_")
+        }
+        analysis_str = (
+            json.dumps(safe_analysis, indent=2, default=str)
+            if safe_analysis
+            else "No deep analysis available"
+        )
         if len(analysis_str) > ANALYSIS_TRUNCATION:
             analysis_str = analysis_str[:ANALYSIS_TRUNCATION] + "... [truncated]"
 

@@ -22,7 +22,9 @@ class DataSourceManager:
                 seen.append(candidate)
         return seen
 
-    def determine_api_endpoints(self, entities: list[str], question: str) -> list[dict[str, Any]]:
+    def determine_api_endpoints(
+        self, entities: list[str], question: str
+    ) -> list[dict[str, Any]]:
         """Map entities + intent to candidate endpoints."""
         endpoints: list[dict[str, Any]] = []
         q_lower = question.lower()
@@ -70,7 +72,9 @@ class DataSourceManager:
 
         for name, df in api_data.items():
             if name in merged:
-                merged_df, table_discrepancies = self._merge_table(merged[name], df, name)
+                merged_df, table_discrepancies = self._merge_table(
+                    merged[name], df, name
+                )
                 merged[name] = merged_df
                 discrepancies.extend(table_discrepancies)
                 sources[name] = "merged"
@@ -104,7 +108,9 @@ class DataSourceManager:
             merged = working_csv_df.merge(
                 working_api_df, on=key, how="outer", suffixes=("_csv", "_api")
             )
-            numeric_cols = [c for c in merged.columns if pd.api.types.is_numeric_dtype(merged[c])]
+            numeric_cols = [
+                c for c in merged.columns if pd.api.types.is_numeric_dtype(merged[c])
+            ]
             for col in numeric_cols:
                 if col.endswith("_csv"):
                     base = col[:-4]
@@ -123,24 +129,33 @@ class DataSourceManager:
                                         "field": base,
                                         "csv": row[col],
                                         "api": row[api_col],
-                                        "diff_pct": float(
-                                            abs(row[col] - row[api_col]) / row[api_col]
-                                        )
-                                        if row[api_col] not in (0, None, pd.NA)
-                                        else 0.0,
+                                        "diff_pct": (
+                                            float(
+                                                abs(row[col] - row[api_col])
+                                                / row[api_col]
+                                            )
+                                            if row[api_col] not in (0, None, pd.NA)
+                                            else 0.0
+                                        ),
                                     }
                                 )
         else:
-            merged = pd.concat([working_api_df, working_csv_df], ignore_index=True, sort=False)
+            merged = pd.concat(
+                [working_api_df, working_csv_df], ignore_index=True, sort=False
+            )
 
-        merged["_source"] = merged.get("_source_api", merged.get("_source_csv", "merged"))
+        merged["_source"] = merged.get(
+            "_source_api", merged.get("_source_csv", "merged")
+        )
         merged = merged.drop(
             columns=[c for c in merged.columns if c.startswith("_source_")],
             errors="ignore",
         )
         return merged, discrepancies
 
-    def reconcile_conflicts(self, csv_value: Any, api_value: Any, field: str) -> tuple[Any, str]:
+    def reconcile_conflicts(
+        self, csv_value: Any, api_value: Any, field: str
+    ) -> tuple[Any, str]:
         """Resolve conflicts according to priority rules."""
         if api_value is None and csv_value is None:
             return None, "missing"
@@ -157,7 +172,9 @@ class DataSourceManager:
             diff_pct = abs(csv_float - api_float) / abs(api_float)
             if diff_pct <= self.DISCREPANCY_THRESHOLD:
                 return api_value, "api"
-            return (api_value, "api") if "current" in field.lower() else (csv_value, "csv")
+            return (
+                (api_value, "api") if "current" in field.lower() else (csv_value, "csv")
+            )
         except (TypeError, ValueError):
             return api_value, "api"
 

@@ -9,7 +9,6 @@ import time
 import pandas as pd
 from pocketflow import Node
 
-
 logger = logging.getLogger(__name__)
 
 from typing import Never
@@ -117,8 +116,13 @@ class SafetyCheck(Node):
             elif isinstance(node, ast.Attribute):
                 if node.attr in self.FORBIDDEN_ATTRIBUTES:
                     return "unsafe", f"Forbidden attribute access: {node.attr}"
-            elif isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Constant):
-                if isinstance(node.slice.value, str) and node.slice.value in self.FORBIDDEN_ATTRIBUTES:
+            elif isinstance(node, ast.Subscript) and isinstance(
+                node.slice, ast.Constant
+            ):
+                if (
+                    isinstance(node.slice.value, str)
+                    and node.slice.value in self.FORBIDDEN_ATTRIBUTES
+                ):
                     return "unsafe", f"Forbidden subscript access: {node.slice.value}"
 
         return "safe", None
@@ -260,10 +264,15 @@ class Executor(Node):
                 if extra_scope:
                     local_scope.update(extra_scope)
 
-                exec(code, local_scope, local_scope)
+                exec(code, local_scope, local_scope)  # nosec B102
 
-                if "final_result" not in local_scope or local_scope["final_result"] is final_result_sentinel:
-                    result_queue.put(("error", "Code did not define 'final_result' variable"))
+                if (
+                    "final_result" not in local_scope
+                    or local_scope["final_result"] is final_result_sentinel
+                ):
+                    result_queue.put(
+                        ("error", "Code did not define 'final_result' variable")
+                    )
                 else:
                     result_queue.put(("success", local_scope["final_result"]))
             except Exception as exc:
@@ -305,7 +314,9 @@ class Executor(Node):
         dfs = prep_res["dfs"]
 
         if csv_code:
-            csv_status = self._execute_code_with_timeout(csv_code, dfs, timeout=CSV_EXECUTION_TIMEOUT)
+            csv_status = self._execute_code_with_timeout(
+                csv_code, dfs, timeout=CSV_EXECUTION_TIMEOUT
+            )
         if api_code:
             api_scope = {"nba_client": nba_client, "time": time}
             api_status = self._execute_code_with_timeout(
@@ -374,10 +385,14 @@ class ErrorFixer(Node):
                 - codes: dict with keys `"csv"` and `"api"` containing the corresponding code snippets from shared.
                 - retry_count: integer retry counter from `shared["retry_count"]`, defaulting to 0 if not present.
         """
-        return shared.get("exec_error"), {
-            "csv": shared.get("csv_code_snippet"),
-            "api": shared.get("api_code_snippet"),
-        }, shared.get("retry_count", 0)
+        return (
+            shared.get("exec_error"),
+            {
+                "csv": shared.get("csv_code_snippet"),
+                "api": shared.get("api_code_snippet"),
+            },
+            shared.get("retry_count", 0),
+        )
 
     def exec(self, prep_res) -> str:
         """

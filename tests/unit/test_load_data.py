@@ -220,7 +220,9 @@ class TestLoadDataEdgeCases:
     def test_handles_csv_with_special_characters(self, tmp_path):
         """Test CSV with special characters in data."""
         csv_file = tmp_path / "special.csv"
-        csv_file.write_text('name,comment\n"Alice","Said ""Hello"""\n"Bob","Used, commas"')
+        csv_file.write_text(
+            'name,comment\n"Alice","Said ""Hello"""\n"Bob","Used, commas"'
+        )
 
         node = LoadData()
         dfs = node.exec(str(tmp_path))
@@ -231,7 +233,9 @@ class TestLoadDataEdgeCases:
     def test_handles_very_large_values(self, tmp_path):
         """Test CSV with very large numeric values."""
         csv_file = tmp_path / "large.csv"
-        csv_file.write_text("name,big_number\nAlice,999999999999999\nBob,1000000000000000")
+        csv_file.write_text(
+            "name,big_number\nAlice,999999999999999\nBob,1000000000000000"
+        )
 
         node = LoadData()
         dfs = node.exec(str(tmp_path))

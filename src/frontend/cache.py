@@ -6,7 +6,6 @@ import os
 
 import pandas as pd
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -15,6 +14,7 @@ class DataFrameCache:
     Cache for loaded DataFrames to avoid re-reading CSV files on each command.
     Implements cache invalidation based on directory modification time.
     """
+
     def __init__(self, csv_dir="CSV") -> None:
         self.csv_dir = csv_dir
         self._cache = {}

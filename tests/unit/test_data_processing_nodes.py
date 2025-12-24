@@ -42,12 +42,7 @@ class TestSchemaInference:
     def test_handles_multiple_dataframes(self, sample_df, sample_sales_df):
         """Test schema inference for multiple DataFrames."""
         node = SchemaInference()
-        shared = {
-            "dfs": {
-                "employees": sample_df,
-                "sales": sample_sales_df
-            }
-        }
+        shared = {"dfs": {"employees": sample_df, "sales": sample_sales_df}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
@@ -142,7 +137,7 @@ final_result = dfs['employees']['salary'].mean()
             "schema_str": "employees: name, age, salary",
             "entity_map": {},
             "knowledge_hints": {},
-            "exec_error": None
+            "exec_error": None,
         }
 
         prep_res = node.prep(shared)
@@ -151,7 +146,9 @@ final_result = dfs['employees']['salary'].mean()
         assert "final_result" in exec_res
         assert "dfs" in exec_res
 
-    def test_strips_markdown_code_fences(self, mock_call_llm_in_nodes, sample_shared_store):
+    def test_strips_markdown_code_fences(
+        self, mock_call_llm_in_nodes, sample_shared_store
+    ):
         """Test that markdown code fences are removed."""
         mock_call_llm_in_nodes.return_value = """```python
 final_result = 42
@@ -163,7 +160,7 @@ final_result = 42
             "schema_str": "test",
             "entity_map": {},
             "knowledge_hints": {},
-            "exec_error": None
+            "exec_error": None,
         }
 
         prep_res = node.prep(shared)
@@ -186,7 +183,7 @@ final_result = dfs['employees']['salary'].mean()
             "entity_map": {},
             "knowledge_hints": {},
             "exec_error": "NameError: name 'x' is not defined",
-            "code_snippet": "final_result = x"
+            "code_snippet": "final_result = x",
         }
 
         prep_res = node.prep(shared)
@@ -205,7 +202,7 @@ final_result = dfs['employees']['salary'].mean()
             "schema_str": "test",
             "entity_map": {},
             "knowledge_hints": {},
-            "exec_error": None
+            "exec_error": None,
         }
 
         prep_res = node.prep(shared)
@@ -281,8 +278,14 @@ class TestVisualizer:
             chart_file.write_text("fake chart")
 
         with patch("backend.nodes.analysis.os.makedirs"):
-            with patch("backend.nodes.analysis.os.listdir", return_value=[f"chart_{i}.png" for i in range(15)]):
-                with patch("backend.nodes.analysis.os.path.getmtime", side_effect=lambda x: int(x.split("_")[1].split(".")[0])):
+            with patch(
+                "backend.nodes.analysis.os.listdir",
+                return_value=[f"chart_{i}.png" for i in range(15)],
+            ):
+                with patch(
+                    "backend.nodes.analysis.os.path.getmtime",
+                    side_effect=lambda x: int(x.split("_")[1].split(".")[0]),
+                ):
                     with patch("backend.nodes.analysis.os.remove") as mock_remove:
                         node = Visualizer()
                         shared = {"exec_result": sample_df}
@@ -327,11 +330,9 @@ class TestVisualizer:
     def test_plots_first_numeric_column(self, mock_matplotlib):
         """Test that the first numeric column is plotted."""
         node = Visualizer()
-        df = pd.DataFrame({
-            "name": ["A", "B", "C"],
-            "score": [10, 20, 30],
-            "value": [100, 200, 300]
-        })
+        df = pd.DataFrame(
+            {"name": ["A", "B", "C"], "score": [10, 20, 30], "value": [100, 200, 300]}
+        )
         shared = {"exec_result": df}
 
         prep_res = node.prep(shared)
@@ -384,7 +385,9 @@ class TestDataProcessingIntegration:
         assert "schemas" in shared
         assert "profiles" in shared
 
-    def test_full_data_processing_pipeline(self, mock_call_llm_in_nodes, sample_df, mock_matplotlib):
+    def test_full_data_processing_pipeline(
+        self, mock_call_llm_in_nodes, sample_df, mock_matplotlib
+    ):
         """Test full pipeline: Schema -> Profiler -> CodeGen -> Visualizer."""
         mock_call_llm_in_nodes.return_value = """```python
 final_result = dfs['employees']

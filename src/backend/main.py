@@ -9,7 +9,6 @@ import sys
 
 from src.backend.flow import create_analyst_flow
 
-
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -45,9 +44,7 @@ def main() -> None:
     if "final_text" in shared:
         logger.info("\nAgent Response:\n%s", shared["final_text"])
     else:
-        logger.warning(
-            "\nThe flow finished but did not produce a final text response."
-        )
+        logger.warning("\nThe flow finished but did not produce a final text response.")
 
     # Check if visualization was created
     if shared.get("chart_path"):
