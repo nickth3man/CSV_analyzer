@@ -6,7 +6,8 @@ It is organized into the following components:
 
 - config: Configuration, constants, and model fetching
 - cache: Dataframe caching with smart invalidation
-- data_utils: Data loading, schema, and profiling utilities
+- data_utils: Data loading, schema, and profiling utilities (UI-agnostic)
+- display: Chainlit-specific display utilities (UI layer)
 - knowledge_utils: Knowledge store utilities
 - commands: Slash command handling
 - actions: Action callbacks for buttons
@@ -36,9 +37,15 @@ from .steps import (
     stream_response,
     display_result_with_streaming
 )
-from .data_utils import (
+# Display utilities are now in display.py (separated from data_utils.py)
+from .display import (
     display_table_preview,
     display_schema_summary
+)
+# Also export UI-agnostic data functions for external use
+from .data_utils import (
+    get_table_preview_data,
+    get_schema_summary_data
 )
 
 __all__ = [
@@ -61,7 +68,10 @@ __all__ = [
     'step_run_analysis',
     'stream_response',
     'display_result_with_streaming',
-    # Data display utilities
+    # Chainlit display utilities (UI layer)
     'display_table_preview',
     'display_schema_summary',
+    # UI-agnostic data functions
+    'get_table_preview_data',
+    'get_schema_summary_data',
 ]
