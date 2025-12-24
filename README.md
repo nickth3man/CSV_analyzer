@@ -20,28 +20,6 @@ An LLM-powered data analyst that answers natural language questions about your C
 - **Learning System**: Remembers successful patterns for future queries
 - **Honest Reporting**: Clearly reports when data is missing or incomplete
 
-## Environment Variables
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `OPENROUTER_API_KEY` | Yes | - | Your OpenRouter API key (starts with `sk-or-`) |
-| `OPENROUTER_MODEL` | No | `meta-llama/llama-3.3-70b-instruct` | The LLM model to use for analysis |
-
-### Setting Environment Variables
-
-```bash
-# Linux/macOS
-export OPENROUTER_API_KEY="sk-or-v1-your-key-here"
-export OPENROUTER_MODEL="anthropic/claude-3.5-sonnet"  # Optional
-
-# Windows (PowerShell)
-$env:OPENROUTER_API_KEY="sk-or-v1-your-key-here"
-$env:OPENROUTER_MODEL="anthropic/claude-3.5-sonnet"  # Optional
-
-# Or use a .env file (copy from .env.example)
-cp .env.example .env
-# Then edit .env with your values
-```
 
 ## Quick Start
 
