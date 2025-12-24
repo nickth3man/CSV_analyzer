@@ -44,7 +44,6 @@ from src.frontend.steps import (
     stream_response,
 )
 
-
 __all__ = [
     "chat_profile",
     "display_result_with_streaming",

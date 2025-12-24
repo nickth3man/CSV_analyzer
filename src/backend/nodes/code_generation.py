@@ -5,7 +5,6 @@ import logging
 
 from pocketflow import Node
 
-
 logger = logging.getLogger(__name__)
 
 from backend.utils.call_llm import call_llm
@@ -111,7 +110,9 @@ Only query tables listed there - don't assume tables exist.
             entity_info = "\n\nENTITY LOCATIONS:\n"
             for entity, tables in prep_res["entity_map"].items():
                 for table, cols in tables.items():
-                    entity_info += f"  - '{entity}' is in table '{table}', columns: {cols}\n"
+                    entity_info += (
+                        f"  - '{entity}' is in table '{table}', columns: {cols}\n"
+                    )
 
         context_summary = prep_res.get("context_summary", "")
         cross_refs = prep_res.get("cross_references", {})
@@ -136,7 +137,11 @@ Loop through each entity, gather data from their respective tables, then combine
             logger.info("Fixing code based on error...")
             error_fix_hint = ""
             error = prep_res["error"]
-            if "merge" in error.lower() or "key" in error.lower() or "dtype" in error.lower():
+            if (
+                "merge" in error.lower()
+                or "key" in error.lower()
+                or "dtype" in error.lower()
+            ):
                 error_fix_hint = """
 FIX APPROACH: The error is likely due to incompatible dtypes or merge keys.
 - AVOID complex multi-table merges. Instead, query tables separately.
@@ -293,9 +298,15 @@ Requirements:
 """
 
         if error:
-            prompt = base_prompt + f"\nPrevious error: {error}\nRewrite the code fixing the issue. Provide only raw Python."
+            prompt = (
+                base_prompt
+                + f"\nPrevious error: {error}\nRewrite the code fixing the issue. Provide only raw Python."
+            )
         else:
-            prompt = base_prompt + "\nGenerate robust Python code now. Provide only raw Python."
+            prompt = (
+                base_prompt
+                + "\nGenerate robust Python code now. Provide only raw Python."
+            )
 
         code = call_llm(prompt)
         code = (code or "").replace("```python", "").replace("```", "").strip()

@@ -1,6 +1,6 @@
 """Shared configuration constants for backend modules."""
-import os
 
+import os
 
 DEFAULT_DATA_DIR = "CSV"
 NBA_DEFAULT_SEASON = os.environ.get("NBA_API_DEFAULT_SEASON", "2023-24")

@@ -14,6 +14,7 @@ class TestKnowledgeStoreInitialization:
         """Test that KnowledgeStore initializes with empty data structure."""
         # Override the global KNOWLEDGE_FILE for this test
         from backend.utils import knowledge_store as ks_module
+
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -39,13 +40,14 @@ class TestKnowledgeStoreInitialization:
             "entity_mappings": {"Alice": {"employees": ["name"]}},
             "successful_patterns": {"comparison": ["pattern1"]},
             "column_hints": {"salary": {"table": "employees", "column": "salary"}},
-            "join_patterns": [{"tables": ["a", "b"], "keys": ["id"]}]
+            "join_patterns": [{"tables": ["a", "b"], "keys": ["id"]}],
         }
 
         with open(temp_knowledge_file, "w") as f:
             json.dump(existing_data, f)
 
         from backend.utils import knowledge_store as ks_module
+
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -66,6 +68,7 @@ class TestKnowledgeStoreInitialization:
             f.write("This is not valid JSON {{{")
 
         from backend.utils import knowledge_store as ks_module
+
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -85,6 +88,7 @@ class TestKnowledgeStoreEntityMappings:
     def test_adds_entity_mapping(self, temp_knowledge_file):
         """Test adding a new entity mapping."""
         from backend.utils import knowledge_store as ks_module
+
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -102,6 +106,7 @@ class TestKnowledgeStoreEntityMappings:
     def test_avoids_duplicate_columns(self, temp_knowledge_file):
         """Test that duplicate columns are not added."""
         from backend.utils import knowledge_store as ks_module
+
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -110,13 +115,16 @@ class TestKnowledgeStoreEntityMappings:
             store.add_entity_mapping("Alice", "employees", ["name"])
             store.add_entity_mapping("Alice", "employees", ["name"])  # Duplicate
 
-            assert store.data["entity_mappings"]["Alice"]["employees"].count("name") == 1
+            assert (
+                store.data["entity_mappings"]["Alice"]["employees"].count("name") == 1
+            )
         finally:
             ks_module.KNOWLEDGE_FILE = original_file
 
     def test_adds_multiple_tables_for_entity(self, temp_knowledge_file):
         """Test adding same entity to multiple tables."""
         from backend.utils import knowledge_store as ks_module
+
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -133,6 +141,7 @@ class TestKnowledgeStoreEntityMappings:
     def test_get_entity_hints(self, temp_knowledge_file):
         """Test retrieving entity hints."""
         from backend.utils import knowledge_store as ks_module
+
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -158,21 +167,28 @@ class TestKnowledgeStoreSuccessfulPatterns:
     def test_adds_successful_pattern(self, temp_knowledge_file):
         """Test adding a successful query pattern."""
         from backend.utils import knowledge_store as ks_module
+
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
         try:
             store = KnowledgeStore()
-            store.add_successful_pattern("comparison", "Compare X and Y using table.col")
+            store.add_successful_pattern(
+                "comparison", "Compare X and Y using table.col"
+            )
 
             assert "comparison" in store.data["successful_patterns"]
-            assert "Compare X and Y using table.col" in store.data["successful_patterns"]["comparison"]
+            assert (
+                "Compare X and Y using table.col"
+                in store.data["successful_patterns"]["comparison"]
+            )
         finally:
             ks_module.KNOWLEDGE_FILE = original_file
 
     def test_avoids_duplicate_patterns(self, temp_knowledge_file):
         """Test that duplicate patterns are not added."""
         from backend.utils import knowledge_store as ks_module
+
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -189,6 +205,7 @@ class TestKnowledgeStoreSuccessfulPatterns:
     def test_limits_pattern_count(self, temp_knowledge_file):
         """Test that patterns are limited to 10 per type."""
         from backend.utils import knowledge_store as ks_module
+
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -210,6 +227,7 @@ class TestKnowledgeStoreSuccessfulPatterns:
     def test_get_patterns_by_type(self, temp_knowledge_file):
         """Test retrieving patterns by query type."""
         from backend.utils import knowledge_store as ks_module
+
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -227,6 +245,7 @@ class TestKnowledgeStoreSuccessfulPatterns:
     def test_get_all_patterns(self, temp_knowledge_file):
         """Test retrieving all patterns."""
         from backend.utils import knowledge_store as ks_module
+
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -248,6 +267,7 @@ class TestKnowledgeStoreColumnHints:
     def test_adds_column_hint(self, temp_knowledge_file):
         """Test adding a column hint."""
         from backend.utils import knowledge_store as ks_module
+
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -265,6 +285,7 @@ class TestKnowledgeStoreColumnHints:
     def test_case_insensitive_hint_storage(self, temp_knowledge_file):
         """Test that hints are stored case-insensitively."""
         from backend.utils import knowledge_store as ks_module
+
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -284,6 +305,7 @@ class TestKnowledgeStoreJoinPatterns:
     def test_adds_join_pattern(self, temp_knowledge_file):
         """Test adding a join pattern."""
         from backend.utils import knowledge_store as ks_module
+
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -301,13 +323,16 @@ class TestKnowledgeStoreJoinPatterns:
     def test_avoids_duplicate_join_patterns(self, temp_knowledge_file):
         """Test that duplicate join patterns are not added."""
         from backend.utils import knowledge_store as ks_module
+
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
         try:
             store = KnowledgeStore()
             store.add_join_pattern(["employees", "departments"], ["dept_id"])
-            store.add_join_pattern(["departments", "employees"], ["dept_id"])  # Same but different order
+            store.add_join_pattern(
+                ["departments", "employees"], ["dept_id"]
+            )  # Same but different order
 
             patterns = store.get_join_patterns()
             # Tables are sorted, so should be treated as duplicate
@@ -329,6 +354,7 @@ class TestKnowledgeStorePersistence:
             temp_knowledge_file (str | pathlib.Path): Temporary filesystem path used as the knowledge file for this test.
         """
         from backend.utils import knowledge_store as ks_module
+
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -349,6 +375,7 @@ class TestKnowledgeStorePersistence:
     def test_loads_from_file(self, temp_knowledge_file):
         """Test that data persists across instances."""
         from backend.utils import knowledge_store as ks_module
+
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -370,6 +397,7 @@ class TestKnowledgeStoreThreadSafety:
     def test_concurrent_writes(self, temp_knowledge_file):
         """Test concurrent writes don't corrupt data."""
         from backend.utils import knowledge_store as ks_module
+
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -398,6 +426,7 @@ class TestKnowledgeStoreThreadSafety:
     def test_concurrent_reads_and_writes(self, temp_knowledge_file):
         """Test concurrent reads and writes."""
         from backend.utils import knowledge_store as ks_module
+
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 
@@ -438,6 +467,7 @@ class TestKnowledgeStoreGetAllHints:
     def test_returns_all_hints(self, temp_knowledge_file):
         """Test that get_all_hints returns all stored data."""
         from backend.utils import knowledge_store as ks_module
+
         original_file = ks_module.KNOWLEDGE_FILE
         ks_module.KNOWLEDGE_FILE = str(temp_knowledge_file)
 

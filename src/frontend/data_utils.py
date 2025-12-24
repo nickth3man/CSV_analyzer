@@ -12,7 +12,6 @@ import pandas as pd
 
 from src.frontend.cache import get_dataframe_cache
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -46,7 +45,9 @@ def get_schema_info():
         cols = ", ".join(df.columns[:10])
         if len(df.columns) > 10:
             cols += f"... (+{len(df.columns) - 10} more)"
-        schema_lines.append(f"**{name}** ({len(df)} rows, {len(df.columns)} columns)\n  Columns: {cols}")
+        schema_lines.append(
+            f"**{name}** ({len(df)} rows, {len(df.columns)} columns)\n  Columns: {cols}"
+        )
     return "\n\n".join(schema_lines)
 
 
@@ -71,17 +72,23 @@ def get_data_profile():
 
     profile_text = []
     for name, df in dfs.items():
-        name_cols = [c for c in df.columns if any(x in c.lower() for x in ["name", "first", "last", "player", "team"])]
+        name_cols = [
+            c
+            for c in df.columns
+            if any(x in c.lower() for x in ["name", "first", "last", "player", "team"])
+        ]
         id_cols = [c for c in df.columns if "id" in c.lower()]
         numeric_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
 
-        profile_text.append(f"""### {name}
+        profile_text.append(
+            f"""### {name}
 - Rows: {len(df):,}
 - Columns: {len(df.columns)}
 - Key columns: {', '.join(name_cols[:5]) if name_cols else 'None identified'}
 - ID columns: {', '.join(id_cols[:5]) if id_cols else 'None identified'}
 - Numeric columns: {len(numeric_cols)}
-""")
+"""
+        )
     return "\n".join(profile_text)
 
 
@@ -117,7 +124,9 @@ def get_table_preview_data(table_name: str, max_rows: int = 10) -> dict | None:
             'rows_shown': int
         }
     """
-    logger.info(f"Getting preview data for table '{table_name}' with max_rows={max_rows}")
+    logger.info(
+        f"Getting preview data for table '{table_name}' with max_rows={max_rows}"
+    )
     dfs = load_dataframes()
 
     if table_name not in dfs:
@@ -131,7 +140,9 @@ def get_table_preview_data(table_name: str, max_rows: int = 10) -> dict | None:
     num_cols = len([c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])])
     str_cols = len([c for c in df.columns if pd.api.types.is_string_dtype(df[c])])
 
-    logger.debug(f"Table '{table_name}': {len(df)} rows, {len(df.columns)} cols ({num_cols} numeric, {str_cols} text)")
+    logger.debug(
+        f"Table '{table_name}': {len(df)} rows, {len(df.columns)} cols ({num_cols} numeric, {str_cols} text)"
+    )
 
     return {
         "table_name": table_name,
@@ -140,7 +151,7 @@ def get_table_preview_data(table_name: str, max_rows: int = 10) -> dict | None:
         "total_cols": len(df.columns),
         "num_cols": num_cols,
         "str_cols": str_cols,
-        "rows_shown": len(preview_df)
+        "rows_shown": len(preview_df),
     }
 
 
@@ -179,24 +190,27 @@ def get_schema_summary_data() -> dict | None:
         num_cols = len([c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])])
 
         # Create a summary DataFrame of column info
-        col_info = pd.DataFrame({
-            "Column": df.columns,
-            "Type": [str(df[c].dtype) for c in df.columns],
-            "Non-Null": [df[c].notna().sum() for c in df.columns],
-            "Sample": [str(df[c].iloc[0])[:30] if len(df) > 0 else "" for c in df.columns]
-        })
+        col_info = pd.DataFrame(
+            {
+                "Column": df.columns,
+                "Type": [str(df[c].dtype) for c in df.columns],
+                "Non-Null": [df[c].notna().sum() for c in df.columns],
+                "Sample": [
+                    str(df[c].iloc[0])[:30] if len(df) > 0 else "" for c in df.columns
+                ],
+            }
+        )
 
-        tables.append({
-            "name": name,
-            "rows": len(df),
-            "cols": len(df.columns),
-            "num_cols": num_cols,
-            "col_info": col_info
-        })
+        tables.append(
+            {
+                "name": name,
+                "rows": len(df),
+                "cols": len(df.columns),
+                "num_cols": num_cols,
+                "col_info": col_info,
+            }
+        )
 
     logger.info(f"Retrieved schema summary data for {len(tables)} tables")
 
-    return {
-        "table_count": len(tables),
-        "tables": tables
-    }
+    return {"table_count": len(tables), "tables": tables}

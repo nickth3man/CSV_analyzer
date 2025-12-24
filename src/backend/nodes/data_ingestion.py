@@ -6,7 +6,6 @@ import os
 import pandas as pd
 from pocketflow import Node
 
-
 logger = logging.getLogger(__name__)
 
 from backend.config import DEFAULT_DATA_DIR, NBA_DEFAULT_SEASON
@@ -157,7 +156,9 @@ class NBAApiDataLoader(Node):
         entities = prep_res["entities"]
         entity_ids = self._resolve_ids(entities)
 
-        endpoints_to_call = data_source_manager.determine_api_endpoints(entities, question)
+        endpoints_to_call = data_source_manager.determine_api_endpoints(
+            entities, question
+        )
         api_dfs = {}
         errors = []
         used = []
@@ -177,21 +178,27 @@ class NBAApiDataLoader(Node):
                         api_dfs[f"{ent}_career_{key}"] = df
                 elif name == "league_leaders":
                     season = NBA_DEFAULT_SEASON
-                    leaders = nba_client.get_league_leaders(season=season, stat_category="PTS")
+                    leaders = nba_client.get_league_leaders(
+                        season=season, stat_category="PTS"
+                    )
                     api_dfs[f"league_leaders_{season}"] = leaders
                 elif name == "common_team_roster":
                     ent = params.get("entity")
                     team_id = entity_ids.get(ent, {}).get("team_id")
                     if not team_id:
                         continue
-                    roster = nba_client.get_common_team_roster(team_id=team_id, season=NBA_DEFAULT_SEASON)
+                    roster = nba_client.get_common_team_roster(
+                        team_id=team_id, season=NBA_DEFAULT_SEASON
+                    )
                     api_dfs[f"{ent}_roster"] = roster
                 elif name == "player_game_log":
                     ent = params.get("entity")
                     player_id = entity_ids.get(ent, {}).get("player_id")
                     if not player_id:
                         continue
-                    game_log = nba_client.get_player_game_log(player_id=player_id, season=NBA_DEFAULT_SEASON)
+                    game_log = nba_client.get_player_game_log(
+                        player_id=player_id, season=NBA_DEFAULT_SEASON
+                    )
                     api_dfs[f"{ent}_game_log"] = game_log
                 elif name == "scoreboard":
                     api_dfs["live_scoreboard"] = nba_client.get_scoreboard()
@@ -200,7 +207,12 @@ class NBAApiDataLoader(Node):
             except Exception as exc:
                 errors.append({"endpoint": name, "error": str(exc)})
 
-        return {"api_dfs": api_dfs, "errors": errors, "used": used, "entity_ids": entity_ids}
+        return {
+            "api_dfs": api_dfs,
+            "errors": errors,
+            "used": used,
+            "entity_ids": entity_ids,
+        }
 
     def post(self, shared, prep_res, exec_res) -> str:
         """
@@ -215,7 +227,9 @@ class NBAApiDataLoader(Node):
         shared["api_errors"] = exec_res["errors"]
         shared["api_endpoints_used"] = exec_res["used"]
         shared["entity_ids"] = exec_res.get("entity_ids", {})
-        logger.info(f"NBA API loader fetched {len(exec_res['api_dfs'])} tables with {len(exec_res['errors'])} errors.")
+        logger.info(
+            f"NBA API loader fetched {len(exec_res['api_dfs'])} tables with {len(exec_res['errors'])} errors."
+        )
         return "default"
 
 
@@ -278,5 +292,7 @@ class DataMerger(Node):
         shared["dfs"] = merged
         shared["discrepancies"] = discrepancies
         shared["data_sources"] = sources
-        logger.info(f"Data merged: {len(merged)} tables ({len(discrepancies)} discrepancies flagged).")
+        logger.info(
+            f"Data merged: {len(merged)} tables ({len(discrepancies)} discrepancies flagged)."
+        )
         return "default"

@@ -12,7 +12,7 @@ class TestClarifyQueryBasics:
         shared = {
             "question": "What is the average salary?",
             "schema_str": "Table 'employees': [name, age, salary]",
-            "dfs": {"employees": None}
+            "dfs": {"employees": None},
         }
 
         prep_res = node.prep(shared)
@@ -28,7 +28,7 @@ class TestClarifyQueryBasics:
         shared = {
             "question": "Show me the person_id and name columns",
             "schema_str": "Table 'players': [person_id, name, team]",
-            "dfs": {"players": None}
+            "dfs": {"players": None},
         }
 
         prep_res = node.prep(shared)
@@ -44,7 +44,7 @@ class TestClarifyQueryBasics:
         shared = {
             "question": "What is the total_revenue for each quarter?",
             "schema_str": "Table 'sales': [date, amount, quantity]",
-            "dfs": {"sales": None}
+            "dfs": {"sales": None},
         }
 
         prep_res = node.prep(shared)
@@ -61,7 +61,7 @@ class TestClarifyQueryBasics:
         shared = {
             "question": "Show me data for a_b_c test",
             "schema_str": "Table 'test': [name, value]",
-            "dfs": {"test": None}
+            "dfs": {"test": None},
         }
 
         prep_res = node.prep(shared)
@@ -84,7 +84,7 @@ class TestClarifyQueryCaseInsensitivity:
         shared = {
             "question": "What is the PERSON_ID for LeBron?",
             "schema_str": "Table 'players': [person_id, name, team]",
-            "dfs": {"players": None}
+            "dfs": {"players": None},
         }
 
         prep_res = node.prep(shared)
@@ -101,7 +101,7 @@ class TestClarifyQueryCaseInsensitivity:
         shared = {
             "question": "Show me Team_Name and Player_ID",
             "schema_str": "Table 'PLAYERS': [TEAM_NAME, PLAYER_ID, NAME]",
-            "dfs": {"PLAYERS": None}
+            "dfs": {"PLAYERS": None},
         }
 
         prep_res = node.prep(shared)
@@ -121,7 +121,7 @@ class TestClarifyQueryMultipleColumns:
         shared = {
             "question": "Compare first_name, last_name, and player_id",
             "schema_str": "Table 'players': [player_id, first_name, last_name, team]",
-            "dfs": {"players": None}
+            "dfs": {"players": None},
         }
 
         prep_res = node.prep(shared)
@@ -137,7 +137,7 @@ class TestClarifyQueryMultipleColumns:
         shared = {
             "question": "Show player_id and nonexistent_column and team_name",
             "schema_str": "Table 'players': [player_id, name, team_name]",
-            "dfs": {"players": None}
+            "dfs": {"players": None},
         }
 
         prep_res = node.prep(shared)
@@ -157,7 +157,7 @@ class TestClarifyQueryMultipleColumns:
         shared = {
             "question": "Get bad_column and another_bad_col from data",
             "schema_str": "Table 'data': [id, value]",
-            "dfs": {"data": None}
+            "dfs": {"data": None},
         }
 
         prep_res = node.prep(shared)
@@ -179,7 +179,7 @@ class TestClarifyQueryPartialMatches:
         shared = {
             "question": "What is the player_id value?",
             "schema_str": "Table 'stats': [common_player_id, game_id, points]",
-            "dfs": {"stats": None}
+            "dfs": {"stats": None},
         }
 
         prep_res = node.prep(shared)
@@ -197,7 +197,7 @@ class TestClarifyQueryPartialMatches:
         shared = {
             "question": "Show me common_player data",
             "schema_str": "Table 'stats': [common_player_id, points]",
-            "dfs": {"stats": None}
+            "dfs": {"stats": None},
         }
 
         prep_res = node.prep(shared)
@@ -217,7 +217,7 @@ class TestClarifyQueryPost:
         shared = {
             "question": "Show invalid_column",
             "schema_str": "Table 'data': [id, value]",
-            "dfs": {"data": None}
+            "dfs": {"data": None},
         }
 
         prep_res = node.prep(shared)
@@ -234,7 +234,7 @@ class TestClarifyQueryPost:
         shared = {
             "question": "What is the average?",
             "schema_str": "Table 'data': [id, value]",
-            "dfs": {"data": None}
+            "dfs": {"data": None},
         }
 
         prep_res = node.prep(shared)
@@ -242,7 +242,9 @@ class TestClarifyQueryPost:
         action = node.post(shared, prep_res, exec_res)
 
         assert action == "clear"
-        assert "final_text" not in shared or "unknown columns" not in shared.get("final_text", "")
+        assert "final_text" not in shared or "unknown columns" not in shared.get(
+            "final_text", ""
+        )
 
 
 class TestClarifyQueryEdgeCases:
@@ -254,7 +256,7 @@ class TestClarifyQueryEdgeCases:
         shared = {
             "question": "",
             "schema_str": "Table 'data': [id, value]",
-            "dfs": {"data": None}
+            "dfs": {"data": None},
         }
 
         prep_res = node.prep(shared)
@@ -270,7 +272,7 @@ class TestClarifyQueryEdgeCases:
         shared = {
             "question": "What are the top performers this quarter?",
             "schema_str": "Table 'performance': [employee, score, quarter]",
-            "dfs": {"performance": None}
+            "dfs": {"performance": None},
         }
 
         prep_res = node.prep(shared)
@@ -283,11 +285,7 @@ class TestClarifyQueryEdgeCases:
     def test_empty_schema(self):
         """Test behavior with empty schema."""
         node = ClarifyQuery()
-        shared = {
-            "question": "Show me some_column_name",
-            "schema_str": "",
-            "dfs": {}
-        }
+        shared = {"question": "Show me some_column_name", "schema_str": "", "dfs": {}}
 
         prep_res = node.prep(shared)
         exec_res = node.exec(prep_res)
@@ -305,7 +303,7 @@ class TestClarifyQueryEdgeCases:
                 "Table 'players': [player_id, name, team]\n"
                 "Table 'teams': [team_id, team_name, city]"
             ),
-            "dfs": {"players": None, "teams": None}
+            "dfs": {"players": None, "teams": None},
         }
 
         prep_res = node.prep(shared)
@@ -326,7 +324,7 @@ class TestClarifyQueryEdgeCases:
         shared = {
             "question": "What's the player_id? And the team_name!",
             "schema_str": "Table 'players': [player_id, team_name]",
-            "dfs": {"players": None}
+            "dfs": {"players": None},
         }
 
         prep_res = node.prep(shared)
@@ -345,7 +343,7 @@ class TestClarifyQueryEdgeCases:
         shared = {
             "question": "Show a_b column",
             "schema_str": "Table 'data': [id, value]",
-            "dfs": {"data": None}
+            "dfs": {"data": None},
         }
 
         prep_res = node.prep(shared)
@@ -362,7 +360,7 @@ class TestClarifyQueryEdgeCases:
         shared = {
             "question": "Show a_bc column",
             "schema_str": "Table 'data': [id, value]",
-            "dfs": {"data": None}
+            "dfs": {"data": None},
         }
 
         prep_res = node.prep(shared)
@@ -386,7 +384,7 @@ class TestClarifyQueryIntegration:
                 "Table 'common_player_info': [person_id, display_first_last, team_name]\n"
                 "Table 'player_career_stats': [player_id, games_played, points]"
             ),
-            "dfs": {"common_player_info": None, "player_career_stats": None}
+            "dfs": {"common_player_info": None, "player_career_stats": None},
         }
 
         prep_res = node.prep(shared)
@@ -402,7 +400,7 @@ class TestClarifyQueryIntegration:
         shared = {
             "question": "Show me the championship_count for each team",
             "schema_str": "Table 'teams': [team_id, team_name, city]",
-            "dfs": {"teams": None}
+            "dfs": {"teams": None},
         }
 
         prep_res = node.prep(shared)
@@ -418,7 +416,7 @@ class TestClarifyQueryIntegration:
         shared = {
             "question": "Calculate total_revenue by product_id and customer_id",
             "schema_str": "Table 'sales': [product_id, customer_id, amount, date]",
-            "dfs": {"sales": None}
+            "dfs": {"sales": None},
         }
 
         prep_res = node.prep(shared)

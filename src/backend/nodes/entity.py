@@ -6,7 +6,6 @@ import logging
 import pandas as pd
 from pocketflow import Node
 
-
 logger = logging.getLogger(__name__)
 
 from backend.config import ENTITY_SAMPLE_SIZE, SEARCH_SAMPLE_SIZE
@@ -42,7 +41,9 @@ class EntityResolver(Node):
             "question": shared["question"],
             "schema": shared["schema_str"],
             "dfs": shared["dfs"],
-            "sample_size": shared.get("config", {}).get("entity_sample_size", ENTITY_SAMPLE_SIZE),
+            "sample_size": shared.get("config", {}).get(
+                "entity_sample_size", ENTITY_SAMPLE_SIZE
+            ),
             "entity_ids": shared.get("entity_ids", {}),
         }
 
@@ -135,7 +136,16 @@ Return ONLY the JSON array, nothing else."""
                 name_cols = [
                     col
                     for col in df.columns
-                    if any(token in col.lower() for token in ["first_name", "last_name", "player_name", "full_name", "display"])
+                    if any(
+                        token in col.lower()
+                        for token in [
+                            "first_name",
+                            "last_name",
+                            "player_name",
+                            "full_name",
+                            "display",
+                        ]
+                    )
                 ]
 
                 if len(name_cols) >= 2 and len(entity_parts) >= 2:
@@ -143,12 +153,26 @@ Return ONLY the JSON array, nothing else."""
                     last_name_cols = [c for c in name_cols if "last" in c.lower()]
                     if first_name_cols and last_name_cols:
                         try:
-                            first_sample = self._get_sample(df, first_name_cols[0], sample_size)
-                            last_sample = self._get_sample(df, last_name_cols[0], sample_size)
-                            first_match = first_sample.astype(str).str.lower().str.contains(entity_parts[0], na=False)
-                            last_match = last_sample.astype(str).str.lower().str.contains(entity_parts[-1], na=False)
+                            first_sample = self._get_sample(
+                                df, first_name_cols[0], sample_size
+                            )
+                            last_sample = self._get_sample(
+                                df, last_name_cols[0], sample_size
+                            )
+                            first_match = (
+                                first_sample.astype(str)
+                                .str.lower()
+                                .str.contains(entity_parts[0], na=False)
+                            )
+                            last_match = (
+                                last_sample.astype(str)
+                                .str.lower()
+                                .str.contains(entity_parts[-1], na=False)
+                            )
                             if first_match.any() and last_match.any():
-                                matching_cols.extend([first_name_cols[0], last_name_cols[0]])
+                                matching_cols.extend(
+                                    [first_name_cols[0], last_name_cols[0]]
+                                )
                         except (KeyError, AttributeError, TypeError):
                             continue
 
@@ -158,7 +182,11 @@ Return ONLY the JSON array, nothing else."""
                     try:
                         if df[col].dtype == "object":
                             sample = self._get_sample(df, col, sample_size)
-                            matches = sample.astype(str).str.lower().str.contains(entity_lower, na=False)
+                            matches = (
+                                sample.astype(str)
+                                .str.lower()
+                                .str.contains(entity_lower, na=False)
+                            )
                             if matches.any():
                                 matching_cols.append(col)
                     except (KeyError, AttributeError, TypeError):
@@ -166,7 +194,9 @@ Return ONLY the JSON array, nothing else."""
 
                 if matching_cols:
                     entity_map[entity][table_name] = list(set(matching_cols))
-                    knowledge_store.add_entity_mapping(entity, table_name, matching_cols)
+                    knowledge_store.add_entity_mapping(
+                        entity, table_name, matching_cols
+                    )
 
         return {
             "entities": entities,
@@ -247,7 +277,9 @@ class SearchExpander(Node):
             "dfs": shared["dfs"],
             "data_profile": shared.get("data_profile", {}),
             "question": shared["question"],
-            "sample_size": shared.get("config", {}).get("search_sample_size", SEARCH_SAMPLE_SIZE),
+            "sample_size": shared.get("config", {}).get(
+                "search_sample_size", SEARCH_SAMPLE_SIZE
+            ),
         }
 
     @staticmethod
@@ -313,14 +345,25 @@ class SearchExpander(Node):
                 table_profile = profile.get(table_name, {})
                 sampled_df = self._get_sample(
                     df,
-                    table_profile.get("name_columns", [""])[0] if table_profile.get("name_columns") else "",
+                    (
+                        table_profile.get("name_columns", [""])[0]
+                        if table_profile.get("name_columns")
+                        else ""
+                    ),
                     sample_size,
                 )
 
                 for col in table_profile.get("name_columns", []):
                     try:
-                        matches = sampled_df[sampled_df[col].astype(str).str.lower().str.contains(entity_lower, na=False)]
-                        if not matches.empty and table_name not in expanded_map.get(entity, {}):
+                        matches = sampled_df[
+                            sampled_df[col]
+                            .astype(str)
+                            .str.lower()
+                            .str.contains(entity_lower, na=False)
+                        ]
+                        if not matches.empty and table_name not in expanded_map.get(
+                            entity, {}
+                        ):
                             expanded_map.setdefault(entity, {})[table_name] = [col]
                     except (KeyError, AttributeError, TypeError):
                         pass
@@ -330,14 +373,21 @@ class SearchExpander(Node):
                         try:
                             name_cols = table_profile.get("name_columns", [])
                             if name_cols:
-                                mask = sampled_df[name_cols[0]].astype(str).str.lower().str.contains(
-                                    parts[0] if parts else entity_lower, na=False
+                                mask = (
+                                    sampled_df[name_cols[0]]
+                                    .astype(str)
+                                    .str.lower()
+                                    .str.contains(
+                                        parts[0] if parts else entity_lower, na=False
+                                    )
                                 )
                                 matches = sampled_df[mask]
                                 if not matches.empty:
                                     entity_id = str(matches.iloc[0].get(id_col, ""))
                                     if entity_id and entity_id != "nan":
-                                        cross_references.setdefault(entity, {})[f"{table_name}.{id_col}"] = entity_id
+                                        cross_references.setdefault(entity, {})[
+                                            f"{table_name}.{id_col}"
+                                        ] = entity_id
                         except (KeyError, AttributeError, IndexError, TypeError):
                             pass
 
@@ -365,7 +415,9 @@ class SearchExpander(Node):
         shared["cross_references"] = exec_res["cross_references"]
 
         total_tables = sum(len(tables) for tables in exec_res["expanded_map"].values())
-        logger.info(f"Search expanded: {len(exec_res['expanded_map'])} entities across {total_tables} table matches")
+        logger.info(
+            f"Search expanded: {len(exec_res['expanded_map'])} entities across {total_tables} table matches"
+        )
         if exec_res["cross_references"]:
             logger.info(f"Cross-references found: {exec_res['cross_references']}")
         return "default"

@@ -4,7 +4,6 @@ import logging
 
 from pocketflow import Node
 
-
 logger = logging.getLogger(__name__)
 
 from backend.utils.data_source_manager import data_source_manager
@@ -71,7 +70,9 @@ class ResultValidator(Node):
 
         for entity in entities:
             entity_lower = entity.lower()
-            if entity_lower in result_str or any(part in result_str for part in entity_lower.split()):
+            if entity_lower in result_str or any(
+                part in result_str for part in entity_lower.split()
+            ):
                 validation["entities_found"].append(entity)
 
                 tables_with_data = entity_map.get(entity, {})
@@ -82,7 +83,9 @@ class ResultValidator(Node):
                 }
             else:
                 validation["entities_missing"].append(entity)
-                validation["suggestions"].append(f"Re-search for {entity} with alternative name patterns")
+                validation["suggestions"].append(
+                    f"Re-search for {entity} with alternative name patterns"
+                )
 
         if isinstance(exec_result, dict):
             for entity in entities:
@@ -91,7 +94,9 @@ class ResultValidator(Node):
                     if isinstance(entity_data, dict):
                         found_tables = entity_data.get("found_in_tables", [])
                         if len(found_tables) < 2:
-                            validation["suggestions"].append(f"Limited data for {entity} - only in {found_tables}")
+                            validation["suggestions"].append(
+                                f"Limited data for {entity} - only in {found_tables}"
+                            )
 
         return validation
 
@@ -114,9 +119,13 @@ class ResultValidator(Node):
         shared["validation_result"] = exec_res
 
         if exec_res["entities_missing"]:
-            logger.warning(f"Validation: Missing data for {exec_res['entities_missing']}")
+            logger.warning(
+                f"Validation: Missing data for {exec_res['entities_missing']}"
+            )
         else:
-            logger.info(f"Validation: All {len(exec_res['entities_found'])} entities found in results")
+            logger.info(
+                f"Validation: All {len(exec_res['entities_found'])} entities found in results"
+            )
 
         return "default"
 
@@ -166,7 +175,11 @@ class CrossValidator(Node):
             if api_float == 0:
                 return 0.0, 0.0
             diff_pct = abs(csv_float - api_float) / abs(api_float)
-            severity = "minor" if diff_pct < 0.02 else "moderate" if diff_pct < 0.05 else "major"
+            severity = (
+                "minor"
+                if diff_pct < 0.02
+                else "moderate" if diff_pct < 0.05 else "major"
+            )
             return diff_pct, severity
         except (TypeError, ValueError):
             return None, None
@@ -202,7 +215,9 @@ class CrossValidator(Node):
                 csv_val = csv_result.get(key)
                 api_val = api_result.get(key)
                 diff_pct, severity = self._compare_scalars(csv_val, api_val)
-                preferred, _source = data_source_manager.reconcile_conflicts(csv_val, api_val, key)
+                preferred, _source = data_source_manager.reconcile_conflicts(
+                    csv_val, api_val, key
+                )
                 reconciled[key] = preferred
                 if diff_pct is not None and severity:
                     discrepancies.append(
@@ -219,7 +234,11 @@ class CrossValidator(Node):
 
         agreement_score = 1.0
         if discrepancies:
-            agreement_score = max(0.0, 1.0 - sum(item["diff_pct"] for item in discrepancies) / len(discrepancies))
+            agreement_score = max(
+                0.0,
+                1.0
+                - sum(item["diff_pct"] for item in discrepancies) / len(discrepancies),
+            )
 
         return {
             "agreement_score": agreement_score,
@@ -244,5 +263,7 @@ class CrossValidator(Node):
         shared["cross_validation"] = exec_res
         if exec_res.get("reconciled") is not None:
             shared["exec_result"] = exec_res["reconciled"]
-        logger.info(f"Cross validation completed. Agreement score: {exec_res.get('agreement_score')}")
+        logger.info(
+            f"Cross validation completed. Agreement score: {exec_res.get('agreement_score')}"
+        )
         return "default"

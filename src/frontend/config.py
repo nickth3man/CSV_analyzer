@@ -5,11 +5,12 @@ import os
 
 import requests
 
-
 logger = logging.getLogger(__name__)
 
 # Default API key for testing (limited access, short expiration)
-DEFAULT_API_KEY = "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"
+DEFAULT_API_KEY = (
+    "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"
+)
 
 # Models hosted by Chutes provider (base model IDs without variant suffixes)
 # These models have Chutes as one of their available providers
@@ -71,7 +72,7 @@ DEFAULT_MODELS = [
     "mistralai/mistral-small-3.1-24b-instruct:free",
     "meta-llama/llama-3.3-70b-instruct:free",
     "google/gemini-2.0-flash-exp:free",
-    "mistralai/mistral-7b-instruct:free"
+    "mistralai/mistral-7b-instruct:free",
 ]
 
 EXAMPLE_QUESTIONS = [
@@ -79,7 +80,7 @@ EXAMPLE_QUESTIONS = [
     "Which team has the most draft picks?",
     "Show me the top 10 players by games played",
     "What are the statistics for Chicago Bulls?",
-    "Find all players drafted in 2003"
+    "Find all players drafted in 2003",
 ]
 
 HELP_TEXT = """## How to Use the Data Analyst Agent
@@ -172,7 +173,7 @@ def fetch_openrouter_models(api_key=None, filter_models=True):
         filter_models = True  # Always filter when using default key
 
     # Check if we're using the default API key
-    using_default_key = (api_key == DEFAULT_API_KEY)
+    using_default_key = api_key == DEFAULT_API_KEY
     if using_default_key:
         filter_models = True
 
@@ -180,7 +181,7 @@ def fetch_openrouter_models(api_key=None, filter_models=True):
         response = requests.get(
             "https://openrouter.ai/api/v1/models",
             headers={"Authorization": f"Bearer {api_key}"},
-            timeout=10
+            timeout=10,
         )
         if response.status_code == 200:
             data = response.json()

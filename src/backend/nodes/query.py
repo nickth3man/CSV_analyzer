@@ -4,7 +4,6 @@ import logging
 
 from pocketflow import Node
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -49,7 +48,11 @@ class ClarifyQuery(Node):
 
         if suspicious_patterns:
             schema_lower = schema.lower()
-            truly_missing = [pattern for pattern in suspicious_patterns if pattern not in schema_lower]
+            truly_missing = [
+                pattern
+                for pattern in suspicious_patterns
+                if pattern not in schema_lower
+            ]
             if truly_missing:
                 return "ambiguous", truly_missing
 

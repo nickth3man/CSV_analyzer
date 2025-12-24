@@ -9,7 +9,6 @@ import chainlit as cl
 from backend.flow import create_analyst_flow
 from src.frontend.data_utils import get_schema_info, load_dataframes
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -61,7 +60,9 @@ async def step_run_analysis(question: str, settings: dict):
         analyst_flow = create_analyst_flow()
         analyst_flow.run(shared)
 
-        final_text = shared.get("final_text", "Analysis complete but no response was generated.")
+        final_text = shared.get(
+            "final_text", "Analysis complete but no response was generated."
+        )
         chart_path = shared.get("chart_path")
 
         return shared, final_text, chart_path
@@ -102,7 +103,9 @@ async def stream_response(content: str, elements: list | None = None):
     return msg
 
 
-async def display_result_with_streaming(final_text: str, chart_path: str | None = None) -> None:
+async def display_result_with_streaming(
+    final_text: str, chart_path: str | None = None
+) -> None:
     """
     Display the analysis result with optional streaming and chart.
 

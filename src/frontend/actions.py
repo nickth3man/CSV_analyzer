@@ -22,7 +22,7 @@ async def on_upload_action(action: cl.Action) -> str:
         content="Please upload your CSV file(s)",
         accept=["text/csv", "application/vnd.ms-excel", ".csv"],
         max_size_mb=50,
-        max_files=10
+        max_files=10,
     ).send()
 
     if files:
@@ -41,7 +41,9 @@ async def on_upload_action(action: cl.Action) -> str:
 
         # Invalidate cache after upload
         invalidate_dataframe_cache()
-        await cl.Message(content=f"✅ Uploaded: {', '.join(uploaded)}\n\nYou can now ask questions about your data!").send()
+        await cl.Message(
+            content=f"✅ Uploaded: {', '.join(uploaded)}\n\nYou can now ask questions about your data!"
+        ).send()
 
     return "Upload complete"
 

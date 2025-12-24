@@ -16,7 +16,7 @@ class TestFileUploadSecurity:
             "../../../etc/passwd",
             "..\\..\\..\\windows\\system32\\config\\sam",
             "/root/.ssh/id_rsa",
-            "../../../../tmp/evil.csv"
+            "../../../../tmp/evil.csv",
         ]
 
         for malicious_path in malicious_paths:
@@ -34,30 +34,41 @@ class TestFileUploadSecurity:
             "subdir/file.csv",
             "..\\file.csv",
             "../../file.csv",
-            "a/b/c.csv"
+            "a/b/c.csv",
         ]
 
         for filename in invalid_filenames:
             # Apply validation logic
-            is_valid = not ("/" in filename or "\\" in filename or filename.startswith(".") or not filename)
+            is_valid = not (
+                "/" in filename
+                or "\\" in filename
+                or filename.startswith(".")
+                or not filename
+            )
             assert not is_valid, f"Should have rejected {filename}"
 
     def test_rejects_dot_prefix_filenames(self):
         """Test that filenames starting with '.' are rejected."""
-        invalid_filenames = [
-            ".hidden.csv",
-            "..secret.csv",
-            ".bashrc"
-        ]
+        invalid_filenames = [".hidden.csv", "..secret.csv", ".bashrc"]
 
         for filename in invalid_filenames:
-            is_valid = not ("/" in filename or "\\" in filename or filename.startswith(".") or not filename)
+            is_valid = not (
+                "/" in filename
+                or "\\" in filename
+                or filename.startswith(".")
+                or not filename
+            )
             assert not is_valid, f"Should have rejected {filename}"
 
     def test_rejects_empty_filename(self):
         """Test that empty filenames are rejected."""
         filename = ""
-        is_valid = not ("/" in filename or "\\" in filename or filename.startswith(".") or not filename)
+        is_valid = not (
+            "/" in filename
+            or "\\" in filename
+            or filename.startswith(".")
+            or not filename
+        )
         assert not is_valid, "Should have rejected empty filename"
 
     def test_accepts_valid_filenames(self):
@@ -68,11 +79,16 @@ class TestFileUploadSecurity:
             "employee-records.csv",
             "file_with_underscores.csv",
             "CamelCase.csv",
-            "123numbers.csv"
+            "123numbers.csv",
         ]
 
         for filename in valid_filenames:
-            is_valid = not ("/" in filename or "\\" in filename or filename.startswith(".") or not filename)
+            is_valid = not (
+                "/" in filename
+                or "\\" in filename
+                or filename.startswith(".")
+                or not filename
+            )
             assert is_valid, f"Should have accepted {filename}"
 
     def test_csv_extension_enforcement(self):
@@ -81,7 +97,7 @@ class TestFileUploadSecurity:
             ("data", "data.csv"),
             ("file.txt", "file.txt.csv"),
             ("noextension", "noextension.csv"),
-            ("data.csv", "data.csv")  # Already has .csv
+            ("data.csv", "data.csv"),  # Already has .csv
         ]
 
         for input_name, expected in test_cases:
@@ -97,7 +113,7 @@ class TestFileUploadSecurity:
             ("../../../etc/passwd", "passwd"),
             ("..\\..\\..\\windows\\system32", "system32"),
             ("/var/log/messages", "messages"),
-            ("C:\\Windows\\System32\\config", "config")
+            ("C:\\Windows\\System32\\config", "config"),
         ]
 
         for malicious, expected_basename in traversal_attempts:
@@ -130,7 +146,7 @@ class TestFileUploadSecurity:
             "../../../evil.csv",
             "..\\..\\..\\evil.csv",
             "/etc/passwd",
-            "C:\\Windows\\evil.csv"
+            "C:\\Windows\\evil.csv",
         ]
 
         for malicious in malicious_inputs:
@@ -141,8 +157,9 @@ class TestFileUploadSecurity:
 
             # The destination should still be within csv_dir
             # realpath resolves any symlinks and normalizes the path
-            assert os.path.commonpath([csv_dir, dest]) == str(csv_dir), \
-                f"File {malicious} escaped CSV directory"
+            assert os.path.commonpath([csv_dir, dest]) == str(
+                csv_dir
+            ), f"File {malicious} escaped CSV directory"
 
 
 class TestFileUploadValidation:
@@ -161,11 +178,7 @@ class TestFileUploadValidation:
 
     def test_csv_mime_type_validation(self):
         """Test that only CSV files are accepted."""
-        valid_mime_types = [
-            "text/csv",
-            "application/vnd.ms-excel"
-        ]
-
+        valid_mime_types = ["text/csv", "application/vnd.ms-excel"]
 
         # In the real app, this would be enforced by cl.AskFileMessage
         # Here we just verify the expected values
@@ -174,18 +187,9 @@ class TestFileUploadValidation:
 
     def test_csv_extension_validation(self):
         """Test that files must have .csv extension."""
-        valid_files = [
-            "data.csv",
-            "file.CSV",  # Case might vary
-            "test.csv"
-        ]
+        valid_files = ["data.csv", "file.CSV", "test.csv"]  # Case might vary
 
-        invalid_files = [
-            "data.txt",
-            "file.pdf",
-            "script.py",
-            "data.xlsx"
-        ]
+        invalid_files = ["data.txt", "file.pdf", "script.py", "data.xlsx"]
 
         for filename in valid_files:
             assert filename.lower().endswith(".csv")
@@ -201,8 +205,8 @@ class TestFilenameSanitization:
         """Test handling of unicode characters in filenames."""
         unicode_names = [
             "données.csv",  # French
-            "数据.csv",      # Chinese
-            "файл.csv"      # Russian
+            "数据.csv",  # Chinese
+            "файл.csv",  # Russian
         ]
 
         for filename in unicode_names:
@@ -216,12 +220,17 @@ class TestFilenameSanitization:
             "file-with-dashes.csv",
             "file_with_underscores.csv",
             "file(with)parens.csv",
-            "file[with]brackets.csv"
+            "file[with]brackets.csv",
         ]
 
         for filename in special_names:
             # These should be allowed as long as no path separators
-            not ("/" in filename or "\\" in filename or filename.startswith(".") or not filename)
+            not (
+                "/" in filename
+                or "\\" in filename
+                or filename.startswith(".")
+                or not filename
+            )
             # Most should be valid (implementation dependent)
             # At minimum, no path traversal should be possible
             assert "/" not in filename
@@ -251,8 +260,12 @@ class TestFilenameSanitization:
     def test_windows_reserved_names(self):
         """Test handling of Windows reserved filenames."""
         reserved_names = [
-            "CON.csv", "PRN.csv", "AUX.csv", "NUL.csv",
-            "COM1.csv", "LPT1.csv"
+            "CON.csv",
+            "PRN.csv",
+            "AUX.csv",
+            "NUL.csv",
+            "COM1.csv",
+            "LPT1.csv",
         ]
 
         # These are valid basenames, but may cause issues on Windows

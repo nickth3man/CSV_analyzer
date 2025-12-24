@@ -30,17 +30,12 @@ def call_llm_streaming(prompt, model=None):
     # Build extra_body for provider routing if needed
     extra_body = None
     if should_force_chutes_provider(model, api_key):
-        extra_body = {
-            "provider": {
-                "only": ["chutes"],
-                "allow_fallbacks": False
-            }
-        }
+        extra_body = {"provider": {"only": ["chutes"], "allow_fallbacks": False}}
 
     kwargs = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
-        "stream": True
+        "stream": True,
     }
     if extra_body:
         kwargs["extra_body"] = extra_body
@@ -50,6 +45,7 @@ def call_llm_streaming(prompt, model=None):
     for chunk in stream:
         if chunk.choices[0].delta.content is not None:
             yield chunk.choices[0].delta.content
+
 
 def call_llm_with_callback(prompt, callback=None, model=None):
     full_response = ""
