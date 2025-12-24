@@ -3,7 +3,10 @@ Code generation nodes for CSV analysis and NBA API interactions.
 """
 
 import json
+import logging
 from pocketflow import Node
+
+logger = logging.getLogger(__name__)
 
 from backend.utils.call_llm import call_llm
 
@@ -89,7 +92,7 @@ Loop through each entity, gather data from their respective tables, then combine
 """
 
         if prep_res.get("error"):
-            print("Fixing code based on error...")
+            logger.info("Fixing code based on error...")
             error_fix_hint = ""
             error = prep_res["error"]
             if "merge" in error.lower() or "key" in error.lower() or "dtype" in error.lower():
@@ -151,7 +154,7 @@ Write Python code to thoroughly analyze and answer the question.
         return code
 
     def exec_fallback(self, prep_res, exc):
-        print(f"CodeGenerator failed: {exc}")
+        logger.error(f"CodeGenerator failed: {exc}")
         return "print('Code generation failed due to LLM error.')\nfinal_result = {}"
 
     def post(self, shared, prep_res, exec_res):
@@ -207,7 +210,7 @@ Requirements:
         return code
 
     def exec_fallback(self, prep_res, exc):
-        print(f"NBAApiCodeGenerator failed: {exc}")
+        logger.error(f"NBAApiCodeGenerator failed: {exc}")
         return "api_result = {}"
 
     def post(self, shared, prep_res, exec_res):

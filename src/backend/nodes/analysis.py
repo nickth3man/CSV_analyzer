@@ -5,10 +5,13 @@ Analysis, visualization, and response synthesis nodes.
 import json
 import os
 import time
+import logging
 
 import matplotlib
 import pandas as pd
 from pocketflow import Node
+
+logger = logging.getLogger(__name__)
 
 from backend.config import (
     ANALYSIS_TRUNCATION,
@@ -132,7 +135,7 @@ Return ONLY valid JSON."""
             deep_analysis["_missing_entities"] = missing_entities
             deep_analysis["_data_warnings"] = data_warnings
         except json.JSONDecodeError as exc:
-            print(f"Failed to parse deep analysis JSON: {exc}")
+            logger.error(f"Failed to parse deep analysis JSON: {exc}")
             deep_analysis = {
                 "key_stats": {"raw_result": str(exec_result)[:500]},
                 "comparison": None,
@@ -142,7 +145,7 @@ Return ONLY valid JSON."""
                 "_data_warnings": data_warnings,
             }
         except Exception as exc:  # noqa: BLE001
-            print(f"Unexpected error in deep analysis: {exc}")
+            logger.error(f"Unexpected error in deep analysis: {exc}")
             deep_analysis = {
                 "key_stats": {"raw_result": str(exec_result)[:500]},
                 "comparison": None,
@@ -155,16 +158,16 @@ Return ONLY valid JSON."""
         return deep_analysis
 
     def exec_fallback(self, prep_res, exc):
-        print(f"DeepAnalyzer failed: {exc}")
+        logger.error(f"DeepAnalyzer failed: {exc}")
         return None
 
     def post(self, shared, prep_res, exec_res):
         shared["deep_analysis"] = exec_res
         if exec_res:
             if exec_res.get("_data_warnings"):
-                print(f"Deep analysis completed with warnings: {exec_res['_data_warnings']}")
+                logger.warning(f"Deep analysis completed with warnings: {exec_res['_data_warnings']}")
             else:
-                print("Deep analysis completed.")
+                logger.info("Deep analysis completed.")
         return "default"
 
 
@@ -321,14 +324,14 @@ Be honest about data limitations - do not fabricate facts."""
         return response
 
     def exec_fallback(self, prep_res, exc):
-        print(f"ResponseSynthesizer failed: {exc}")
+        logger.error(f"ResponseSynthesizer failed: {exc}")
         return "I apologize, but I am unable to generate a response at this time due to a system error."
 
     def post(self, shared, prep_res, exec_res):
         if exec_res:
             shared["final_text"] = exec_res
-        print(f"\n{'='*60}")
-        print("FINAL RESPONSE:")
-        print("=" * 60)
-        print(shared.get("final_text", "No answer"))
+        logger.info(f"\n{'='*60}")
+        logger.info("FINAL RESPONSE:")
+        logger.info("=" * 60)
+        logger.info(shared.get("final_text", "No answer"))
         return "default"

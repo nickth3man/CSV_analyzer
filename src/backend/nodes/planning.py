@@ -3,7 +3,10 @@ Planning and context aggregation nodes.
 """
 
 import json
+import logging
 from pocketflow import Node
+
+logger = logging.getLogger(__name__)
 
 from backend.config import MAX_PLAN_STEPS, MIN_PLAN_STEPS
 from backend.utils.call_llm import call_llm
@@ -71,12 +74,12 @@ Be thorough - this is for deep analysis, not just a simple lookup."""
         return plan
 
     def exec_fallback(self, prep_res, exc):
-        print(f"Planner failed: {exc}")
+        logger.error(f"Planner failed: {exc}")
         return "Plan generation failed. Please proceed with caution."
 
     def post(self, shared, prep_res, exec_res):
         shared["plan_steps"] = exec_res
-        print("Plan generated.")
+        logger.info("Plan generated.")
         return "default"
 
 
@@ -158,7 +161,7 @@ AGGREGATED CONTEXT:
     def post(self, shared, prep_res, exec_res):
         shared["aggregated_context"] = exec_res["context"]
         shared["context_summary"] = exec_res["summary"]
-        print(
+        logger.info(
             "Context aggregated: "
             f"{exec_res['context']['query_type']} query with "
             f"{len(exec_res['context']['recommended_tables'])} tables"

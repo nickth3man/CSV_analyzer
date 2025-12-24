@@ -1,6 +1,9 @@
 from openai import OpenAI
 import os
 import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Default API key for testing (limited access, short expiration)
 DEFAULT_API_KEY = "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"
@@ -140,7 +143,7 @@ def call_llm(prompt, max_retries=3):
         except Exception as e:
             if "User not found" in str(e) or "401" in str(e):
                  # Mock response for testing when API key is invalid
-                 print(f"Mocking LLM response due to auth error: {e}")
+                 logger.warning(f"Mocking LLM response due to auth error: {e}")
                  if "Extract all named entities" in prompt:
                      return '["LeBron James", "Tracy McGrady"]'
                  elif "create a comprehensive analysis plan" in prompt:
@@ -179,7 +182,7 @@ except Exception as e:
             if attempt == max_retries - 1:
                 # Re-raise on last attempt
                 raise RuntimeError(f"LLM call failed after {max_retries} attempts: {str(e)}") from e
-            print(f"LLM call failed (attempt {attempt+1}/{max_retries}): {e}")
+            logger.warning(f"LLM call failed (attempt {attempt+1}/{max_retries}): {e}")
             # Exponential backoff: 2s, 4s, 8s
             time.sleep(2 ** (attempt + 1))
 

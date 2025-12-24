@@ -1,13 +1,12 @@
 import sys
 from pathlib import Path
+import logging
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-SRC_PATH = PROJECT_ROOT / "src"
-for path in (SRC_PATH, PROJECT_ROOT):
-    if str(path) not in sys.path:
-        sys.path.insert(0, str(path))
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-from backend.flow import create_analyst_flow
+from src.backend.flow import create_analyst_flow
 
 DEFAULT_QUESTION = "Compare the careers of LeBron James and Tracy McGrady"
 
@@ -27,8 +26,8 @@ def main():
     # This wires together the 10 nodes including the Safety and Error loops.
     analyst_flow = create_analyst_flow()
 
-    print("--- Starting Analyst Agent ---")
-    print(f"User Question: {shared['question']}\n")
+    logger.info("--- Starting Analyst Agent ---")
+    logger.info(f"User Question: {shared['question']}\n")
 
     analyst_flow.run(shared)
 
@@ -39,11 +38,11 @@ def main():
     if "final_text" in shared:
         print(f"\n🤖 Agent Response:\n{shared['final_text']}")
     else:
-        print("\n⚠️ The flow finished but did not produce a final text response.")
+        logger.warning("\n⚠️ The flow finished but did not produce a final text response.")
 
     # Check if visualization was created
     if shared.get("chart_path"):
-        print(f"\n📊 Chart saved to: {shared['chart_path']}")
+        logger.info(f"\n📊 Chart saved to: {shared['chart_path']}")
 
 if __name__ == "__main__":
     main()

@@ -2,7 +2,10 @@
 Result validation and cross-validation nodes.
 """
 
+import logging
 from pocketflow import Node
+
+logger = logging.getLogger(__name__)
 
 from backend.utils.data_source_manager import data_source_manager
 
@@ -65,9 +68,9 @@ class ResultValidator(Node):
         shared["validation_result"] = exec_res
 
         if exec_res["entities_missing"]:
-            print(f"Validation: Missing data for {exec_res['entities_missing']}")
+            logger.warning(f"Validation: Missing data for {exec_res['entities_missing']}")
         else:
-            print(f"Validation: All {len(exec_res['entities_found'])} entities found in results")
+            logger.info(f"Validation: All {len(exec_res['entities_found'])} entities found in results")
 
         return "default"
 
@@ -140,5 +143,5 @@ class CrossValidator(Node):
         shared["cross_validation"] = exec_res
         if exec_res.get("reconciled") is not None:
             shared["exec_result"] = exec_res["reconciled"]
-        print(f"Cross validation completed. Agreement score: {exec_res.get('agreement_score')}")
+        logger.info(f"Cross validation completed. Agreement score: {exec_res.get('agreement_score')}")
         return "default"

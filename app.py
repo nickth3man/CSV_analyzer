@@ -8,10 +8,8 @@ Run with: chainlit run app.py
 import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-SRC_PATH = PROJECT_ROOT / "src"
-if str(SRC_PATH) not in sys.path:
-    sys.path.insert(0, str(SRC_PATH))
+# NOTE: Assuming the application is run from the project root where 'src' is a package.
+# If running via `python -m src...` or `chainlit run app.py` from root, imports should resolve.
 
 from src.frontend import (
     on_chat_start,

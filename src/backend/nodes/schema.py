@@ -2,8 +2,11 @@
 Schema analysis and data profiling nodes.
 """
 
+import logging
 import pandas as pd
 from pocketflow import Node
+
+logger = logging.getLogger(__name__)
 
 
 class SchemaInference(Node):
@@ -44,7 +47,7 @@ class SchemaInference(Node):
             source = shared.get("data_sources", {}).get(name, "merged")
             schema_lines.append(f"Table '{name}' [{source.upper()}]: [{', '.join(cols)}]")
         shared["schema_str"] = "\n".join(schema_lines)
-        print(f"Schema inferred:\n{shared['schema_str']}")
+        logger.info(f"Schema inferred:\n{shared['schema_str']}")
         return "default"
 
 
@@ -103,5 +106,5 @@ class DataProfiler(Node):
         shared["data_profile"] = exec_res
         shared["profiles"] = exec_res
         tables_with_names = [t for t, p in exec_res.items() if p["name_columns"]]
-        print(f"Data profiled: {len(exec_res)} tables, {len(tables_with_names)} with name columns")
+        logger.info(f"Data profiled: {len(exec_res)} tables, {len(tables_with_names)} with name columns")
         return "default"

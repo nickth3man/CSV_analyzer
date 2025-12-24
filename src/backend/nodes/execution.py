@@ -6,9 +6,12 @@ import ast
 import queue
 import threading
 import time
+import logging
 
 import pandas as pd
 from pocketflow import Node
+
+logger = logging.getLogger(__name__)
 
 from backend.config import API_EXECUTION_TIMEOUT, CSV_EXECUTION_TIMEOUT
 from backend.utils.nba_api_client import nba_client
@@ -116,10 +119,10 @@ class SafetyCheck(Node):
     def post(self, shared, prep_res, exec_res):
         status, reason = exec_res
         if status == "unsafe":
-            print(f"Safety Violation: {reason}")
+            logger.warning(f"Safety Violation: {reason}")
             shared["exec_error"] = f"Security check failed: {reason}"
             return "unsafe"
-        print("Safety Check Passed.")
+        logger.info("Safety Check Passed.")
         return "safe"
 
 
@@ -248,7 +251,7 @@ class Executor(Node):
             "csv": shared.get("csv_exec_result"),
             "api": shared.get("api_exec_result"),
         }
-        print(f"Execution Success. CSV: {csv_status}, API: {api_status}")
+        logger.info(f"Execution Success. CSV: {csv_status}, API: {api_status}")
         return "success"
 
 
@@ -275,7 +278,7 @@ class ErrorFixer(Node):
                 "Unable to answer the question after multiple attempts. "
                 f"Last error: {shared.get('exec_error', 'Unknown')}"
             )
-            print("\nMax retries exceeded. Stopping.")
+            logger.warning("\nMax retries exceeded. Stopping.")
             return "give_up"
 
         shared["retry_count"] = shared.get("retry_count", 0) + 1

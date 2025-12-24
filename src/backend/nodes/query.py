@@ -2,7 +2,10 @@
 Query clarification and user feedback nodes.
 """
 
+import logging
 from pocketflow import Node
+
+logger = logging.getLogger(__name__)
 
 
 class ClarifyQuery(Node):
@@ -85,12 +88,12 @@ class AskUser(Node):
             shared.pop("entities", None)
             shared.pop("entity_map", None)
             shared.pop("cross_references", None)
-            print(f"\n🔄 Re-analyzing with clarified question: {clarified_question}")
+            logger.info(f"Re-analyzing with clarified question: {clarified_question}")
             return "clarified"
         if action == "quit":
             shared["final_text"] = "Session ended by user."
-            print("\n👋 Goodbye!")
+            logger.info("Goodbye!")
             return "quit"
 
-        print(f"System: {shared.get('final_text', 'Ends')}")
+        logger.info(f"System: {shared.get('final_text', 'Ends')}")
         return "default"

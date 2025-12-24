@@ -1,7 +1,10 @@
 """Dataframe caching for efficient data loading."""
 
 import os
+import logging
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 class DataFrameCache:
@@ -73,9 +76,9 @@ class DataFrameCache:
                     table_name = filename.replace(".csv", "")
                     dfs[table_name] = pd.read_csv(filepath)
                 except (pd.errors.ParserError, UnicodeDecodeError) as e:
-                    print(f"Warning: Could not parse {filename}: {e}")
+                    logger.warning(f"Warning: Could not parse {filename}: {e}")
                 except Exception as e:
-                    print(f"Warning: Unexpected error loading {filename}: {e}")
+                    logger.warning(f"Warning: Unexpected error loading {filename}: {e}")
 
         # Update cache state
         self._cache = dfs

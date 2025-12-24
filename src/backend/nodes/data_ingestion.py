@@ -3,8 +3,11 @@ Data ingestion nodes for loading local data and fetching NBA API content.
 """
 
 import os
+import logging
 import pandas as pd
 from pocketflow import Node
+
+logger = logging.getLogger(__name__)
 
 from backend.config import DEFAULT_DATA_DIR, NBA_DEFAULT_SEASON
 from backend.utils.data_source_manager import data_source_manager
@@ -34,11 +37,11 @@ class LoadData(Node):
                     except UnicodeDecodeError:
                         data[table_name] = pd.read_csv(filepath, encoding="latin-1")
                 except (pd.errors.ParserError, UnicodeDecodeError) as exc:
-                    print(f"Error parsing CSV file {filename}: {exc}")
+                    logger.error(f"Error parsing CSV file {filename}: {exc}")
                 except FileNotFoundError as exc:
-                    print(f"File not found {filename}: {exc}")
+                    logger.error(f"File not found {filename}: {exc}")
                 except Exception as exc:  # noqa: BLE001
-                    print(f"Unexpected error loading {filename}: {exc}")
+                    logger.error(f"Unexpected error loading {filename}: {exc}")
 
         return data
 
@@ -46,7 +49,7 @@ class LoadData(Node):
         shared["csv_dfs"] = exec_res
         shared["dfs"] = exec_res
         shared["data_sources"] = {name: "csv" for name in exec_res}
-        print(f"Loaded {len(exec_res)} dataframes from CSV.")
+        logger.info(f"Loaded {len(exec_res)} dataframes from CSV.")
         if not exec_res:
             shared["final_text"] = (
                 "No CSV files found in the CSV/ directory. "
@@ -135,7 +138,7 @@ class NBAApiDataLoader(Node):
         shared["api_errors"] = exec_res["errors"]
         shared["api_endpoints_used"] = exec_res["used"]
         shared["entity_ids"] = exec_res.get("entity_ids", {})
-        print(f"NBA API loader fetched {len(exec_res['api_dfs'])} tables with {len(exec_res['errors'])} errors.")
+        logger.info(f"NBA API loader fetched {len(exec_res['api_dfs'])} tables with {len(exec_res['errors'])} errors.")
         return "default"
 
 
@@ -159,5 +162,5 @@ class DataMerger(Node):
         shared["dfs"] = merged
         shared["discrepancies"] = discrepancies
         shared["data_sources"] = sources
-        print(f"Data merged: {len(merged)} tables ({len(discrepancies)} discrepancies flagged).")
+        logger.info(f"Data merged: {len(merged)} tables ({len(discrepancies)} discrepancies flagged).")
         return "default"

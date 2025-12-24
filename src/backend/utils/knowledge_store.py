@@ -1,8 +1,11 @@
 import json
 import os
 import threading
+import logging
 
 from backend.config import SUCCESSFUL_PATTERN_LIMIT
+
+logger = logging.getLogger(__name__)
 
 KNOWLEDGE_FILE = "knowledge_store.json"
 
@@ -32,7 +35,7 @@ class KnowledgeStore:
                 with open(KNOWLEDGE_FILE, 'w') as f:
                     json.dump(self.data, f, indent=2)
             except IOError as e:
-                print(f"Warning: Could not save knowledge store: {e}")
+                logger.warning(f"Warning: Could not save knowledge store: {e}")
     
     def get_entity_hints(self, entity_name):
         with self._lock:

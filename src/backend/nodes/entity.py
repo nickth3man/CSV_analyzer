@@ -3,8 +3,11 @@ Entity resolution and search expansion nodes.
 """
 
 import json
+import logging
 import pandas as pd
 from pocketflow import Node
+
+logger = logging.getLogger(__name__)
 
 from backend.config import ENTITY_SAMPLE_SIZE, SEARCH_SAMPLE_SIZE
 from backend.utils.call_llm import call_llm
@@ -62,10 +65,10 @@ Return ONLY the JSON array, nothing else."""
                     entities_response = entities_response[4:]
             entities = json.loads(entities_response)
         except json.JSONDecodeError as exc:
-            print(f"Failed to parse entity JSON: {exc}")
+            logger.error(f"Failed to parse entity JSON: {exc}")
             entities = []
         except Exception as exc:  # noqa: BLE001
-            print(f"Unexpected error extracting entities: {exc}")
+            logger.error(f"Unexpected error extracting entities: {exc}")
             entities = []
 
         entity_map = {}
@@ -127,7 +130,7 @@ Return ONLY the JSON array, nothing else."""
         }
 
     def exec_fallback(self, prep_res, exc):
-        print(f"EntityResolver failed: {exc}")
+        logger.error(f"EntityResolver failed: {exc}")
         return {
             "entities": [],
             "entity_map": {},
@@ -139,13 +142,13 @@ Return ONLY the JSON array, nothing else."""
         shared["entity_map"] = exec_res["entity_map"]
         shared["knowledge_hints"] = exec_res["knowledge_hints"]
         shared["entity_ids"] = exec_res["entity_ids"]
-        print(f"Resolved {len(exec_res['entities'])} entities across tables.")
+        logger.info(f"Resolved {len(exec_res['entities'])} entities across tables.")
         if exec_res["entity_map"]:
             for entity, tables in exec_res["entity_map"].items():
                 if tables:
-                    print(f"  - {entity}: found in {list(tables.keys())}")
+                    logger.info(f"  - {entity}: found in {list(tables.keys())}")
                 else:
-                    print(f"  - {entity}: NOT FOUND in any table")
+                    logger.info(f"  - {entity}: NOT FOUND in any table")
         return "default"
 
 
@@ -233,7 +236,7 @@ class SearchExpander(Node):
         shared["cross_references"] = exec_res["cross_references"]
 
         total_tables = sum(len(tables) for tables in exec_res["expanded_map"].values())
-        print(f"Search expanded: {len(exec_res['expanded_map'])} entities across {total_tables} table matches")
+        logger.info(f"Search expanded: {len(exec_res['expanded_map'])} entities across {total_tables} table matches")
         if exec_res["cross_references"]:
-            print(f"Cross-references found: {exec_res['cross_references']}")
+            logger.info(f"Cross-references found: {exec_res['cross_references']}")
         return "default"

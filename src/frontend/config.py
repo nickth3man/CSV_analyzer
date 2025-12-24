@@ -2,6 +2,9 @@
 
 import requests
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Default API key for testing (limited access, short expiration)
 DEFAULT_API_KEY = "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"
@@ -198,7 +201,7 @@ def fetch_openrouter_models(api_key=None, filter_models=True):
             models.sort()
             return models if models else DEFAULT_MODELS
     except (requests.RequestException, ValueError) as e:
-        print(f"Warning: Could not fetch OpenRouter models: {e}")
+        logger.warning(f"Warning: Could not fetch OpenRouter models: {e}")
         pass
 
     return DEFAULT_MODELS

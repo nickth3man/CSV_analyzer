@@ -1,4 +1,7 @@
+import logging
 from pocketflow import Flow
+
+logger = logging.getLogger(__name__)
 
 from backend.nodes import (
     AskUser,
@@ -82,5 +85,6 @@ def create_analyst_flow():
     return Flow(start=load)
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     flow = create_analyst_flow()
-    print("Flow created successfully.")
+    logger.info("Flow created successfully.")
