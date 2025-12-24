@@ -22,17 +22,17 @@ def get_csv_files():
 
 
 def load_dataframes():
-    """Load dataframes using cache to avoid redundant disk reads."""
+    """Load DataFrames using cache to avoid redundant disk reads."""
     return get_dataframe_cache().get_dataframes()
 
 
 def invalidate_dataframe_cache():
-    """Invalidate the dataframe cache after file changes."""
+    """Invalidate the DataFrame cache after file changes."""
     get_dataframe_cache().invalidate()
 
 
 def get_schema_info():
-    """Get schema information for all loaded dataframes."""
+    """Get schema information for all loaded DataFrames."""
     dfs = load_dataframes()
     if not dfs:
         return "No CSV files loaded. Upload some data to get started!"
@@ -61,7 +61,7 @@ def get_table_schema(table_name):
 
 
 def get_data_profile():
-    """Get data profile summary for all loaded dataframes."""
+    """Get data profile summary for all loaded DataFrames."""
     dfs = load_dataframes()
     if not dfs:
         return "No data loaded."

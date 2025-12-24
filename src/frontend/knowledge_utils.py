@@ -4,7 +4,17 @@ from backend.utils.knowledge_store import knowledge_store
 
 
 def get_knowledge_store_data():
-    """Get formatted knowledge store data for display."""
+    """
+    Produce a human-readable, formatted summary of the current knowledge store.
+    
+    The resulting text contains three sections:
+    - Entity Mappings: each entity with its tables and columns.
+    - Successful Query Patterns: each query type with the number of learned patterns.
+    - Join Patterns: up to the first five join patterns with tables and keys.
+    
+    Returns:
+        str: The assembled formatted string.
+    """
     data = knowledge_store.data
 
     output = "## Entity Mappings\n"

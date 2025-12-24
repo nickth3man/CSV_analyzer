@@ -29,9 +29,12 @@ from backend.nodes import (
 
 def create_analyst_flow():
     """
-    Creates the Enhanced Relational Data Analyst Flow.
-    Now includes DataProfiler, SearchExpander, ContextAggregator, and ResultValidator
-    for deeper search and better inter-node communication.
+    Create the Enhanced Relational Data Analyst Flow.
+    
+    Constructs and wire together nodes for data ingestion, clarification, planning, code generation, safety checks, execution, validation, analysis, visualization, and response synthesis; the flow begins at the initial data loader.
+    
+    Returns:
+        Flow: Flow object with start node set to the initial LoadData node.
     """
 
     load = LoadData()

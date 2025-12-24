@@ -65,6 +65,15 @@ class KnowledgeStore:
             return patterns
 
     def add_successful_pattern(self, query_type, pattern):
+        """
+        Store a successful pattern under the given query type and persist the updated list.
+        
+        Adds the pattern to the in-memory list for query_type if not already present, trims the list to the most recent SUCCESSFUL_PATTERN_LIMIT entries when it exceeds that limit, and then saves the store to disk.
+        
+        Parameters:
+            query_type (str): Category or type of query to associate the pattern with.
+            pattern: Representation of the successful pattern to record (e.g., string or serializable object).
+        """
         with self._lock:
             if query_type not in self.data["successful_patterns"]:
                 self.data["successful_patterns"][query_type] = []
@@ -76,6 +85,14 @@ class KnowledgeStore:
         self.save()
 
     def add_column_hint(self, description, table, column):
+        """
+        Store a column hint in the knowledge store keyed by a lowercase description and persist the change.
+        
+        Parameters:
+            description (str): Human-readable description used as the lookup key; it is normalized to lowercase.
+            table (str): Name of the table associated with the hint.
+            column (str): Name of the column associated with the hint.
+        """
         with self._lock:
             key = description.lower()
             self.data["column_hints"][key] = {"table": table, "column": column}

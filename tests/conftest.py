@@ -195,14 +195,30 @@ final_result = dfs['employees']['salary'].mean()
 
 @pytest.fixture
 def mock_call_llm(mock_llm_response):
-    """Mocks the call_llm function."""
+    """
+    Patch `backend.utils.call_llm.call_llm` to use the provided mock LLM response and yield the mock object.
+    
+    Parameters:
+        mock_llm_response (callable): A function used as the `side_effect` for the patched `call_llm` to simulate LLM responses.
+    
+    Returns:
+        mock: The mocked object that replaced `call_llm`.
+    """
     with patch("backend.utils.call_llm.call_llm", side_effect=mock_llm_response) as mock:
         yield mock
 
 
 @pytest.fixture
 def mock_call_llm_in_nodes(mock_llm_response):
-    """Mocks the call_llm function as imported in nodes.py."""
+    """
+    Provide a patched `backend.nodes.entity.call_llm` that returns a fixed mock response for tests.
+    
+    Parameters:
+        mock_llm_response: Fixture dependency that ensures the LLM response mock is available in the test context.
+    
+    Returns:
+        mock: A mock object that replaces `backend.nodes.entity.call_llm`. Calling it returns the string "Mock LLM response for testing purposes.".
+    """
     with patch("backend.nodes.entity.call_llm") as mock:
         mock.return_value = "Mock LLM response for testing purposes."
         yield mock
@@ -236,7 +252,16 @@ def reset_knowledge_store():
 
 @pytest.fixture
 def mock_openai_client():
-    """Mocks the OpenAI client for API calls."""
+    """
+    Provide a MagicMock OpenAI client and patch the OpenAI constructor used by backend.utils.call_llm.
+    
+    The fixture yields a mock client whose chat completions create method returns a mock response
+    with a single choice whose message content is "Mock LLM response". The backend.utils.call_llm.OpenAI
+    constructor is patched to return this mock client for the duration of the fixture.
+    
+    Returns:
+        MagicMock: The mocked OpenAI client with .chat.completions.create configured.
+    """
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
     mock_response.choices[0].message.content = "Mock LLM response"

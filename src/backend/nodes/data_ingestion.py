@@ -15,12 +15,30 @@ from backend.utils.nba_api_client import nba_client
 
 
 class LoadData(Node):
-    """Load CSV files from the configured data directory into dataframes."""
+    """Load CSV files from the configured data directory into DataFrames."""
 
     def prep(self, shared):
+        """
+        Resolve the data directory path from shared state or fall back to the configured default.
+        
+        Parameters:
+        	shared (dict): Shared state that may contain a "data_dir" key with a filesystem path.
+        
+        Returns:
+        	data_dir (str): The path to use for loading CSV files; taken from shared["data_dir"] if present, otherwise DEFAULT_DATA_DIR.
+        """
         return shared.get("data_dir", DEFAULT_DATA_DIR)
 
     def exec(self, prep_res):
+        """
+        Load all CSV files found in the provided directory into pandas DataFrames.
+        
+        Parameters:
+            prep_res (str): Path to the directory containing CSV files.
+        
+        Returns:
+            dict: Mapping from table name (filename without the ".csv" extension) to the corresponding pandas DataFrame for each successfully read file.
+        """
         csv_dir = prep_res
         data = {}
 
@@ -46,6 +64,17 @@ class LoadData(Node):
         return data
 
     def post(self, shared, prep_res, exec_res):
+        """
+        Finalize CSV load results into the shared workflow state and choose the next transition.
+        
+        Parameters:
+        	shared (dict): Shared workflow state to update with loaded data and metadata.
+        	prep_res: Preparation result (unused).
+        	exec_res (dict): Mapping of table names to pandas DataFrame objects loaded from CSV files.
+        
+        Returns:
+        	str: "no_data" if exec_res is empty (and shared["final_text"] is set with guidance), "default" otherwise.
+        """
         shared["csv_dfs"] = exec_res
         shared["dfs"] = exec_res
         shared["data_sources"] = {name: "csv" for name in exec_res}
@@ -65,6 +94,19 @@ class NBAApiDataLoader(Node):
     """
 
     def prep(self, shared):
+        """
+        Prepare context for NBA API data loading by extracting the question and resolving entities.
+        
+        Parameters:
+            shared (dict): Shared runtime state. Expected keys:
+                - "question": optional user question string.
+                - "entities": optional pre-detected entities.
+        
+        Returns:
+            dict: A dictionary with:
+                - "question" (str): The stored question or an empty string if missing.
+                - "entities": Entities from `shared["entities"]` if present; otherwise entities detected from the question.
+        """
         return {
             "question": shared.get("question", ""),
             "entities": shared.get("entities")
@@ -72,6 +114,17 @@ class NBAApiDataLoader(Node):
         }
 
     def _resolve_ids(self, entities):
+        """
+        Resolve NBA player or team identifiers for the given entity names.
+        
+        Parameters:
+            entities (Iterable[str]): Names of entities (players or teams) to resolve.
+        
+        Returns:
+            dict: Mapping from each matched entity name to a dictionary containing either
+            `{"player_id": <id>}` or `{"team_id": <id>}` for resolved entities. Entities
+            that cannot be resolved are omitted.
+        """
         entity_ids = {}
         for entity in entities:
             player = nba_client.find_player(entity)
@@ -84,6 +137,24 @@ class NBAApiDataLoader(Node):
         return entity_ids
 
     def exec(self, prep_res):
+        """
+        Assemble and fetch NBA API datasets determined from the provided question and entities, returning the fetched tables, any errors, the endpoints invoked, and resolved entity identifiers.
+        
+        Parameters:
+            prep_res (dict): Preparation result containing:
+                - "question" (str): The user question or query context.
+                - "entities" (iterable): Detected entities referenced by the question.
+        
+        Notes:
+            Endpoints that require an entity are skipped if that entity's ID could not be resolved.
+        
+        Returns:
+            dict: A dictionary with the following keys:
+                - "api_dfs" (dict): Mapping of table name (str) to pandas.DataFrame for each fetched API table.
+                - "errors" (list): List of error records, each a dict with "endpoint" and "error" (string).
+                - "used" (list): List of invoked endpoints with their parameters, each a dict with "name" and "params".
+                - "entity_ids" (dict): Mapping of entity identifiers to resolved IDs (e.g., player_id, team_id).
+        """
         question = prep_res["question"]
         entities = prep_res["entities"]
         entity_ids = self._resolve_ids(entities)
@@ -134,6 +205,14 @@ class NBAApiDataLoader(Node):
         return {"api_dfs": api_dfs, "errors": errors, "used": used, "entity_ids": entity_ids}
 
     def post(self, shared, prep_res, exec_res):
+        """
+        Store NBA API fetch results into the shared state and log a brief summary.
+        
+        Writes `api_dfs`, `api_errors`, `api_endpoints_used`, and `entity_ids` from `exec_res` into the `shared` mapping so downstream nodes can access fetched API tables, any errors, endpoints used, and resolved entity IDs. Also prints a one-line summary reporting how many tables were fetched and how many errors occurred.
+        
+        Returns:
+        	"default" (str): Indicates normal node completion.
+        """
         shared["api_dfs"] = exec_res["api_dfs"]
         shared["api_errors"] = exec_res["errors"]
         shared["api_endpoints_used"] = exec_res["used"]
@@ -146,18 +225,57 @@ class DataMerger(Node):
     """Combine CSV and API dataframes with source tracking and discrepancy flags."""
 
     def prep(self, shared):
+        """
+        Prepare merged-data inputs from the workflow shared state.
+        
+        Parameters:
+            shared (dict): Workflow shared state containing previously loaded DataFrames.
+        
+        Returns:
+            dict: A mapping with keys:
+                - "csv_dfs": dict of table name to pandas.DataFrame loaded from CSVs (empty dict if absent).
+                - "api_dfs": dict of table name to pandas.DataFrame fetched from the NBA API (empty dict if absent).
+        """
         return {
             "csv_dfs": shared.get("csv_dfs", {}),
             "api_dfs": shared.get("api_dfs", {}),
         }
 
     def exec(self, prep_res):
+        """
+        Merge CSV and API DataFrames into a unified set and identify discrepancies and source metadata.
+        
+        Parameters:
+            prep_res (dict): Preparation result containing:
+                - "csv_dfs" (dict): Mapping of table names to DataFrame objects loaded from CSV.
+                - "api_dfs" (dict): Mapping of table names to DataFrame objects fetched from APIs.
+        
+        Returns:
+            tuple: A three-element tuple:
+                - merged (dict): Mapping of table names to merged DataFrame objects combining CSV and API sources.
+                - discrepancies (dict): Details of detected differences between sources for each table/field.
+                - sources (dict): Metadata mapping each table/field to its originating data source(s).
+        """
         merged, discrepancies, sources = data_source_manager.merge_data_sources(
             prep_res["csv_dfs"], prep_res["api_dfs"]
         )
         return merged, discrepancies, sources
 
     def post(self, shared, prep_res, exec_res):
+        """
+        Finalize merging by storing merge results into shared state and returning the next node outcome.
+        
+        Parameters:
+        	shared (dict): Shared runtime state; will be updated with merged DataFrames and metadata.
+        	prep_res: Preparation result (unused).
+        	exec_res (tuple): Tuple (merged, discrepancies, sources) where:
+        		merged (dict): Mapping of table name to merged DataFrame.
+        		discrepancies (list): List of detected discrepancies between sources.
+        		sources (dict): Mapping of table name to its originating data source(s).
+        
+        Returns:
+        	str: The next node outcome string `"default"`.
+        """
         merged, discrepancies, sources = exec_res
         shared["dfs"] = merged
         shared["discrepancies"] = discrepancies

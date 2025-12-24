@@ -1,4 +1,4 @@
-"""Dataframe caching for efficient data loading."""
+"""DataFrame caching for efficient data loading."""
 
 import os
 import logging
@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class DataFrameCache:
     """
-    Cache for loaded dataframes to avoid re-reading CSV files on each command.
+    Cache for loaded DataFrames to avoid re-reading CSV files on each command.
     Implements cache invalidation based on directory modification time.
     """
     def __init__(self, csv_dir="CSV"):
@@ -60,11 +60,11 @@ class DataFrameCache:
         self._file_mtimes = {}
 
     def get_dataframes(self):
-        """Get cached dataframes, reloading if cache is invalid."""
+        """Get cached DataFrames, reloading if cache is invalid."""
         if self._is_cache_valid() and self._cache:
             return self._cache
 
-        # Reload dataframes
+        # Reload DataFrames
         dfs = {}
         if not os.path.exists(self.csv_dir):
             os.makedirs(self.csv_dir)
@@ -87,10 +87,10 @@ class DataFrameCache:
         return dfs
 
 
-# Global dataframe cache instance
+# Global DataFrame cache instance
 _df_cache = DataFrameCache()
 
 
 def get_dataframe_cache():
-    """Get the global dataframe cache instance."""
+    """Get the global DataFrame cache instance."""
     return _df_cache
