@@ -12,7 +12,7 @@ The Relational Data Analyst Agent is an LLM-powered system that allows users to 
 ### Core Capabilities
 
 1. **Loads CSV files** from a designated folder (`CSV/`)
-2. **Queries NBA API** in parallel for live/authoritative data via `nba_api` package
+2. **Queries NBA API** in parallel for **all data types** (historical, static, live, advanced) via `nba_api` package
 3. **Infers schemas** from the loaded dataframes (both CSV and API sources)
 4. **Profiles data** to analyze table statistics, data quality, and identify key columns
 5. **Resolves entities** mentioned in queries across all data sources
@@ -27,9 +27,14 @@ The Relational Data Analyst Agent is an LLM-powered system that allows users to 
 14. **Learns from queries** via persistent KnowledgeStore
 15. **Handles errors gracefully** with automatic retry and error correction
 
+16. **Advanced Metrics & Play Style Analysis**: Deriving play styles from usage, efficiency, and shooting splits
+17. **Lineup Optimization**: Algorithms to construct teams based on user-defined constraints and maximization metrics
+
 ### User Stories
 
 - As a user, I want to ask questions about NBA data in plain English
+- As a user, I want to compare players across eras, analyzing play styles, advanced stats, and career totals
+- As a user, I want to generate optimal lineups based on specific constraints (e.g., "Lakers all-time best", "all-center lineup")
 - As a user, I want to compare entities (e.g., "Compare LeBron James and Tracy McGrady careers")
 - As a user, I want the system to automatically understand my CSV file structures
 - As a user, I want access to real-time NBA data alongside my CSV files
@@ -74,8 +79,8 @@ teams.find_teams_by_city(city)           # e.g., 'Los Angeles'
 | **Player Stats** | `PlayerCareerStats`, `PlayerGameLog`, `CommonPlayerInfo` | Career totals, season averages, per-game logs, biographical info |
 | **Team Stats** | `TeamGameLog`, `TeamYearByYearStats`, `TeamInfoCommon` | Team performance by season, historical records |
 | **Game Data** | `BoxScoreTraditionalV2`, `PlayByPlayV2`, `GameRotation` | Box scores, play-by-play, player rotations |
-| **League Data** | `LeagueLeaders`, `LeagueStandings`, `DraftHistory` | League leaders, standings, all draft picks |
-| **Advanced** | `LeagueDashPlayerStats`, `ShotChartDetail` | Advanced metrics, shot charts |
+| **League Data** | `LeagueLeaders`, `LeagueStandings`, `DraftHistory`, `CommonTeamRoster` | League leaders, standings, draft picks, rosters |
+| **Advanced** | `LeagueDashPlayerStats`, `PlayerDashboardByShootingSplits`, `SynergyPlayType` | Advanced metrics (USG%, PER), shot charts, play types |
 
 #### Live Data Endpoints (Real-time)
 ```python
@@ -301,7 +306,7 @@ get_live_games() -> List[Dict]
   - `reconcile_conflicts(csv_value, api_value, field: str) -> Tuple[Any, str]`: Resolve discrepancies
 - *Conflict Resolution Rules*:
   - For current season stats: Prefer API (more recent)
-  - For historical stats: Cross-validate, flag if >5% difference
+  - For historical stats: Always fetch from API to cross-validate against CSV. Flag if >5% difference.
   - For biographical data: Prefer API (authoritative source)
   - For derived/calculated fields: Use CSV if matches expectations
 
@@ -393,8 +398,9 @@ shared = {
   - *post*: Store dict of DataFrames in `shared["csv_dfs"]`
 
 **2. NBAApiDataLoader** - NEW
-- *Purpose*: Fetch relevant data from NBA API based on question context
+- *Purpose*: Fetch relevant data from NBA API based on question context (Historical, Live, and Static)
 - *Type*: Regular Node (with internal rate limiting)
+- *Note*: API is NOT just for live data. It must be queried for historical player stats, team history, and roster data to validate CSVs.
 - *Steps*:
   - *prep*: Read question, extract potential entity names using simple pattern matching
   - *exec*: 
@@ -404,11 +410,12 @@ shared = {
     4. Handle API errors gracefully (timeout, rate limit, not found)
   - *post*: Store API dataframes in `shared["api_dfs"]`, errors in `shared["api_errors"]`
 - *Question Type Detection*:
-  - Player comparison → `PlayerCareerStats` for each player
+  - Player comparison → `PlayerCareerStats`, `LeagueDashPlayerStats` (Advanced)
   - Current season stats → `LeagueLeaders`, `PlayerGameLog`
   - Team stats → `TeamYearByYearStats`, `TeamGameLog`
   - Draft questions → `DraftHistory`
   - Live scores → `scoreboard.ScoreBoard()`
+  - Lineup/Roster optimization → `CommonTeamRoster` (for specific teams), `LeagueLeaders` (All Time)
 - *Error Handling*:
   - On timeout: Retry once, then skip endpoint
   - On rate limit: Wait and retry
@@ -536,6 +543,12 @@ shared = {
   2. API Analysis: Fetch current stats via [endpoints] for [entity_ids]
   3. Cross-Validation: Compare results, flag discrepancies
   4. Synthesis: Combine findings, prefer [source] for [reason]
+  
+  Lineup Optimization Plan:
+  1. Candidate Selection: Fetch pool of players matching constraints (e.g., "All Centers", "Lakers History")
+  2. Metric Calculation: Calculate ranking metric (PER, Win Shares, or user criteria)
+  3. Filtering: Apply "non-repeating", "positional" constraints
+  4. Selection: Select top N players to form lineup
   ```
 
 #### Execution Layer
