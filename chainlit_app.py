@@ -8,12 +8,70 @@ from flow import create_analyst_flow
 from utils.knowledge_store import knowledge_store
 from utils.file_sanitizer import sanitize_csv_filename
 
+# Default API key for testing (limited access, short expiration)
+DEFAULT_API_KEY = "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"
+
+# Models hosted by Chutes provider (base model IDs without variant suffixes)
+# These models have Chutes as one of their available providers
+CHUTES_HOSTED_MODELS = {
+    "arliai/qwq-32b-arliai-rpr-v1",
+    "deepseek/deepseek-chat",
+    "deepseek/deepseek-chat-v3-0324",
+    "deepseek/deepseek-chat-v3.1",
+    "deepseek/deepseek-r1",
+    "deepseek/deepseek-r1-0528",
+    "deepseek/deepseek-r1-0528-qwen3-8b",
+    "deepseek/deepseek-r1-distill-llama-70b",
+    "deepseek/deepseek-v3.1-terminus",
+    "deepseek/deepseek-v3.2",
+    "deepseek/deepseek-v3.2-speciale",
+    "google/gemma-3-12b-it",
+    "google/gemma-3-27b-it",
+    "google/gemma-3-4b-it",
+    "minimax/minimax-m2",
+    "mistralai/devstral-2512",
+    "mistralai/mistral-nemo",
+    "mistralai/mistral-small-24b-instruct-2501",
+    "mistralai/mistral-small-3.1-24b-instruct",
+    "mistralai/mistral-small-3.2-24b-instruct",
+    "moonshotai/kimi-k2-0905",
+    "moonshotai/kimi-k2-thinking",
+    "nousresearch/deephermes-3-mistral-24b-preview",
+    "nousresearch/hermes-4-405b",
+    "nousresearch/hermes-4-70b",
+    "nvidia/nemotron-3-nano-30b-a3b",
+    "openai/gpt-oss-120b",
+    "opengvlab/internvl3-78b",
+    "qwen/qwen-2.5-72b-instruct",
+    "qwen/qwen-2.5-coder-32b-instruct",
+    "qwen/qwen2.5-vl-32b-instruct",
+    "qwen/qwen2.5-vl-72b-instruct",
+    "qwen/qwen3-14b",
+    "qwen/qwen3-235b-a22b",
+    "qwen/qwen3-235b-a22b-2507",
+    "qwen/qwen3-235b-a22b-thinking-2507",
+    "qwen/qwen3-30b-a3b",
+    "qwen/qwen3-30b-a3b-instruct-2507",
+    "qwen/qwen3-32b",
+    "qwen/qwen3-coder",
+    "qwen/qwen3-next-80b-a3b-instruct",
+    "qwen/qwen3-vl-235b-a22b-instruct",
+    "qwen/qwen3-vl-235b-a22b-thinking",
+    "tngtech/deepseek-r1t-chimera",
+    "tngtech/deepseek-r1t2-chimera",
+    "tngtech/tng-r1t-chimera",
+    "z-ai/glm-4.5",
+    "z-ai/glm-4.6",
+    "z-ai/glm-4.6v",
+    "z-ai/glm-4.7",
+}
+
 DEFAULT_MODELS = [
-    "meta-llama/llama-3.3-70b-instruct",
-    "anthropic/claude-3.5-sonnet",
-    "openai/gpt-4o",
-    "google/gemini-2.0-flash-001",
-    "deepseek/deepseek-chat-v3-0324"
+    "deepseek/deepseek-r1-0528:free",
+    "mistralai/mistral-small-3.1-24b-instruct:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "google/gemini-2.0-flash-exp:free",
+    "mistralai/mistral-7b-instruct:free"
 ]
 
 EXAMPLE_QUESTIONS = [
@@ -54,12 +112,71 @@ HELP_TEXT = """## How to Use the Data Analyst Agent
 - **Use comparisons**: The agent excels at comparing entities across tables
 """
 
-def fetch_openrouter_models(api_key=None):
+def is_free_model(model):
+    """Check if a model is free (both prompt and completion pricing are 0)."""
+    pricing = model.get("pricing", {})
+    return pricing.get("prompt") == "0" and pricing.get("completion") == "0"
+
+
+def is_chutes_model(model_id):
+    """
+    Check if a model is hosted by the Chutes provider.
+    Handles both base model IDs and variant suffixes (e.g., :free, :nitro).
+    """
+    # Get base model ID (without variant suffix like :free, :nitro)
+    base_id = model_id.split(":")[0] if ":" in model_id else model_id
+    return base_id in CHUTES_HOSTED_MODELS
+
+
+def is_allowed_model(model):
+    """
+    Check if a model should be included in the filtered list.
+    Returns True if:
+    - Model is free (pricing.prompt == 0 and pricing.completion == 0)
+    - Model is from MistralAI (id starts with 'mistralai/')
+    - Model is hosted by Chutes provider
+    """
+    model_id = model.get("id", "")
+    
+    # Check if it's a free model
+    if is_free_model(model):
+        return True
+    
+    # Check if it's a MistralAI model
+    if model_id.startswith("mistralai/"):
+        return True
+    
+    # Check if it's hosted by Chutes provider
+    if is_chutes_model(model_id):
+        return True
+    
+    return False
+
+
+def fetch_openrouter_models(api_key=None, filter_models=True):
+    """
+    Fetch available models from OpenRouter API.
+    
+    Args:
+        api_key: OpenRouter API key. If None, uses environment variable or default.
+        filter_models: If True, filter to only show free models and MistralAI models.
+                      This is used when the default API key is in use.
+    
+    Returns:
+        List of model IDs.
+    """
     if not api_key:
         api_key = os.environ.get("OPENROUTER_API_KEY", "")
     
+    # Use default API key if none provided
     if not api_key:
-        return DEFAULT_MODELS
+        api_key = DEFAULT_API_KEY
+        filter_models = True  # Always filter when using default key
+    
+    # Check if we're using the default API key
+    using_default_key = (api_key == DEFAULT_API_KEY)
+    if using_default_key:
+        filter_models = True
     
     try:
         response = requests.get(
@@ -72,10 +189,18 @@ def fetch_openrouter_models(api_key=None):
             models = []
             for model in data.get("data", []):
                 model_id = model.get("id", "")
-                if model_id:
+                if not model_id:
+                    continue
+                
+                # Apply filtering if using default key or filter requested
+                if filter_models:
+                    if is_allowed_model(model):
+                        models.append(model_id)
+                else:
                     models.append(model_id)
+            
             models.sort()
-            return models[:50] if models else DEFAULT_MODELS
+            return models if models else DEFAULT_MODELS
     except (requests.RequestException, ValueError) as e:
         print(f"Warning: Could not fetch OpenRouter models: {e}")
         pass
@@ -273,14 +398,22 @@ def clear_knowledge_store():
 
 @cl.on_chat_start
 async def on_chat_start():
-    models = fetch_openrouter_models()
+    # Use default API key if none is set in environment
+    current_api_key = os.environ.get("OPENROUTER_API_KEY", "")
+    if not current_api_key:
+        current_api_key = DEFAULT_API_KEY
+        os.environ["OPENROUTER_API_KEY"] = DEFAULT_API_KEY
+    
+    # Determine if we should filter models (when using default key)
+    using_default_key = (current_api_key == DEFAULT_API_KEY)
+    models = fetch_openrouter_models(current_api_key, filter_models=using_default_key)
     
     settings = await cl.ChatSettings(
         [
             TextInput(
                 id="api_key",
                 label="OpenRouter API Key",
-                initial=os.environ.get("OPENROUTER_API_KEY", ""),
+                initial=current_api_key,
                 placeholder="sk-or-v1-..."
             ),
             Select(
@@ -330,14 +463,54 @@ async def on_settings_update(settings):
     cl.user_session.set("settings", settings)
     
     api_key = settings.get("api_key", "")
-    if api_key:
-        os.environ["OPENROUTER_API_KEY"] = api_key
+    
+    # Use default API key if none provided
+    if not api_key or api_key.strip() == "":
+        api_key = DEFAULT_API_KEY
+    
+    os.environ["OPENROUTER_API_KEY"] = api_key
+    
+    # Determine if we should filter models (when using default key)
+    using_default_key = (api_key == DEFAULT_API_KEY)
+    
+    # Fetch latest models with the (potentially new) API key
+    # Filter models if using the default API key
+    models = fetch_openrouter_models(api_key, filter_models=using_default_key)
     
     model = settings.get("model", "")
-    if model:
-        os.environ["OPENROUTER_MODEL"] = model
+    initial_index = 0
     
-    await cl.Message(content="⚙️ Settings updated!").send()
+    if model and model in models:
+        os.environ["OPENROUTER_MODEL"] = model
+        initial_index = models.index(model)
+    elif models:
+        # Fallback to first model if selected one is invalid or not in list
+        os.environ["OPENROUTER_MODEL"] = models[0]
+        model = models[0]
+
+    # Re-render settings to update dropdown options
+    await cl.ChatSettings(
+        [
+            TextInput(
+                id="api_key",
+                label="OpenRouter API Key",
+                initial=api_key,
+                placeholder="sk-or-v1-..."
+            ),
+            Select(
+                id="model",
+                label="LLM Model",
+                values=models,
+                initial_index=initial_index
+            ),
+        ]
+    ).send()
+    
+    # Notify user about the model filtering
+    if using_default_key:
+        await cl.Message(content="⚙️ Settings updated! Using default API key - showing free models and MistralAI models only.").send()
+    else:
+        await cl.Message(content="⚙️ Settings updated! Using your API key - all models available.").send()
 
 
 @cl.action_callback("upload_csv")

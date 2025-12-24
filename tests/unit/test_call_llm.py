@@ -61,11 +61,22 @@ class TestCallLLMBasicFunctionality:
 class TestCallLLMEnvironmentValidation:
     """Test environment variable validation."""
 
-    def test_raises_error_when_api_key_missing(self):
-        """Test that error is raised when API key is not set."""
+    def test_uses_default_api_key_when_missing(self):
+        """Test that default API key is used when OPENROUTER_API_KEY is not set."""
+        from utils.call_llm import DEFAULT_API_KEY
+        
         with patch.dict(os.environ, {}, clear=True):
-            with pytest.raises(ValueError, match="OPENROUTER_API_KEY"):
+            with patch("utils.call_llm.OpenAI") as mock_client_class:
+                mock_client = MagicMock()
+                mock_client.chat.completions.create.return_value.choices[0].message.content = "Response"
+                mock_client_class.return_value = mock_client
+
                 call_llm("Test prompt")
+
+                # Should be called with the default API key
+                mock_client_class.assert_called_once()
+                call_args = mock_client_class.call_args
+                assert call_args[1]["api_key"] == DEFAULT_API_KEY
 
     def test_uses_default_model_when_not_set(self, mock_env_vars):
         """Test default model is used when OPENROUTER_MODEL not set."""
