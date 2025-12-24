@@ -153,6 +153,45 @@ When the CLI detects an ambiguous query:
 - `matplotlib` - Visualizations
 - `requests` - HTTP requests for model fetching
 
+## Development
+
+### Quick Start for Developers
+
+```bash
+# Install development dependencies
+make install-dev
+
+# Run all quality checks
+make ci
+
+# See all available commands
+make help
+```
+
+### Development Tools
+
+This project uses a comprehensive set of modern development tools:
+
+- **Code Quality**: Ruff, Black, isort, mypy
+- **Testing**: pytest with coverage
+- **Security**: Bandit, pip-audit
+- **Documentation**: MkDocs, interrogate
+- **Workflow**: pre-commit, commitizen, Makefile
+- **CI/CD**: GitHub Actions, Dependabot
+
+See [DEVELOPMENT_TOOLS.md](DEVELOPMENT_TOOLS.md) for comprehensive documentation on all development tools and workflows.
+
+### Common Commands
+
+```bash
+make test          # Run tests
+make lint          # Check code quality
+make lint-fix      # Auto-fix linting issues
+make security      # Run security scans
+make docs-serve    # View documentation locally
+make commit        # Make a conventional commit
+```
+
 ## Agentic Coding
 
 This project demonstrates [Agentic Coding](https://the-pocket.github.io/PocketFlow/guide.html) - a collaborative workflow where humans design at a high level and AI agents handle implementation.

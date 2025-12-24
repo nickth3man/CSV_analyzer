@@ -51,6 +51,33 @@ repos:
   # Safety hook removed - does not support uv/pyproject.toml without Poetry
   # Run manually with: pip install safety && safety check
 
+  - repo: local
+    hooks:
+      - id: pip-audit
+        name: pip-audit
+        entry: pip-audit
+        language: system
+        pass_filenames: false
+        always_run: false
+        stages: [manual]
+
+      - id: interrogate
+        name: interrogate
+        entry: interrogate
+        args: ['-vv', '--fail-under=80']
+        language: system
+        types: [python]
+        pass_filenames: true
+
+      - id: vulture
+        name: vulture
+        entry: vulture
+        args: ['src', 'app.py', '--min-confidence=80']
+        language: system
+        pass_filenames: false
+        always_run: false
+        stages: [manual]
+
   # Pytest hook made optional - run manually with: pytest
   # Uncomment below to enable pytest on every commit
   # - repo: local

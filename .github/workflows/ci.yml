@@ -1,0 +1,179 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop, claude/* ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Lint and Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install ruff black isort mypy
+
+      - name: Run Ruff
+        run: ruff check .
+
+      - name: Check formatting with Black
+        run: black --check .
+
+      - name: Check import sorting with isort
+        run: isort --check-only .
+
+  type-check:
+    name: Type Checking
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install mypy
+
+      - name: Run mypy
+        run: mypy src
+        continue-on-error: true
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.12']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ -v --cov=src --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  security:
+    name: Security Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install bandit pip-audit
+
+      - name: Run Bandit security scan
+        run: bandit -r src -c pyproject.toml
+        continue-on-error: true
+
+      - name: Run pip-audit
+        run: pip-audit --require-hashes --disable-pip
+        continue-on-error: true
+
+  docstring-coverage:
+    name: Documentation Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install interrogate
+        run: pip install interrogate
+
+      - name: Check docstring coverage
+        run: interrogate -vv --fail-under=80 src
+        continue-on-error: true
+
+      - name: Generate badge
+        run: interrogate --generate-badge . || true
+
+      - name: Upload badge
+        uses: actions/upload-artifact@v4
+        with:
+          name: interrogate-badge
+          path: interrogate_badge.svg
+        if: always()
+
+  dead-code:
+    name: Dead Code Detection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install vulture
+        run: pip install vulture
+
+      - name: Run vulture
+        run: vulture src app.py --min-confidence=80
+        continue-on-error: true
+
+  all-checks:
+    name: All Checks Passed
+    needs: [lint, type-check, test, security, docstring-coverage, dead-code]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check if all jobs succeeded
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ] || \
+             [ "${{ needs.type-check.result }}" != "success" ] || \
+             [ "${{ needs.test.result }}" != "success" ]; then
+            echo "Some required checks failed"
+            exit 1
+          fi
+          echo "All required checks passed!"

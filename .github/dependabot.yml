@@ -1,0 +1,70 @@
+version: 2
+updates:
+  # Enable version updates for pip
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "nickth3man"
+    assignees:
+      - "nickth3man"
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "python"
+    pull-request-branch-name:
+      separator: "-"
+    ignore:
+      # Ignore major version updates for stable dependencies
+      - dependency-name: "pandas"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "matplotlib"
+        update-types: ["version-update:semver-major"]
+    groups:
+      # Group testing dependencies
+      testing:
+        patterns:
+          - "pytest*"
+        update-types:
+          - "minor"
+          - "patch"
+      # Group linting dependencies
+      linting:
+        patterns:
+          - "ruff"
+          - "black"
+          - "isort"
+          - "mypy"
+        update-types:
+          - "minor"
+          - "patch"
+      # Group security dependencies
+      security:
+        patterns:
+          - "bandit"
+          - "pip-audit"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
