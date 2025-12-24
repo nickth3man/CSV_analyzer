@@ -1,0 +1,191 @@
+/* NBA Data Analyst - Custom Styles */
+
+/* Better table styling for data previews */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+  font-size: 0.875rem;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+th, td {
+  border: 1px solid hsl(var(--border));
+  padding: 0.625rem 0.875rem;
+  text-align: left;
+}
+
+th {
+  background: hsl(var(--accent) / 0.1);
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+tr:nth-child(even) {
+  background: hsl(var(--muted) / 0.3);
+}
+
+tr:hover {
+  background: hsl(var(--accent) / 0.05);
+}
+
+/* Chart container styling */
+.inline-image {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  margin: 1rem 0;
+}
+
+/* Code block improvements */
+pre {
+  border-radius: 8px;
+  padding: 1rem;
+  background: hsl(var(--muted)) !important;
+  overflow-x: auto;
+}
+
+pre code {
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+/* Message improvements */
+.message-content h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  color: hsl(var(--foreground));
+}
+
+.message-content h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: hsl(var(--foreground));
+}
+
+.message-content h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+/* List styling */
+.message-content ul, .message-content ol {
+  margin: 0.75rem 0;
+  padding-left: 1.5rem;
+}
+
+.message-content li {
+  margin: 0.375rem 0;
+  line-height: 1.6;
+}
+
+/* Starter button improvements */
+[data-testid="starter"] {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+[data-testid="starter"]:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.15);
+}
+
+/* Action button improvements */
+button[data-testid="action-button"] {
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+button[data-testid="action-button"]:hover {
+  transform: scale(1.02);
+}
+
+/* Settings panel improvements */
+[data-testid="chat-settings"] {
+  backdrop-filter: blur(8px);
+}
+
+/* Progress indicator styling */
+.step-container {
+  border-left: 3px solid hsl(var(--primary));
+  padding-left: 1rem;
+  margin: 0.5rem 0;
+}
+
+/* Blockquote styling for insights */
+blockquote {
+  border-left: 4px solid hsl(var(--primary));
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+
+/* Badge/Tag styling */
+.tag, code:not(pre code) {
+  background: hsl(var(--accent) / 0.15);
+  color: hsl(var(--accent-foreground));
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+/* Horizontal rule styling */
+hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+  margin: 1.5rem 0;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Data profile card styling */
+.profile-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 0.5rem 0;
+}
+
+/* Error message styling */
+.error-message {
+  background: hsl(var(--destructive) / 0.1);
+  border: 1px solid hsl(var(--destructive) / 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  color: hsl(var(--destructive));
+}
+
+/* Success message styling */
+.success-message {
+  background: hsl(142 76% 36% / 0.1);
+  border: 1px solid hsl(142 76% 36% / 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  color: hsl(142 76% 36%);
+}
