@@ -1,4 +1,61 @@
-"""Main event handlers for Chainlit app."""
+"""Main event handlers for Chainlit app.
+
+# TODO (Performance): Implement session-level DataFrame caching
+# DataFrames are reloaded from disk on each message (load_dataframes()).
+# Implement session-level caching:
+#   @cl.on_chat_start
+#   async def on_chat_start():
+#       dfs = load_dataframes()
+#       cl.user_session.set("cached_dfs", dfs)
+#       cl.user_session.set("cache_timestamp", time.time())
+#   @cl.on_message
+#   async def on_message(message):
+#       dfs = cl.user_session.get("cached_dfs")
+#       if not dfs or cache_expired():
+#           dfs = load_dataframes()
+#           cl.user_session.set("cached_dfs", dfs)
+# Invalidate on file upload.
+
+# TODO (UX): Add progress streaming for long operations
+# Current implementation shows static progress messages.
+# Use Chainlit's Step streaming for real-time feedback:
+#   async with cl.Step(name="Analyzing data") as step:
+#       step.stream_token("Loading tables...")
+#       await load_data()
+#       step.stream_token("Running analysis...")
+#       await run_analysis()
+
+# TODO (Feature): Add result export functionality
+# Users may want to export analysis results:
+#   @cl.action_callback("export_results")
+#   async def export_results(action):
+#       result = cl.user_session.get("last_result")
+#       if isinstance(result, pd.DataFrame):
+#           csv_data = result.to_csv(index=False)
+#           await cl.Message(
+#               content="Download your results:",
+#               elements=[cl.File(content=csv_data, name="results.csv")]
+#           ).send()
+
+# TODO (Feature): Add conversation history persistence
+# Currently chat history is lost on page refresh.
+# Consider:
+#   1. Store history in database or file
+#   2. Use Chainlit's data persistence features
+#   3. Enable session recovery
+
+# TODO (UX): Add input validation and sanitization
+# User inputs should be validated before processing:
+#   - Question length limits (prevent DoS)
+#   - SQL/code injection prevention in questions
+#   - Rate limiting per session
+
+# TODO (Reliability): Add graceful error recovery
+# Currently errors show generic message. Improve with:
+#   1. Categorize errors (API, data, execution)
+#   2. Offer specific recovery actions
+#   3. Log errors with context for debugging
+"""
 
 import logging
 import os

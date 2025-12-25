@@ -1,3 +1,63 @@
+"""NBA API client wrapper with caching, rate limiting, and error handling.
+
+# TODO (Performance): Implement async HTTP client
+# Current implementation uses synchronous requests which block the thread.
+# Replace with httpx or aiohttp for async support:
+#   import httpx
+#   class AsyncNBAApiClient:
+#       async def _fetch_async(self, endpoint, params):
+#           async with httpx.AsyncClient() as client:
+#               await asyncio.sleep(self.request_delay)  # Rate limit
+#               response = await client.get(url, params=params)
+#               return response.json()
+# This enables parallel fetching of independent endpoints.
+
+# TODO (Performance): Use connection pooling
+# Each API call creates a new HTTP connection. Consider using a session:
+#   import requests
+#   self._session = requests.Session()
+#   self._session.headers.update({"User-Agent": "nba_expert/1.0"})
+# This reduces connection overhead for repeated requests.
+
+# TODO (Reliability): Add circuit breaker for API failures
+# Repeated API failures should trigger a circuit breaker:
+#   class CircuitBreaker:
+#       def __init__(self, failure_threshold=5, reset_timeout=60):
+#           self.failures = 0
+#           self.last_failure = 0
+#           self.state = "closed"  # closed, open, half-open
+#       def record_failure(self):
+#           self.failures += 1
+#           if self.failures >= self.failure_threshold:
+#               self.state = "open"
+#       def can_execute(self):
+#           if self.state == "open":
+#               if time.time() - self.last_failure > self.reset_timeout:
+#                   self.state = "half-open"
+#                   return True
+#               return False
+#           return True
+
+# TODO (Reliability): Add retry with exponential backoff
+# Current implementation has no retry logic for transient failures.
+# Add retry decorator:
+#   @retry(max_attempts=3, backoff=2.0, exceptions=(TimeoutError, ConnectionError))
+#   def _call_with_cache(self, ...):
+#       ...
+
+# TODO (Performance): Implement batch request support
+# For fetching multiple player stats, batch into single request where API supports:
+#   def get_multiple_player_stats(self, player_ids):
+#       # Some endpoints support comma-separated IDs
+#       # For others, use parallel async fetching
+
+# TODO (Monitoring): Add request/response logging
+# Log API calls for debugging and monitoring:
+#   logger.info(f"NBA API request: {endpoint} params={params}")
+#   logger.info(f"NBA API response: {len(result)} records in {elapsed:.2f}s")
+# Consider structured logging for production monitoring.
+"""
+
 import hashlib
 import json
 import os

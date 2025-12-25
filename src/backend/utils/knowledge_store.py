@@ -1,3 +1,61 @@
+"""Persistent knowledge store for learned patterns and entity mappings.
+
+# TODO (Scalability): Replace JSON file with proper database
+# Current JSON-based storage won't scale for:
+#   - Large knowledge bases (100k+ patterns)
+#   - Concurrent write access (race conditions possible)
+#   - Query performance (full file scan for every lookup)
+# Recommended approach:
+#   1. SQLite for single-user deployments:
+#      import sqlite3
+#      conn = sqlite3.connect("knowledge_store.db")
+#      cursor.execute("CREATE TABLE IF NOT EXISTS patterns ...")
+#   2. PostgreSQL/Redis for multi-user deployments
+#   3. Consider vector database for semantic similarity search
+
+# TODO (Scalability): Add knowledge store sharding by entity type
+# As the store grows, partition data for faster lookups:
+#   knowledge_store/
+#   ├── players.json
+#   ├── teams.json
+#   ├── patterns.json
+#   └── index.json
+
+# TODO (Reliability): Add atomic writes with backup
+# Current save() can corrupt data if interrupted. Use atomic write:
+#   def save_atomic(self):
+#       temp_path = KNOWLEDGE_FILE + ".tmp"
+#       with open(temp_path, "w") as f:
+#           json.dump(self.data, f)
+#       os.replace(temp_path, KNOWLEDGE_FILE)  # Atomic on POSIX
+# Also keep a backup: knowledge_store.json.bak
+
+# TODO (Feature): Add knowledge expiration and pruning
+# Old patterns may become stale. Add TTL and cleanup:
+#   def add_pattern(self, pattern):
+#       pattern["created_at"] = time.time()
+#       pattern["last_used"] = time.time()
+#   def prune_stale(self, max_age_days=90):
+#       cutoff = time.time() - (max_age_days * 86400)
+#       self.data["patterns"] = [p for p in patterns if p["last_used"] > cutoff]
+
+# TODO (Feature): Add semantic similarity for entity matching
+# Current matching is exact/substring. Use embeddings for better matching:
+#   from sentence_transformers import SentenceTransformer
+#   model = SentenceTransformer('all-MiniLM-L6-v2')
+#   def find_similar_entities(self, query):
+#       query_emb = model.encode(query)
+#       # Compare with stored entity embeddings
+#       similarities = cosine_similarity(query_emb, stored_embeddings)
+
+# TODO (Monitoring): Add knowledge store metrics
+# Track usage for optimization:
+#   - Cache hit/miss ratio
+#   - Pattern reuse frequency
+#   - Store size over time
+#   - Most frequently accessed entities
+"""
+
 import json
 import logging
 import os

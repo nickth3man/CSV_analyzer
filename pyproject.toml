@@ -34,6 +34,27 @@ dev = [
     "mkdocstrings[python]>=0.25.0",
 ]
 
+# TODO (Code Quality): Reduce per-file lint rule ignores
+# The per-file-ignores section (lines 113-219) disables 20+ rules for various
+# modules. This masks potential code quality issues. Recommended approach:
+#   Phase 1: Address ANN (type annotations) - add type hints incrementally
+#   Phase 2: Address PLR (Pylint refactor) - reduce method complexity
+#   Phase 3: Address D (docstrings) - add missing documentation
+#   Phase 4: Address remaining rules one category at a time
+# Priority files to fix:
+#   - src/backend/nodes/*.py: Core business logic should have full coverage
+#   - src/backend/utils/*.py: Utilities should be well-typed
+# Track progress: Create GitHub issues for each phase with specific file targets.
+
+# TODO (Code Quality): Enable stricter mypy checks
+# Currently mypy is configured with ignore_errors=true for most modules
+# (lines 287-305). This defeats the purpose of type checking.
+# Recommended approach:
+#   1. Start with src/backend/config.py (simple module)
+#   2. Add type hints and remove from ignore list
+#   3. Proceed to utils/, then nodes/, then frontend/
+#   4. Set disallow_untyped_defs=true after full coverage
+
 [tool.ruff]
 line-length = 88
 target-version = "py311"

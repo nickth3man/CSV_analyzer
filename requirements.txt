@@ -1,3 +1,30 @@
+# TODO (Dependencies): Create requirements.lock with pinned versions
+# Current requirements use minimum versions (>=) or no versions at all.
+# This can lead to:
+#   - Non-reproducible builds (different versions on different machines)
+#   - Breaking changes from upstream updates
+#   - Security vulnerabilities from unpinned transitive dependencies
+# Recommended approach:
+#   1. Use `pip-compile` (from pip-tools) to generate requirements.lock:
+#      pip-compile requirements.txt -o requirements.lock
+#   2. Or use `uv lock` if using uv package manager (already have uv.lock)
+#   3. In CI, install from lock file: pip install -r requirements.lock
+#   4. Periodically update with: pip-compile --upgrade
+
+# TODO (Dependencies): Add version constraints for security
+# The nba_api package is community-maintained and may have irregular updates.
+# Consider:
+#   1. Pinning to specific tested versions
+#   2. Adding fallback handling if API changes
+#   3. Monitoring for security advisories
+
+# TODO (Dependencies): Split into base and optional dependencies
+# Consider splitting into:
+#   - requirements.txt (core): pocketflow, openai, pandas
+#   - requirements-web.txt: chainlit, matplotlib
+#   - requirements-nba.txt: nba_api, requests
+# This allows lighter installations for specific use cases.
+
 pocketflow>=0.0.1
 openai
 pandas
