@@ -28,14 +28,6 @@
 #          class Config:
 #              env_file = ".env"
 
-# TODO (Configuration): Add configuration validation
-# Current configs have no validation. Add runtime checks:
-#   def validate_config():
-#       assert CSV_EXECUTION_TIMEOUT > 0, "Timeout must be positive"
-#       assert os.path.isdir(DEFAULT_DATA_DIR), f"Data dir not found: {DEFAULT_DATA_DIR}"
-#       if NBA_DEFAULT_SEASON:
-#           assert re.match(r"\\d{4}-\\d{2}", NBA_DEFAULT_SEASON), "Invalid season format"
-
 # TODO (Configuration): Add environment-specific configs
 # Different settings for dev/staging/production:
 #   ENV = os.environ.get("ENVIRONMENT", "development")
@@ -55,7 +47,10 @@
 #   LLM_TOP_P = float(os.environ.get("LLM_TOP_P", 0.9))
 """
 
+from __future__ import annotations
+
 import os
+import re
 
 DEFAULT_DATA_DIR = "CSV"
 NBA_DEFAULT_SEASON = os.environ.get("NBA_API_DEFAULT_SEASON", "2023-24")
@@ -74,3 +69,73 @@ Constants governing prompt construction.
 MAX_PLAN_STEPS = 6
 MIN_PLAN_STEPS = 4
 SUCCESSFUL_PATTERN_LIMIT = 10
+
+# Season format pattern (e.g., "2023-24")
+_SEASON_PATTERN = re.compile(r"^\d{4}-\d{2}$")
+
+# Configuration values that must be positive integers
+_POSITIVE_INT_CONFIGS: dict[str, int] = {
+    "CSV_EXECUTION_TIMEOUT": CSV_EXECUTION_TIMEOUT,
+    "API_EXECUTION_TIMEOUT": API_EXECUTION_TIMEOUT,
+    "ENTITY_SAMPLE_SIZE": ENTITY_SAMPLE_SIZE,
+    "SEARCH_SAMPLE_SIZE": SEARCH_SAMPLE_SIZE,
+    "CHART_HISTORY_LIMIT": CHART_HISTORY_LIMIT,
+    "CHART_ROW_LIMIT": CHART_ROW_LIMIT,
+    "RAW_RESULT_TRUNCATION": RAW_RESULT_TRUNCATION,
+    "ANALYSIS_TRUNCATION": ANALYSIS_TRUNCATION,
+    "EXEC_RESULT_TRUNCATION": EXEC_RESULT_TRUNCATION,
+    "MAX_PLAN_STEPS": MAX_PLAN_STEPS,
+    "MIN_PLAN_STEPS": MIN_PLAN_STEPS,
+    "SUCCESSFUL_PATTERN_LIMIT": SUCCESSFUL_PATTERN_LIMIT,
+}
+
+
+class ConfigurationError(Exception):
+    """Raised when configuration validation fails."""
+
+
+def validate_config() -> list[str]:
+    """Validate all configuration values.
+
+    Returns:
+        List of validation error messages. Empty list if all validations pass.
+
+    Raises:
+        ConfigurationError: If any validation fails and raise_on_error is True
+            (called via validate_config_or_raise).
+    """
+    errors: list[str] = []
+
+    # Validate all positive integer configs
+    for name, value in _POSITIVE_INT_CONFIGS.items():
+        if value <= 0:
+            errors.append(f"{name} must be positive, got {value}")
+
+    # Validate season format if provided
+    if NBA_DEFAULT_SEASON and not _SEASON_PATTERN.match(NBA_DEFAULT_SEASON):
+        errors.append(
+            f"NBA_DEFAULT_SEASON must match format 'YYYY-YY' (e.g., '2023-24'), "
+            f"got '{NBA_DEFAULT_SEASON}'"
+        )
+
+    # Validate plan step constraints
+    if MIN_PLAN_STEPS > MAX_PLAN_STEPS:
+        errors.append(
+            f"MIN_PLAN_STEPS ({MIN_PLAN_STEPS}) cannot be greater than "
+            f"MAX_PLAN_STEPS ({MAX_PLAN_STEPS})"
+        )
+
+    return errors
+
+
+def validate_config_or_raise() -> None:
+    """Validate configuration and raise an exception if validation fails.
+
+    Raises:
+        ConfigurationError: If any configuration value is invalid.
+    """
+    errors = validate_config()
+    if errors:
+        raise ConfigurationError(
+            "Configuration validation failed:\n  - " + "\n  - ".join(errors)
+        )
