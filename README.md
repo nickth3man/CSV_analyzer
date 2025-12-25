@@ -208,3 +208,55 @@ This project demonstrates [Agentic Coding](https://the-pocket.github.io/PocketFl
 - Configuration in [.github](.github) for GitHub Copilot
 - [CLAUDE.md](CLAUDE.md) for Claude Code
 - [GEMINI.md](GEMINI.md) for Gemini
+
+---
+
+## Documentation TODOs
+
+<!--
+TODO (Documentation): Add visual architecture diagram
+The current text-based architecture diagram (lines 56-68) should be replaced
+with a proper visual diagram. Options:
+  1. Mermaid diagram in README (GitHub renders these)
+  2. PNG/SVG diagram created with draw.io or similar
+  3. Interactive diagram using D2 or Structurizr
+
+TODO (Documentation): Add API reference documentation
+Missing formal API docs for:
+  - Backend utilities (call_llm, nba_api_client, knowledge_store)
+  - Node interfaces and expected inputs/outputs
+  - Frontend handlers and commands
+Use MkDocs with mkdocstrings for auto-generation from docstrings.
+
+TODO (Documentation): Complete MkDocs site
+mkdocs.yml is configured but pages are incomplete:
+  - docs/development/setup.md needs expansion
+  - Missing: docs/api/index.md
+  - Missing: docs/architecture/nodes.md
+  - Missing: docs/architecture/data-flow.md
+Run: mkdocs serve to preview locally
+
+TODO (Documentation): Add deployment guide
+Missing production deployment documentation:
+  - Docker deployment (Dockerfile, docker-compose.yml)
+  - Cloud deployment (AWS, GCP, Azure)
+  - Environment variable configuration
+  - Scaling considerations
+  - Monitoring and logging setup
+
+TODO (Documentation): Add troubleshooting guide
+Common issues and solutions:
+  - API key errors
+  - NBA API rate limiting
+  - CSV parsing errors
+  - Memory issues with large datasets
+  - Timeout errors
+
+TODO (Documentation): Add contribution guidelines
+CONTRIBUTING.md should include:
+  - Development setup
+  - Code style guidelines
+  - Pull request process
+  - Testing requirements
+  - Commit message conventions (commitizen configured but not documented)
+-->

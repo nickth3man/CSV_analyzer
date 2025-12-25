@@ -1,4 +1,67 @@
-"""Data ingestion nodes for loading local data and fetching NBA API content."""
+"""Data ingestion nodes for loading local data and fetching NBA API content.
+
+# TODO (Performance): Implement DataFrame caching with invalidation
+# Current implementation reloads all CSVs on every question (LoadData.exec).
+# This is inefficient for repeated queries. Recommended approach:
+#   class DataFrameCache:
+#       def __init__(self, ttl=300):
+#           self._cache = {}
+#           self._timestamps = {}
+#       def get(self, filepath):
+#           if filepath in self._cache:
+#               if time.time() - self._timestamps[filepath] < self.ttl:
+#                   return self._cache[filepath]
+#           return None
+#       def set(self, filepath, df):
+#           self._cache[filepath] = df
+#           self._timestamps[filepath] = time.time()
+#       def invalidate(self, filepath=None):
+#           if filepath:
+#               self._cache.pop(filepath, None)
+#           else:
+#               self._cache.clear()
+# Invalidate on file upload or modification.
+
+# TODO (Refactoring): Split NBAApiDataLoader.exec into smaller methods
+# Current exec() method is 80+ lines with nested conditionals for each
+# endpoint type (player_career, league_leaders, etc.). Recommended:
+#   def _fetch_player_career(self, entity, entity_ids):
+#       ...
+#   def _fetch_league_leaders(self, season):
+#       ...
+#   def _fetch_team_roster(self, entity, entity_ids, season):
+#       ...
+#   def exec(self, prep_res):
+#       handlers = {
+#           "player_career": self._fetch_player_career,
+#           "league_leaders": self._fetch_league_leaders,
+#           ...
+#       }
+#       for endpoint in endpoints_to_call:
+#           handler = handlers.get(endpoint["name"])
+#           if handler:
+#               result = handler(**params)
+
+# TODO (Performance): Parallel API fetching
+# Current API calls are sequential with rate limiting between each.
+# For independent endpoints, consider parallel fetching:
+#   import asyncio
+#   async def fetch_all_endpoints(endpoints):
+#       semaphore = asyncio.Semaphore(3)  # Limit concurrent requests
+#       async def fetch_with_limit(endpoint):
+#           async with semaphore:
+#               await asyncio.sleep(0.6)  # Rate limit
+#               return await fetch_endpoint_async(endpoint)
+#       return await asyncio.gather(*[fetch_with_limit(e) for e in endpoints])
+
+# TODO (Reliability): Add fallback for API failures
+# When NBA API is unavailable, the system should:
+#   1. Log a warning with details
+#   2. Continue with CSV-only mode
+#   3. Display a user-facing message about limited data
+#   4. Cache the failure to avoid repeated attempts
+# Example: shared["api_status"] = "unavailable" for downstream handling.
+"""
 
 import logging
 import os

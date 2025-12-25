@@ -1,3 +1,36 @@
+"""LLM wrapper for OpenRouter API with retry logic and provider routing.
+
+# TODO (Code Quality): Separate mock responses from production code
+# The mock responses embedded in call_llm() (lines 136-171) should be extracted
+# to a separate module or test fixtures. Production code should fail gracefully
+# with a clear error message instead of returning mock data. This creates a
+# testing dependency in production code and can mask real API issues.
+# Recommended approach:
+#   1. Create a MockLLMProvider class in tests/fixtures/mock_llm.py
+#   2. Use dependency injection or environment variable to switch providers
+#   3. In production, raise a clear exception on auth failure
+#   4. Example: if os.environ.get("USE_MOCK_LLM"): return MockLLMProvider()
+
+# TODO (Performance): Implement async LLM calls
+# Current synchronous calls block the main thread during LLM inference.
+# Consider adding an async variant:
+#   async def call_llm_async(prompt, max_retries=3):
+#       async with httpx.AsyncClient() as client:
+#           response = await client.post(...)
+# This would enable parallel LLM calls in the flow.
+
+# TODO (Performance): Add response caching with TTL
+# Identical prompts could return cached responses to reduce API costs.
+# Use functools.lru_cache or a Redis-based cache with configurable TTL.
+# Note: Must handle cache invalidation for time-sensitive queries.
+
+# TODO (Reliability): Implement circuit breaker pattern
+# Repeated failures should trigger a circuit breaker to prevent cascading
+# failures and allow the system to recover gracefully.
+# Consider using the 'circuitbreaker' package or implementing a simple
+# state machine (CLOSED -> OPEN -> HALF_OPEN).
+"""
+
 import logging
 import os
 import time

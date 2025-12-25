@@ -1,4 +1,48 @@
-"""Code safety and execution nodes."""
+"""Code safety and execution nodes.
+
+# TODO (Performance): Use thread pool instead of creating new threads
+# Current implementation creates a new thread for each code execution
+# (line 281-283). This has overhead for thread creation/destruction.
+# Recommended approach:
+#   from concurrent.futures import ThreadPoolExecutor
+#   _executor_pool = ThreadPoolExecutor(max_workers=4)
+#   future = _executor_pool.submit(target)
+#   result = future.result(timeout=timeout)
+# Benefits: Reduced overhead, better resource management, configurable pool size.
+
+# TODO (Performance): Consider process-based isolation for better security
+# Thread-based execution shares memory with the main process.
+# For stronger isolation, consider using multiprocessing:
+#   from multiprocessing import Process, Queue
+#   p = Process(target=target, args=(result_queue,))
+#   p.start()
+#   p.join(timeout=timeout)
+#   if p.is_alive():
+#       p.terminate()  # Can actually kill stuck processes
+# Trade-off: Higher overhead but true isolation and killable processes.
+
+# TODO (Security): Add resource limits (memory, CPU)
+# Current sandbox only limits execution time. Consider adding:
+#   - Memory limits: resource.setrlimit(resource.RLIMIT_AS, (max_mem, max_mem))
+#   - CPU time limits: resource.setrlimit(resource.RLIMIT_CPU, (max_cpu, max_cpu))
+#   - File descriptor limits: resource.setrlimit(resource.RLIMIT_NOFILE, ...)
+# Note: resource module only works on Unix; need Windows alternative.
+
+# TODO (Security): Enhance AST-based safety checks
+# Current checks are comprehensive but could be improved:
+#   1. Add detection for obfuscated attacks (e.g., getattr tricks)
+#   2. Consider using RestrictedPython for more robust sandboxing
+#   3. Add allowlist for specific safe modules beyond pandas/numpy
+#   4. Log all blocked code attempts for security monitoring
+
+# TODO (Reliability): Add execution metrics and monitoring
+# Track execution statistics for observability:
+#   - Execution time per code snippet
+#   - Success/failure rates
+#   - Timeout frequency
+#   - Most common error types
+# Emit metrics to logging or a monitoring system.
+"""
 
 import ast
 import logging
