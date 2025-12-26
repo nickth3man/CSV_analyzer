@@ -34,27 +34,6 @@ dev = [
     "mkdocstrings[python]>=0.25.0",
 ]
 
-# TODO (Code Quality): Reduce per-file lint rule ignores
-# The per-file-ignores section (lines 113-219) disables 20+ rules for various
-# modules. This masks potential code quality issues. Recommended approach:
-#   Phase 1: Address ANN (type annotations) - add type hints incrementally
-#   Phase 2: Address PLR (Pylint refactor) - reduce method complexity
-#   Phase 3: Address D (docstrings) - add missing documentation
-#   Phase 4: Address remaining rules one category at a time
-# Priority files to fix:
-#   - src/backend/nodes/*.py: Core business logic should have full coverage
-#   - src/backend/utils/*.py: Utilities should be well-typed
-# Track progress: Create GitHub issues for each phase with specific file targets.
-
-# TODO (Code Quality): Enable stricter mypy checks
-# Currently mypy is configured with ignore_errors=true for most modules
-# (lines 287-305). This defeats the purpose of type checking.
-# Recommended approach:
-#   1. Start with src/backend/config.py (simple module)
-#   2. Add type hints and remove from ignore list
-#   3. Proceed to utils/, then nodes/, then frontend/
-#   4. Set disallow_untyped_defs=true after full coverage
-
 [tool.ruff]
 line-length = 88
 target-version = "py311"
@@ -109,134 +88,7 @@ select = [
     "FURB", # Refurb
     "RUF",  # Ruff-specific rules
 ]
-ignore = [
-    # Docstring rules - only ignore for conflicts
-    "D203",  # 1 blank line required before class docstring (conflicts with D211)
-    "D212",  # Multi-line docstring summary should start at the first line (conflicts with D213)
-    
-    # Formatting conflicts
-    "E501",  # Line too long (handled by formatter)
-    "COM812",  # Conflicts with ruff format
-    "W505",   # Doc line too long (handled by formatter)
-    "I001",   # Import sorting (handled by isort)
 
-    # Pytest rules that are too strict for our test style
-    "PT009", # Multiple @pytest.mark.parametrize() calls allowed
-    "PT011", # Multiple @pytest.mark.parametrize() with same arguments allowed
-    "PT012", # Multiple @pytest.mark.parametrize() with different arguments allowed
-    
-    # Exception handling - allow inline exception messages for clarity
-    "TRY003",  # Avoid specifying long messages outside the exception class
-    "EM101",   # Exception must not use string literal
-    "EM102",   # Exception must not use f-string literal
-]
-
-[tool.ruff.lint.per-file-ignores]
-"tests/*" = [
-    "S101",    # Use of assert detected (allowed in tests)
-    "D",       # Docstring requirements (relaxed for tests)
-    "ANN",     # Type annotations (relaxed for tests)
-    "PLR",     # Pylint refactor (relaxed for tests)
-    "T201",    # Print statements allowed in tests
-    "PLC0415", # Import outside top level (common in test fixtures)
-    "E101",    # Mixed spaces and tabs
-    "G004",    # Logging f-string
-    "TRY",     # Exception handling patterns
-    "FBT",     # Boolean trap
-    "SIM117",  # Multiple with statements
-    "B007",    # Unused loop control variable
-    "PERF",    # Performance hints
-    "SLF001",  # Private member access
-    "BLE001",  # Blind except
-    "C901",    # Too complex (test fixtures can be complex)
-    "ERA001",  # Commented out code (test documentation)
-]
-"__init__.py" = [
-    "D104",    # Missing docstring in public package
-    "F401",    # Imported but unused (common in __init__.py for re-exports)
-]
-"**/migrations/*.py" = [
-    "D",       # No docstrings required in migrations
-    "E501",    # Allow long lines in migrations
-]
-# Backend nodes - node pattern requires specific method signatures
-"src/backend/nodes/*.py" = [
-    "ANN",     # Type annotations (node pattern has specific requirements)
-    "D102",    # Missing docstring in public method (inherited from Node)
-    "PLR0911", # Too many return statements
-    "PLR0912", # Too many branches (analysis logic)
-    "PLR0915", # Too many statements
-    "PLR2004", # Magic value in comparison
-    "C901",    # Too complex
-    "E402",    # Module import not at top (logger pattern)
-    "G004",    # Logging f-string
-    "G003",    # Logging string concat
-    "TRY401",  # Verbose log message
-    "TRY300",  # Try-consider-else
-    "TRY301",  # Raise in try
-    "BLE001",  # Blind except (intentional for error handling)
-    "FBT002",  # Boolean positional arg
-    "S102",    # Use of exec (sandboxed executor)
-    "RUF012",  # Mutable class default
-    "B007",    # Unused loop variable
-    "PLC0415", # Import outside top level
-    "SIM102",  # Collapsible if
-    "PERF401", # Manual list comprehension
-    "PD003",   # Pandas isna vs isnull
-]
-# Backend utilities
-"src/backend/utils/*.py" = [
-    "ANN",     # Type annotations
-    "D",       # Docstrings
-    "PLR0911", # Too many return statements
-    "PLR0912", # Too many branches
-    "C901",    # Too complex
-    "G004",    # Logging f-string
-    "TRY401",  # Verbose log message
-    "TRY300",  # Try-consider-else
-    "BLE001",  # Blind except
-    "PLW1508", # Invalid envvar default
-    "T201",    # Print statements (legacy logging)
-    "PD003",   # Use of isna instead of isnull
-    "PERF401", # Manual list comprehension
-    "PERF403", # Manual dict comprehension
-    "FBT002",  # Boolean positional arg
-]
-# Backend flow and main
-"src/backend/flow.py" = [
-    "ANN",     # Type annotations
-    "E402",    # Module import not at top
-]
-"src/backend/main.py" = [
-    "ANN",     # Type annotations
-    "E402",    # Module import not at top
-    "T201",    # Print statements (CLI output)
-    "G003",    # Logging string concat
-    "G004",    # Logging f-string
-]
-# Frontend files
-"src/frontend/*.py" = [
-    "ANN",     # Type annotations
-    "D",       # Docstrings
-    "PLR",     # Pylint refactor
-    "C901",    # Too complex
-    "E402",    # Module import not at top
-    "G004",    # Logging f-string
-    "TRY",     # Exception handling
-    "BLE001",  # Blind except
-    "T201",    # Print statements (UI output)
-    "FBT",     # Boolean trap
-    "PD",      # Pandas vet
-    "PERF",    # Performance hints
-    "FIX002",  # TODO comments
-]
-"app.py" = [
-    "D100",    # Missing module docstring
-    "ANN",     # Type annotations
-]
-"sample_module.py" = [
-    "D100",    # Missing module docstring
-]
 
 [tool.ruff.lint.pycodestyle]
 max-line-length = 88
@@ -303,27 +155,6 @@ warn_unused_ignores = false
 warn_unreachable = false
 extra_checks = false
 strict_optional = false
-
-# Per-module mypy settings
-[[tool.mypy.overrides]]
-module = "tests.*"
-ignore_errors = true
-
-[[tool.mypy.overrides]]
-module = "src.frontend.*"
-ignore_errors = true
-
-[[tool.mypy.overrides]]
-module = "src.backend.utils.*"
-ignore_errors = true
-
-[[tool.mypy.overrides]]
-module = "src.backend.nodes.*"
-ignore_errors = true
-
-[[tool.mypy.overrides]]
-module = "backend.*"
-ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = [
@@ -412,7 +243,6 @@ exclude_lines = [
 
 [tool.bandit]
 exclude_dirs = ["tests", ".venv", "htmlcov"]
-skips = ["B101"]  # Skip assert warnings
 
 [tool.interrogate]
 ignore-init-method = true
