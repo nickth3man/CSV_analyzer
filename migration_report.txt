@@ -1,0 +1,385 @@
+MIGRATION REPORT
+================
+
+Table 'common_player_info': 4171 rows, 34 columns
+--- Schema & Stats for common_player_info ---
+                     column_name column_type  null_percentage
+                       person_id     VARCHAR             0.00
+                      first_name     VARCHAR             0.00
+                       last_name     VARCHAR             0.00
+              display_first_last     VARCHAR             0.00
+        display_last_comma_first     VARCHAR             0.00
+                 display_fi_last     VARCHAR             0.00
+                     player_slug     VARCHAR             0.00
+                       birthdate     VARCHAR             0.00
+                          school     VARCHAR             0.36
+                         country     VARCHAR             0.02
+                last_affiliation     VARCHAR             0.00
+                          height     VARCHAR             2.30
+                          weight     VARCHAR             2.40
+                      season_exp     VARCHAR             0.00
+                          jersey     VARCHAR            23.50
+                        position     VARCHAR             1.51
+                    rosterstatus     VARCHAR             0.00
+games_played_current_season_flag     VARCHAR             0.00
+                         team_id     VARCHAR             0.00
+                       team_name     VARCHAR            16.83
+               team_abbreviation     VARCHAR            16.83
+                       team_code     VARCHAR            16.83
+                       team_city     VARCHAR            16.83
+                      playercode     VARCHAR             0.02
+                       from_year     VARCHAR             0.36
+                         to_year     VARCHAR             0.36
+                    dleague_flag     VARCHAR             0.00
+                        nba_flag     VARCHAR             0.00
+               games_played_flag     VARCHAR             0.00
+                      draft_year     VARCHAR             0.00
+                     draft_round     VARCHAR             3.93
+                    draft_number     VARCHAR             5.35
+                greatest_75_flag     VARCHAR             0.00
+                        filename     VARCHAR             0.00
+
+Table 'draft_combine_stats': 1202 rows, 48 columns
+--- Schema & Stats for draft_combine_stats ---
+                 column_name column_type  null_percentage
+                      season     VARCHAR             0.00
+                   player_id     VARCHAR             0.00
+                  first_name     VARCHAR             0.00
+                   last_name     VARCHAR             0.00
+                 player_name     VARCHAR             0.00
+                    position     VARCHAR             0.42
+             height_wo_shoes     VARCHAR             4.08
+       height_wo_shoes_ft_in     VARCHAR             4.08
+              height_w_shoes     VARCHAR            16.14
+        height_w_shoes_ft_in     VARCHAR            16.14
+                      weight     VARCHAR             4.16
+                    wingspan     VARCHAR             4.08
+              wingspan_ft_in     VARCHAR             4.08
+              standing_reach     VARCHAR             4.16
+        standing_reach_ft_in     VARCHAR             4.16
+                body_fat_pct     VARCHAR            16.56
+                 hand_length     VARCHAR            40.18
+                  hand_width     VARCHAR            40.18
+      standing_vertical_leap     VARCHAR            15.39
+           max_vertical_leap     VARCHAR            15.39
+           lane_agility_time     VARCHAR            16.14
+  modified_lane_agility_time     VARCHAR            65.81
+        three_quarter_sprint     VARCHAR            15.81
+                 bench_press     VARCHAR            32.78
+    spot_fifteen_corner_left     VARCHAR            93.84
+     spot_fifteen_break_left     VARCHAR            93.68
+        spot_fifteen_top_key     VARCHAR            93.68
+    spot_fifteen_break_right     VARCHAR            93.68
+   spot_fifteen_corner_right     VARCHAR            93.68
+    spot_college_corner_left     VARCHAR            79.62
+     spot_college_break_left     VARCHAR            86.19
+        spot_college_top_key     VARCHAR            86.19
+    spot_college_break_right     VARCHAR            86.19
+   spot_college_corner_right     VARCHAR            86.19
+        spot_nba_corner_left     VARCHAR            81.95
+         spot_nba_break_left     VARCHAR            81.95
+            spot_nba_top_key     VARCHAR            81.95
+        spot_nba_break_right     VARCHAR            81.95
+       spot_nba_corner_right     VARCHAR            81.95
+ off_drib_fifteen_break_left     VARCHAR            86.19
+    off_drib_fifteen_top_key     VARCHAR            86.19
+off_drib_fifteen_break_right     VARCHAR            86.19
+ off_drib_college_break_left     VARCHAR            90.85
+    off_drib_college_top_key     VARCHAR            97.42
+off_drib_college_break_right     VARCHAR            97.42
+             on_move_fifteen     VARCHAR            87.69
+             on_move_college     VARCHAR            90.35
+                    filename     VARCHAR             0.00
+
+Table 'draft_history': 7990 rows, 15 columns
+--- Schema & Stats for draft_history ---
+        column_name column_type  null_percentage
+          person_id     VARCHAR             0.00
+        player_name     VARCHAR             0.00
+             season     VARCHAR             0.00
+       round_number     VARCHAR             0.00
+         round_pick     VARCHAR             0.00
+       overall_pick     VARCHAR             0.00
+         draft_type     VARCHAR             0.00
+            team_id     VARCHAR             0.00
+          team_city     VARCHAR             0.00
+          team_name     VARCHAR             0.00
+  team_abbreviation     VARCHAR             0.00
+       organization     VARCHAR             0.24
+  organization_type     VARCHAR             0.24
+player_profile_flag     VARCHAR             0.00
+           filename     VARCHAR             0.00
+
+Table 'game': 65698 rows, 56 columns
+--- Schema & Stats for game ---
+           column_name column_type  null_percentage
+             season_id     VARCHAR             0.00
+          team_id_home     VARCHAR             0.00
+team_abbreviation_home     VARCHAR             0.00
+        team_name_home     VARCHAR             0.00
+               game_id     VARCHAR             0.00
+             game_date     VARCHAR             0.00
+          matchup_home     VARCHAR             0.00
+               wl_home     VARCHAR             0.00
+                   min     VARCHAR             0.00
+              fgm_home     VARCHAR             0.02
+              fga_home     VARCHAR            23.51
+           fg_pct_home     VARCHAR            23.58
+             fg3m_home     VARCHAR            20.12
+             fg3a_home     VARCHAR            28.44
+          fg3_pct_home     VARCHAR            29.03
+              ftm_home     VARCHAR             0.02
+              fta_home     VARCHAR             4.57
+           ft_pct_home     VARCHAR             4.58
+             oreb_home     VARCHAR            28.82
+             dreb_home     VARCHAR            28.92
+              reb_home     VARCHAR            23.94
+              ast_home     VARCHAR            24.06
+              stl_home     VARCHAR            28.69
+              blk_home     VARCHAR            28.35
+              tov_home     VARCHAR            28.44
+               pf_home     VARCHAR             4.35
+              pts_home     VARCHAR             0.00
+       plus_minus_home     VARCHAR             0.00
+  video_available_home     VARCHAR             0.00
+          team_id_away     VARCHAR             0.00
+team_abbreviation_away     VARCHAR             0.00
+        team_name_away     VARCHAR             0.00
+          matchup_away     VARCHAR             0.00
+               wl_away     VARCHAR             0.00
+              fgm_away     VARCHAR             0.02
+              fga_away     VARCHAR            23.51
+           fg_pct_away     VARCHAR            23.58
+             fg3m_away     VARCHAR            20.12
+             fg3a_away     VARCHAR            28.44
+          fg3_pct_away     VARCHAR            28.86
+              ftm_away     VARCHAR             0.02
+              fta_away     VARCHAR             4.57
+           ft_pct_away     VARCHAR             4.58
+             oreb_away     VARCHAR            28.82
+             dreb_away     VARCHAR            28.92
+              reb_away     VARCHAR            23.94
+              ast_away     VARCHAR            24.05
+              stl_away     VARCHAR            28.69
+              blk_away     VARCHAR            28.35
+              tov_away     VARCHAR            28.44
+               pf_away     VARCHAR             4.34
+              pts_away     VARCHAR             0.00
+       plus_minus_away     VARCHAR             0.00
+  video_available_away     VARCHAR             0.00
+           season_type     VARCHAR             0.00
+              filename     VARCHAR             0.00
+
+Table 'game_info': 58053 rows, 5 columns
+--- Schema & Stats for game_info ---
+column_name column_type  null_percentage
+    game_id     VARCHAR             0.00
+  game_date     VARCHAR             0.00
+ attendance     VARCHAR             9.27
+  game_time     VARCHAR            48.42
+   filename     VARCHAR             0.00
+
+Table 'game_summary': 58110 rows, 15 columns
+--- Schema & Stats for game_summary ---
+                     column_name column_type  null_percentage
+                   game_date_est     VARCHAR             0.00
+                   game_sequence     VARCHAR            43.94
+                         game_id     VARCHAR             0.00
+                  game_status_id     VARCHAR             0.00
+                game_status_text     VARCHAR            44.72
+                        gamecode     VARCHAR             0.00
+                    home_team_id     VARCHAR             0.00
+                 visitor_team_id     VARCHAR             0.00
+                          season     VARCHAR             0.00
+                     live_period     VARCHAR             0.00
+                    live_pc_time     VARCHAR            96.52
+natl_tv_broadcaster_abbreviation     VARCHAR            89.33
+          live_period_time_bcast     VARCHAR             0.00
+                       wh_status     VARCHAR             0.00
+                        filename     VARCHAR             0.00
+
+Table 'inactive_players': 110191 rows, 10 columns
+--- Schema & Stats for inactive_players ---
+      column_name column_type  null_percentage
+          game_id     VARCHAR             0.00
+        player_id     VARCHAR             0.00
+       first_name     VARCHAR             0.00
+        last_name     VARCHAR             0.00
+       jersey_num     VARCHAR             0.04
+          team_id     VARCHAR             0.00
+        team_city     VARCHAR             0.00
+        team_name     VARCHAR             0.00
+team_abbreviation     VARCHAR             0.00
+         filename     VARCHAR             0.00
+
+Table 'line_score': 58053 rows, 44 columns
+--- Schema & Stats for line_score ---
+           column_name column_type  null_percentage
+         game_date_est     VARCHAR             0.00
+         game_sequence     VARCHAR            43.98
+               game_id     VARCHAR             0.00
+          team_id_home     VARCHAR             0.00
+team_abbreviation_home     VARCHAR             0.00
+   team_city_name_home     VARCHAR             0.00
+    team_nickname_home     VARCHAR             0.00
+ team_wins_losses_home     VARCHAR             0.00
+         pts_qtr1_home     VARCHAR             1.73
+         pts_qtr2_home     VARCHAR             1.74
+         pts_qtr3_home     VARCHAR             1.80
+         pts_qtr4_home     VARCHAR             1.80
+          pts_ot1_home     VARCHAR            44.37
+          pts_ot2_home     VARCHAR            46.60
+          pts_ot3_home     VARCHAR            46.93
+          pts_ot4_home     VARCHAR            46.97
+          pts_ot5_home     VARCHAR            78.51
+          pts_ot6_home     VARCHAR            78.51
+          pts_ot7_home     VARCHAR            78.51
+          pts_ot8_home     VARCHAR            78.51
+          pts_ot9_home     VARCHAR            78.51
+         pts_ot10_home     VARCHAR            78.51
+              pts_home     VARCHAR             0.00
+          team_id_away     VARCHAR             0.00
+team_abbreviation_away     VARCHAR             0.00
+   team_city_name_away     VARCHAR             0.00
+    team_nickname_away     VARCHAR             0.00
+ team_wins_losses_away     VARCHAR             0.00
+         pts_qtr1_away     VARCHAR             1.74
+         pts_qtr2_away     VARCHAR             1.74
+         pts_qtr3_away     VARCHAR             1.80
+         pts_qtr4_away     VARCHAR             1.80
+          pts_ot1_away     VARCHAR            44.37
+          pts_ot2_away     VARCHAR            46.60
+          pts_ot3_away     VARCHAR            46.93
+          pts_ot4_away     VARCHAR            46.97
+          pts_ot5_away     VARCHAR            78.51
+          pts_ot6_away     VARCHAR            78.51
+          pts_ot7_away     VARCHAR            78.51
+          pts_ot8_away     VARCHAR            78.51
+          pts_ot9_away     VARCHAR            78.51
+         pts_ot10_away     VARCHAR            78.51
+              pts_away     VARCHAR             0.00
+              filename     VARCHAR             0.00
+
+Table 'officials': 70971 rows, 6 columns
+--- Schema & Stats for officials ---
+column_name column_type  null_percentage
+    game_id     VARCHAR             0.00
+official_id     VARCHAR             0.00
+ first_name     VARCHAR             0.00
+  last_name     VARCHAR             0.00
+ jersey_num     VARCHAR             0.27
+   filename     VARCHAR             0.00
+
+Table 'other_stats': 28271 rows, 27 columns
+--- Schema & Stats for other_stats ---
+           column_name column_type  null_percentage
+               game_id     VARCHAR             0.00
+             league_id     VARCHAR             0.00
+          team_id_home     VARCHAR             0.00
+team_abbreviation_home     VARCHAR             0.00
+        team_city_home     VARCHAR             0.00
+        pts_paint_home     VARCHAR             0.00
+   pts_2nd_chance_home     VARCHAR             0.00
+           pts_fb_home     VARCHAR             0.00
+     largest_lead_home     VARCHAR             0.00
+          lead_changes     VARCHAR             0.00
+            times_tied     VARCHAR             0.00
+   team_turnovers_home     VARCHAR             0.01
+  total_turnovers_home     VARCHAR             1.12
+    team_rebounds_home     VARCHAR             7.07
+       pts_off_to_home     VARCHAR             7.51
+          team_id_away     VARCHAR             0.00
+team_abbreviation_away     VARCHAR             0.00
+        team_city_away     VARCHAR             0.00
+        pts_paint_away     VARCHAR             0.00
+   pts_2nd_chance_away     VARCHAR             0.00
+           pts_fb_away     VARCHAR             0.00
+     largest_lead_away     VARCHAR             0.00
+   team_turnovers_away     VARCHAR             0.01
+  total_turnovers_away     VARCHAR             1.12
+    team_rebounds_away     VARCHAR             7.07
+       pts_off_to_away     VARCHAR             7.51
+              filename     VARCHAR             0.00
+
+Table 'player': 4831 rows, 6 columns
+--- Schema & Stats for player ---
+column_name column_type  null_percentage
+         id     VARCHAR             0.00
+  full_name     VARCHAR             0.00
+ first_name     VARCHAR             0.12
+  last_name     VARCHAR             0.00
+  is_active     VARCHAR             0.00
+   filename     VARCHAR             0.00
+
+Table 'team': 30 rows, 8 columns
+--- Schema & Stats for team ---
+ column_name column_type  null_percentage
+          id     VARCHAR              0.0
+   full_name     VARCHAR              0.0
+abbreviation     VARCHAR              0.0
+    nickname     VARCHAR              0.0
+        city     VARCHAR              0.0
+       state     VARCHAR              0.0
+year_founded     VARCHAR              0.0
+    filename     VARCHAR              0.0
+
+Table 'team_details': 25 rows, 15 columns
+--- Schema & Stats for team_details ---
+       column_name column_type  null_percentage
+           team_id     VARCHAR              0.0
+      abbreviation     VARCHAR              0.0
+          nickname     VARCHAR              0.0
+       yearfounded     VARCHAR              0.0
+              city     VARCHAR              0.0
+             arena     VARCHAR              0.0
+     arenacapacity     VARCHAR             36.0
+             owner     VARCHAR              0.0
+    generalmanager     VARCHAR              0.0
+         headcoach     VARCHAR              4.0
+dleagueaffiliation     VARCHAR              0.0
+          facebook     VARCHAR              0.0
+         instagram     VARCHAR              0.0
+           twitter     VARCHAR              0.0
+          filename     VARCHAR              0.0
+
+Table 'team_history': 52 rows, 6 columns
+--- Schema & Stats for team_history ---
+     column_name column_type  null_percentage
+         team_id     VARCHAR              0.0
+            city     VARCHAR              0.0
+        nickname     VARCHAR              0.0
+    year_founded     VARCHAR              0.0
+year_active_till     VARCHAR              0.0
+        filename     VARCHAR              0.0
+
+Table 'team_info_common': 0 rows, 27 columns
+--- Schema & Stats for team_info_common ---
+      column_name column_type  null_percentage
+          team_id     VARCHAR              NaN
+      season_year     VARCHAR              NaN
+        team_city     VARCHAR              NaN
+        team_name     VARCHAR              NaN
+team_abbreviation     VARCHAR              NaN
+  team_conference     VARCHAR              NaN
+    team_division     VARCHAR              NaN
+        team_code     VARCHAR              NaN
+        team_slug     VARCHAR              NaN
+                w     VARCHAR              NaN
+                l     VARCHAR              NaN
+              pct     VARCHAR              NaN
+        conf_rank     VARCHAR              NaN
+         div_rank     VARCHAR              NaN
+         min_year     VARCHAR              NaN
+         max_year     VARCHAR              NaN
+        league_id     VARCHAR              NaN
+        season_id     VARCHAR              NaN
+         pts_rank     VARCHAR              NaN
+           pts_pg     VARCHAR              NaN
+         reb_rank     VARCHAR              NaN
+           reb_pg     VARCHAR              NaN
+         ast_rank     VARCHAR              NaN
+           ast_pg     VARCHAR              NaN
+     opp_pts_rank     VARCHAR              NaN
+       opp_pts_pg     VARCHAR              NaN
+         filename     VARCHAR              NaN
+
