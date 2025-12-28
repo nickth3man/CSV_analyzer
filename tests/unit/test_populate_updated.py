@@ -14,17 +14,23 @@ class TestPopulatePlayByPlayUpdated:
 
     def test_populate_play_by_play_module_has_todo_marker(self):
         """Test that module docstring includes ROADMAP TODO."""
-        from scripts.populate import populate_play_by_play
+        import sys
+        # Ensure module is loaded
+        import scripts.populate.populate_play_by_play
+        # Get the actual module object from sys.modules to avoid function shadowing
+        module = sys.modules["scripts.populate.populate_play_by_play"]
         
-        doc = populate_play_by_play.__doc__
+        doc = module.__doc__
         assert "TODO" in doc or "ROADMAP" in doc
         assert "Phase 3.1" in doc
 
     def test_populate_play_by_play_todo_mentions_api_issues(self):
         """Test that TODO mentions NBA API access issues."""
-        from scripts.populate import populate_play_by_play
+        import sys
+        import scripts.populate.populate_play_by_play
+        module = sys.modules["scripts.populate.populate_play_by_play"]
         
-        doc = populate_play_by_play.__doc__
+        doc = module.__doc__
         assert any(term in doc for term in [
             "API", "authentication", "blocked", "access"
         ])
@@ -35,17 +41,21 @@ class TestPopulatePlayerSeasonStatsUpdated:
 
     def test_populate_player_season_stats_has_todo_marker(self):
         """Test that module includes bridge table TODO."""
-        from scripts.populate import populate_player_season_stats
+        import sys
+        import scripts.populate.populate_player_season_stats
+        module = sys.modules["scripts.populate.populate_player_season_stats"]
         
-        doc = populate_player_season_stats.__doc__
+        doc = module.__doc__
         assert "TODO" in doc or "ROADMAP" in doc
         assert "bridge_player_team_season" in doc or "Phase 2.5" in doc
 
     def test_populate_player_season_stats_todo_mentions_verification(self):
         """Test that TODO mentions verification tasks."""
-        from scripts.populate import populate_player_season_stats
+        import sys
+        import scripts.populate.populate_player_season_stats
+        module = sys.modules["scripts.populate.populate_player_season_stats"]
         
-        doc = populate_player_season_stats.__doc__
+        doc = module.__doc__
         assert any(term in doc for term in [
             "verify", "Verify", "check", "Check"
         ])

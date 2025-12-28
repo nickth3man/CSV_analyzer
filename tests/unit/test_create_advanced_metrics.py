@@ -50,7 +50,7 @@ class TestCreateAdvancedMetrics:
             create_advanced_metrics()
             
             # Verify player_game_advanced view creation
-            calls = [str(c) for c in mock_con.execute.call_args_list]
+            calls = [c.args[0] for c in mock_con.execute.call_args_list if c.args]
             assert any("player_game_advanced" in c for c in calls)
 
     def test_create_advanced_metrics_creates_team_game_advanced_view(self):
@@ -61,7 +61,7 @@ class TestCreateAdvancedMetrics:
             
             create_advanced_metrics()
             
-            calls = [str(c) for c in mock_con.execute.call_args_list]
+            calls = [c.args[0] for c in mock_con.execute.call_args_list if c.args]
             assert any("team_game_advanced" in c for c in calls)
 
     def test_create_advanced_metrics_creates_player_season_stats_table(self):
@@ -72,7 +72,7 @@ class TestCreateAdvancedMetrics:
             
             create_advanced_metrics()
             
-            calls = [str(c) for c in mock_con.execute.call_args_list]
+            calls = [c.args[0] for c in mock_con.execute.call_args_list if c.args]
             assert any("player_season_stats" in c and "CREATE TABLE" in c 
                       for c in calls)
 
@@ -84,7 +84,7 @@ class TestCreateAdvancedMetrics:
             
             create_advanced_metrics()
             
-            calls = [str(c) for c in mock_con.execute.call_args_list]
+            calls = [c.args[0] for c in mock_con.execute.call_args_list if c.args]
             assert any("team_four_factors" in c for c in calls)
 
     def test_create_advanced_metrics_creates_league_averages_view(self):
@@ -95,7 +95,7 @@ class TestCreateAdvancedMetrics:
             
             create_advanced_metrics()
             
-            calls = [str(c) for c in mock_con.execute.call_args_list]
+            calls = [c.args[0] for c in mock_con.execute.call_args_list if c.args]
             assert any("league_season_averages" in c for c in calls)
 
     def test_create_advanced_metrics_creates_career_summary_view(self):
@@ -106,7 +106,7 @@ class TestCreateAdvancedMetrics:
             
             create_advanced_metrics()
             
-            calls = [str(c) for c in mock_con.execute.call_args_list]
+            calls = [c.args[0] for c in mock_con.execute.call_args_list if c.args]
             assert any("player_career_summary" in c for c in calls)
 
     def test_create_advanced_metrics_includes_true_shooting_percentage(self):
@@ -117,7 +117,7 @@ class TestCreateAdvancedMetrics:
             
             create_advanced_metrics()
             
-            calls = [str(c) for c in mock_con.execute.call_args_list]
+            calls = [c.args[0] for c in mock_con.execute.call_args_list if c.args]
             sql_text = " ".join(calls)
             assert "ts_pct" in sql_text.lower()
             assert "0.44" in sql_text  # TS% coefficient
@@ -130,7 +130,7 @@ class TestCreateAdvancedMetrics:
             
             create_advanced_metrics()
             
-            calls = [str(c) for c in mock_con.execute.call_args_list]
+            calls = [c.args[0] for c in mock_con.execute.call_args_list if c.args]
             sql_text = " ".join(calls)
             assert "efg_pct" in sql_text.lower()
             assert "0.5" in sql_text  # eFG% coefficient for 3PM
@@ -143,7 +143,7 @@ class TestCreateAdvancedMetrics:
             
             create_advanced_metrics()
             
-            calls = [str(c) for c in mock_con.execute.call_args_list]
+            calls = [c.args[0] for c in mock_con.execute.call_args_list if c.args]
             sql_text = " ".join(calls)
             assert "tov_pct" in sql_text.lower()
 
@@ -155,7 +155,7 @@ class TestCreateAdvancedMetrics:
             
             create_advanced_metrics()
             
-            calls = [str(c) for c in mock_con.execute.call_args_list]
+            calls = [c.args[0] for c in mock_con.execute.call_args_list if c.args]
             sql_text = " ".join(calls)
             assert "game_score" in sql_text.lower()
 
@@ -167,7 +167,7 @@ class TestCreateAdvancedMetrics:
             
             create_advanced_metrics()
             
-            calls = [str(c) for c in mock_con.execute.call_args_list]
+            calls = [c.args[0] for c in mock_con.execute.call_args_list if c.args]
             sql_text = " ".join(calls)
             assert "fantasy_pts" in sql_text.lower()
 
@@ -179,7 +179,7 @@ class TestCreateAdvancedMetrics:
             
             create_advanced_metrics()
             
-            calls = [str(c) for c in mock_con.execute.call_args_list]
+            calls = [c.args[0] for c in mock_con.execute.call_args_list if c.args]
             sql_text = " ".join(calls)
             assert "double_double" in sql_text.lower()
 
@@ -191,9 +191,10 @@ class TestCreateAdvancedMetrics:
             
             create_advanced_metrics()
             
-            calls = [str(c) for c in mock_con.execute.call_args_list]
+            calls = [c.args[0] for c in mock_con.execute.call_args_list if c.args]
             sql_text = " ".join(calls)
             assert "triple_double" in sql_text.lower()
+
 
     def test_create_advanced_metrics_commits_transaction(self):
         """Test that database transaction is committed."""
@@ -235,9 +236,11 @@ class TestCreateAdvancedMetrics:
             
             create_advanced_metrics()
             
-            calls = [str(c) for c in mock_con.execute.call_args_list]
-            view_creates = [c for c in calls if "VIEW" in c]
+            calls = [c.args[0] for c in mock_con.execute.call_args_list if c.args]
+            # Only check CREATE VIEW statements
+            view_creates = [c for c in calls if "CREATE" in c and "VIEW" in c]
             assert all("CREATE OR REPLACE" in c for c in view_creates)
+            assert len(view_creates) > 0
 
     def test_create_advanced_metrics_uses_if_not_exists_for_tables(self):
         """Test that tables use IF NOT EXISTS."""
@@ -247,7 +250,7 @@ class TestCreateAdvancedMetrics:
             
             create_advanced_metrics()
             
-            calls = [str(c) for c in mock_con.execute.call_args_list]
+            calls = [c.args[0] for c in mock_con.execute.call_args_list if c.args]
             table_creates = [c for c in calls 
                            if "CREATE TABLE" in c and "VIEW" not in c]
             assert any("IF NOT EXISTS" in c for c in table_creates)
@@ -265,7 +268,7 @@ class TestCreateAdvancedMetrics:
             create_advanced_metrics()
             
             # Verify information_schema query was made
-            calls = [str(c) for c in mock_con.execute.call_args_list]
+            calls = [c.args[0] for c in mock_con.execute.call_args_list if c.args]
             assert any("information_schema" in c for c in calls)
 
     def test_create_advanced_metrics_handles_missing_source_tables_gracefully(self):
@@ -290,7 +293,7 @@ class TestCreateAdvancedMetrics:
             
             create_advanced_metrics()
             
-            calls = [str(c) for c in mock_con.execute.call_args_list]
+            calls = [c.args[0] for c in mock_con.execute.call_args_list if c.args]
             sql_text = " ".join(calls)
             assert "ppg" in sql_text.lower() or "pts_per_game" in sql_text.lower()
 
@@ -302,6 +305,6 @@ class TestCreateAdvancedMetrics:
             
             create_advanced_metrics()
             
-            calls = [str(c) for c in mock_con.execute.call_args_list]
+            calls = [c.args[0] for c in mock_con.execute.call_args_list if c.args]
             season_stats_create = [c for c in calls if "player_season_stats" in c]
             assert any("PRIMARY KEY" in c for c in season_stats_create)

@@ -190,9 +190,7 @@ class TestTransformToSilver:
                 [],  # No views
                 [("table1",), ("table2",)],  # Tables
                 [("col1", "VARCHAR")],  # Describe table1
-                (100,), (100,),  # Infer type
                 [("col1", "VARCHAR")],  # Describe table2
-                (100,), (100,),  # Infer type
             ]
             mock_con.sql.return_value.fetchone.side_effect = [
                 (100,), (100,),  # table1 inference
@@ -236,7 +234,6 @@ class TestTransformToSilver:
                 [],  # No views
                 [("table1",)],  # Tables
                 [("id", "BIGINT"), ("name", "VARCHAR")],  # Columns
-                (50,), (50,),  # Inference for VARCHAR column only
             ]
             mock_con.sql.return_value.fetchone.side_effect = [
                 (50,), (50,),  # Only VARCHAR column inferred
@@ -262,7 +259,6 @@ class TestTransformToSilver:
                 [],
                 [("table1",)],
                 [("col1", "VARCHAR")],
-                (100,), (100,),
             ]
             mock_con.sql.return_value.fetchone.side_effect = [(100,), (100,)]
             
@@ -283,11 +279,20 @@ class TestTransformToSilver:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
-            mock_con.sql.return_value.fetchall.side_effect = [
-                [],
-                [("table1",), ("table2",)],
+            # Setup valid cursor for initial calls (get_tables)
+            valid_cursor = MagicMock()
+            valid_cursor.fetchall.side_effect = [
+                [],  # views
+                [("table1",), ("table2",)],  # tables
             ]
-            mock_con.sql.side_effect = Exception("Table error")
+            
+            # Setup side effect to return valid cursor for get_tables, then raise Exception
+            def sql_side_effect(query):
+                if "duckdb_views" in query or "SHOW TABLES" in query:
+                    return valid_cursor
+                raise Exception("Table error")
+                
+            mock_con.sql.side_effect = sql_side_effect
             
             transform_to_silver("data/test.db")
             

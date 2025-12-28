@@ -101,7 +101,8 @@ class TestPopulatePlaceholders:
         for script in scripts:
             with pytest.raises(NotImplementedError):
                 # Try to call the populate function
-                func_name = f"populate_{script.__name__.split('_')[-1]}"
+                # Use the module name as the function name (e.g. populate_arenas -> populate_arenas)
+                func_name = script.__name__.split('.')[-1]
                 if hasattr(script, func_name):
                     getattr(script, func_name)()
 

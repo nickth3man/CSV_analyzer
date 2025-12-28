@@ -38,9 +38,9 @@ from typing import Any
 import duckdb
 import pandas as pd
 
-from populate.api_client import NBAClient, get_client
-from populate.config import CACHE_DIR, ensure_cache_dir, get_db_path
-from populate.validation import DataValidator
+from .api_client import NBAClient, get_client
+from .config import CACHE_DIR, ensure_cache_dir, get_db_path
+from .validation import DataValidator
 
 
 logger = logging.getLogger(__name__)
