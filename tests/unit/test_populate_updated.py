@@ -12,7 +12,9 @@ class TestPopulatePlayByPlayUpdated:
     """Tests for populate_play_by_play.py with TODO markers."""
 
     def test_populate_play_by_play_module_has_todo_marker(self):
-        """Test that module docstring includes ROADMAP TODO."""
+        """
+        Verify the populate_play_by_play module's docstring contains a TODO or ROADMAP marker and includes "Phase 3.1".
+        """
         import sys
         # Ensure module is loaded
         # Get the actual module object from sys.modules to avoid function shadowing
@@ -37,7 +39,11 @@ class TestPopulatePlayerSeasonStatsUpdated:
     """Tests for populate_player_season_stats.py with TODO markers."""
 
     def test_populate_player_season_stats_has_todo_marker(self):
-        """Test that module includes bridge table TODO."""
+        """
+        Verify the target module's top-level docstring contains a TODO/ROADMAP marker and references the bridge_player_team_season table or Phase 2.5.
+        
+        Asserts that the module-level documentation includes either "TODO" or "ROADMAP", and contains either "bridge_player_team_season" or "Phase 2.5".
+        """
         import sys
         module = sys.modules["scripts.populate.populate_player_season_stats"]
 
@@ -60,7 +66,11 @@ class TestScriptsModuleStructure:
     """Tests for overall scripts module structure after updates."""
 
     def test_all_updated_scripts_maintain_imports(self):
-        """Test that updated scripts can still be imported."""
+        """
+        Verify that a predefined set of updated script modules can be imported without raising ImportError.
+        
+        This test ensures each listed module remains importable; the test fails if any module import raises ImportError.
+        """
         modules = [
             "scripts.check_integrity",
             "scripts.create_advanced_metrics",
@@ -94,7 +104,9 @@ class TestScriptsModuleStructure:
                 pytest.fail(f"Failed to import {module_name}: {e}")
 
     def test_all_updated_scripts_have_proper_docstrings(self):
-        """Test that all updated scripts have comprehensive docstrings."""
+        """
+        Assert that each updated script module in the predefined list has a module-level docstring exceeding 50 characters.
+        """
         modules = [
             "scripts.check_integrity",
             "scripts.create_advanced_metrics",
@@ -116,7 +128,14 @@ class TestScriptsModuleStructure:
         "populate_transactions",
     ])
     def test_placeholder_scripts_have_comprehensive_docstrings(self, script_name):
-        """Test that placeholder scripts have detailed documentation."""
+        """
+        Verify a placeholder script module under scripts.populate contains a comprehensive docstring that includes TODO/ROADMAP markers and phase information.
+        
+        Parameters:
+            script_name (str): Name of the module file (without package prefix) under scripts.populate to import and validate.
+        
+        The test asserts the module has a docstring, the docstring length exceeds 200 characters, and the docstring contains the substrings "TODO", "ROADMAP", and "Phase".
+        """
         module = __import__(
             f"scripts.populate.{script_name}",
             fromlist=["__doc__"]
@@ -134,7 +153,11 @@ class TestTODOMarkersConsistency:
     """Tests for consistency of TODO markers across scripts."""
 
     def test_todo_markers_reference_roadmap(self):
-        """Test that TODO markers reference ROADMAP.md."""
+        """
+        Ensure that each listed script module's docstring references the project ROADMAP.
+        
+        Checks that the docstring for each module in the predefined list contains the word "ROADMAP" (case-insensitive) to confirm a TODO marker referencing the roadmap is present.
+        """
         modules_with_todos = [
             "scripts.check_integrity",
             "scripts.create_advanced_metrics",
@@ -151,7 +174,11 @@ class TestTODOMarkersConsistency:
             assert "ROADMAP" in doc or "roadmap" in doc.lower()
 
     def test_todo_markers_specify_phase(self):
-        """Test that TODO markers specify ROADMAP phase."""
+        """
+        Verify that module TODO/ROADMAP markers include a phase indicator.
+        
+        For each (module, expected_phases) tuple, import the module and assert its top-level docstring contains at least one of the expected phase strings.
+        """
         modules_with_todos = [
             ("scripts.check_integrity", ["Phase 1.4", "Phase 4.5"]),
             ("scripts.create_advanced_metrics", ["Phase 2.3", "Phase 2.4"]),

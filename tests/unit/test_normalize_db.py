@@ -68,7 +68,7 @@ class TestGetTables:
         assert "invalid_rejects" not in result
 
     def test_get_tables_handles_empty_database(self):
-        """Test handling of database with no tables."""
+        """Verifies that get_tables returns an empty list when the database contains no views or tables."""
         mock_con = MagicMock()
         mock_con.sql.return_value.fetchall.side_effect = [[], []]
 
@@ -107,7 +107,11 @@ class TestInferColumnType:
         assert result == "DOUBLE"
 
     def test_infer_column_type_detects_date(self):
-        """Test detection of DATE columns."""
+        """
+        Verifies that infer_column_type returns "DATE" when DATE casting succeeds after BIGINT and DOUBLE casts fail.
+        
+        Simulates query results where the total non-null count is 100, BIGINT and DOUBLE casts return 0 matches, and DATE cast matches all 100 rows.
+        """
         mock_con = MagicMock()
         mock_con.sql.return_value.fetchone.side_effect = [
             (100,),  # Total
@@ -121,7 +125,9 @@ class TestInferColumnType:
         assert result == "DATE"
 
     def test_infer_column_type_defaults_to_varchar(self):
-        """Test fallback to VARCHAR when no type matches."""
+        """
+        Verifies infer_column_type falls back to "VARCHAR" when BIGINT, DOUBLE, and DATE do not fully match the column's non-null values.
+        """
         mock_con = MagicMock()
         mock_con.sql.return_value.fetchone.side_effect = [
             (100,),  # Total
@@ -155,7 +161,11 @@ class TestInferColumnType:
         assert any('"reserved_word"' in c for c in calls)
 
     def test_infer_column_type_handles_special_characters(self):
-        """Test handling of column names with special characters."""
+        """
+        Verify that infer_column_type accepts column names with special characters and returns a valid SQL type.
+        
+        Asserts that the inferred type for a column named with a dash is one of: "BIGINT", "DOUBLE", "DATE", or "VARCHAR".
+        """
         mock_con = MagicMock()
         mock_con.sql.return_value.fetchone.side_effect = [(50,), (50,)]
 
@@ -168,7 +178,9 @@ class TestTransformToSilver:
     """Test suite for transform_to_silver function."""
 
     def test_transform_to_silver_requires_existing_database(self):
-        """Test that function requires existing database file."""
+        """
+        Ensure transform_to_silver exits with SystemExit when the given database path does not exist.
+        """
         with patch("scripts.normalize_db.Path") as mock_path:
             mock_path.return_value.exists.return_value = False
 
@@ -204,7 +216,11 @@ class TestTransformToSilver:
             assert any("table2_silver" in c for c in calls)
 
     def test_transform_to_silver_processes_specific_tables(self):
-        """Test processing of specific tables only."""
+        """
+        Verifies that transform_to_silver processes only the specified tables.
+        
+        Asserts that a `specific_table_silver` table is created by inspecting the executed SQL statements.
+        """
         with patch("scripts.normalize_db.Path") as mock_path, \
              patch("scripts.normalize_db.duckdb.connect") as mock_connect:
 
@@ -221,7 +237,11 @@ class TestTransformToSilver:
             assert any("specific_table_silver" in c for c in calls)
 
     def test_transform_to_silver_skips_typed_columns(self):
-        """Test that already-typed columns are not re-inferred."""
+        """
+        Ensures transform_to_silver does not attempt type inference for columns that already have explicit types.
+        
+        Verifies that TRY_CAST calls are only generated for columns lacking a predefined type (e.g., VARCHAR) and are not issued for columns already typed as BIGINT.
+        """
         with patch("scripts.normalize_db.Path") as mock_path, \
              patch("scripts.normalize_db.duckdb.connect") as mock_connect:
 
@@ -269,7 +289,11 @@ class TestTransformToSilver:
                       for c in calls)
 
     def test_transform_to_silver_handles_errors_gracefully(self):
-        """Test graceful handling of table processing errors."""
+        """
+        Verifies that transform_to_silver logs exceptions raised while processing individual tables and continues processing remaining tables.
+        
+        Simulates a database with two tables and configures the connection to raise an exception when executing table-specific SQL; asserts that logger.exception is called to record the error.
+        """
         with patch("scripts.normalize_db.Path") as mock_path, \
              patch("scripts.normalize_db.duckdb.connect") as mock_connect, \
              patch("scripts.normalize_db.logger") as mock_logger:
@@ -287,6 +311,15 @@ class TestTransformToSilver:
 
             # Setup side effect to return valid cursor for get_tables, then raise Exception
             def sql_side_effect(query):
+                """
+                Return the mocked cursor for queries that request views or tables; raise otherwise.
+                
+                Returns:
+                    valid_cursor: The mocked cursor when the query contains "duckdb_views" or "SHOW TABLES".
+                
+                Raises:
+                    Exception: with message "Table error" for any other query.
+                """
                 if "duckdb_views" in query or "SHOW TABLES" in query:
                     return valid_cursor
                 raise Exception("Table error")
@@ -315,7 +348,12 @@ class TestTransformToSilver:
 
     @pytest.mark.parametrize("inferred_type", ["BIGINT", "DOUBLE", "DATE"])
     def test_transform_to_silver_applies_type_conversions(self, inferred_type):
-        """Test that inferred types are applied in CREATE TABLE."""
+        """
+        Verify that inferred column types (BIGINT, DOUBLE, DATE) are applied via TRY_CAST in the generated CREATE TABLE statements.
+        
+        Parameters:
+            inferred_type (str): Expected inferred SQL type for the column; one of "BIGINT", "DOUBLE", or "DATE".
+        """
         with patch("scripts.normalize_db.Path") as mock_path, \
              patch("scripts.normalize_db.duckdb.connect") as mock_connect:
 

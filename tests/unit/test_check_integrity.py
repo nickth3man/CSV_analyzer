@@ -18,7 +18,11 @@ class TestCheckIntegrity:
     """Test suite for database integrity checking functions."""
 
     def test_check_integrity_connects_to_database(self):
-        """Test that check_integrity connects to the correct database."""
+        """
+        Verify check_integrity opens the expected DuckDB database file and closes the connection.
+        
+        Asserts that duckdb.connect is called with "data/nba.duckdb" and that the returned connection's close method is invoked.
+        """
         with patch("scripts.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
@@ -58,7 +62,11 @@ class TestCheckIntegrity:
             assert any("game_silver" in str(c) for c in calls)
 
     def test_check_integrity_detects_non_unique_primary_keys(self):
-        """Test detection of non-unique primary key values."""
+        """
+        Ensure check_integrity detects non-unique primary key values and refrains from adding PRIMARY KEY constraints when duplicates exist.
+        
+        Verifies that when a table's total primary key count differs from its unique count (indicating duplicates), check_integrity does not execute ALTER TABLE ... ADD PRIMARY KEY for that table.
+        """
         with patch("scripts.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
@@ -102,7 +110,11 @@ class TestCheckIntegrity:
                 "PRIMARY KEY constraint should not be added when NULLs exist"
 
     def test_check_integrity_validates_foreign_keys(self):
-        """Test foreign key validation for defined relationships."""
+        """
+        Verifies that check_integrity validates foreign key relationships and runs orphan checks.
+        
+        Asserts that when no orphan records are reported, the SQL executed against the database includes evidence of foreign-key relationship checks (e.g., referencing the related table names or using LEFT JOIN).
+        """
         with patch("scripts.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
@@ -124,7 +136,11 @@ class TestCheckIntegrity:
             assert "game_silver" in sql_calls or "LEFT JOIN" in sql_calls
 
     def test_check_integrity_detects_orphan_records(self):
-        """Test detection of orphan records (FK violations)."""
+        """
+        Verify that check_integrity identifies foreign-key orphan records and retrieves a sample of orphan IDs.
+        
+        Simulates FK checks producing orphan counts and confirms the function issues a query with a LIMIT clause to fetch example orphan records.
+        """
         with patch("scripts.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
@@ -145,7 +161,11 @@ class TestCheckIntegrity:
             assert any("LIMIT 3" in str(c) for c in calls)
 
     def test_check_integrity_handles_database_errors_gracefully(self):
-        """Test graceful handling of database connection errors."""
+        """
+        Ensure a database connection error raised during connect propagates.
+        
+        Verifies that if duckdb.connect raises an Exception, check_integrity raises the same error instead of suppressing it.
+        """
         with patch("scripts.check_integrity.duckdb.connect") as mock_connect:
             mock_connect.side_effect = Exception("Database connection failed")
 
@@ -168,7 +188,11 @@ class TestCheckIntegrity:
             mock_con.close.assert_called_once()
 
     def test_check_integrity_attempts_to_add_primary_key_constraints(self):
-        """Test that valid PKs trigger constraint addition attempts."""
+        """
+        Verifies that when a table has a valid primary key (total equals unique and zero nulls), the integrity checker attempts to add a PRIMARY KEY constraint.
+        
+        Mocks a database connection returning total, unique, and null counts for a candidate primary key and asserts that at least one ALTER TABLE statement was executed.
+        """
         with patch("scripts.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
@@ -205,7 +229,11 @@ class TestCheckIntegrity:
             assert len(fk_calls) > 0
 
     def test_check_integrity_closes_connection_after_completion(self):
-        """Test that database connection is properly closed."""
+        """
+        Verifies that check_integrity closes the database connection after successful completion.
+        
+        Asserts that a mocked database connection's close() method is called exactly once.
+        """
         with patch("scripts.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
@@ -233,7 +261,13 @@ class TestCheckIntegrity:
         ("game_silver", "game_id"),
     ])
     def test_check_integrity_validates_all_pk_candidates(self, table, pk_col):
-        """Test that all PK candidates are validated."""
+        """
+        Verifies that the integrity check queries include each primary-key candidate table.
+        
+        Parameters:
+            table (str): The table name expected to be validated as a primary-key candidate.
+            pk_col (str): The primary-key column name candidate for the given table.
+        """
         with patch("scripts.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
@@ -246,12 +280,26 @@ class TestCheckIntegrity:
             assert table in calls_str
 
     def test_check_integrity_handles_missing_tables_gracefully(self):
-        """Test handling of missing tables."""
+        """
+        Verifies that check_integrity does not raise when a referenced table is missing and that the database connection is closed.
+        """
         with patch("scripts.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
             def side_effect_fn(query):
+                """
+                Simulate a database query side effect for tests: raise for a missing table name or return a single-row result.
+                
+                Parameters:
+                    query (str): SQL query string inspected to decide behavior.
+                
+                Returns:
+                    MagicMock: A mock whose `fetchone()` returns `[0]` when `query` does not mention "team_silver".
+                
+                Raises:
+                    Exception: If the `query` string contains "team_silver", raises Exception("Table does not exist").
+                """
                 if "team_silver" in query:
                     raise Exception("Table does not exist")
                 return MagicMock(fetchone=lambda: [0])

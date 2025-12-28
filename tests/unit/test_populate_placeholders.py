@@ -61,7 +61,9 @@ class TestPopulatePlaceholders:
             populate_shot_chart.populate_shot_chart()
 
     def test_populate_transactions_raises_not_implemented(self):
-        """Test that populate_transactions raises NotImplementedError."""
+        """
+        Verifies that populate_transactions.populate_transactions() raises NotImplementedError with a message containing "not yet implemented".
+        """
         with pytest.raises(NotImplementedError, match="not yet implemented"):
             populate_transactions.populate_transactions()
 
@@ -75,7 +77,13 @@ class TestPopulatePlaceholders:
         ("populate_transactions", "main"),
     ])
     def test_placeholder_main_functions_exit_with_error(self, module_name, main_func):
-        """Test that main functions exit with non-zero status."""
+        """
+        Verify that a module's CLI `main` function exits with status code 1 when invoked with the module name as argv[0].
+        
+        Parameters:
+            module_name (str): The populate module name (e.g., "populate_arenas") to import from scripts.populate.
+            main_func (str): The name of the entry function to call on the imported module (commonly "main").
+        """
         module = __import__(f"scripts.populate.{module_name}", fromlist=[main_func])
         main = getattr(module, main_func)
 
@@ -86,7 +94,11 @@ class TestPopulatePlaceholders:
         assert exc_info.value.code == 1
 
     def test_all_placeholders_log_warnings(self, caplog):
-        """Test that all placeholder scripts log appropriate warnings."""
+        """
+        Verifies each placeholder population script raises NotImplementedError when its primary function is invoked.
+        
+        The test attempts to call the function whose name matches the module (e.g., `populate_arenas`) for each placeholder module and expects a `NotImplementedError`.
+        """
         scripts = [
             populate_arenas,
             populate_franchises,
@@ -125,7 +137,11 @@ class TestPopulateSalariesSpecifics:
     """Specific tests for populate_salaries placeholder."""
 
     def test_populate_salaries_mentions_data_sources(self):
-        """Test that error or docs mention potential data sources."""
+        """
+        Verify populate_salaries mentions known salary data sources in its error message or module docstring.
+        
+        Checks that at least one of "Basketball Reference", "HoopsHype", or "Spotrac" appears in the raised NotImplementedError message or the module docstring.
+        """
         try:
             populate_salaries.populate_salaries()
         except NotImplementedError as e:
@@ -153,7 +169,11 @@ class TestPopulateTransactionsSpecifics:
     """Specific tests for populate_transactions placeholder."""
 
     def test_populate_transactions_describes_transaction_types(self):
-        """Test that documentation describes transaction types to track."""
+        """
+        Verify the populate_transactions module docstring lists transaction types to track.
+        
+        Checks that the module's docstring contains at least one of the terms: "trade", "signing", "waiver", or "release".
+        """
         doc = populate_transactions.__doc__
         assert any(ttype in doc for ttype in [
             "trade", "signing", "waiver", "release"

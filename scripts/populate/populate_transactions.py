@@ -81,9 +81,9 @@ def populate_transactions(*args, **kwargs):
 
 def main():
     """
-    CLI entry point that reports the transactions-population feature is not implemented and terminates.
+    CLI entry point that reports the transactions-population feature is not implemented and terminates the process.
     
-    Parses command-line options (`--seasons`, `--teams`, `--player-id`, `--all-seasons`), logs informational warnings about required design decisions and ROADMAP Phase 3.4, and exits the process with status code 1.
+    Parses the supported command-line options (`--seasons`, `--teams`, `--player-id`, `--all-seasons`), logs warnings describing required design decisions and refers to ROADMAP Phase 3.4, and exits the process with status code 1.
     """
     parser = argparse.ArgumentParser(
         description="Populate transactions data (NOT YET IMPLEMENTED)",

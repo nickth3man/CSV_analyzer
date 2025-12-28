@@ -87,9 +87,9 @@ def populate_franchises(*args, **kwargs):
 
 def main():
     """
-    CLI entry point that announces the franchises-population feature is unimplemented and exits.
+    CLI entry point that reports the franchises-population feature is not implemented and exits.
     
-    Logs multiple warning messages describing the placeholder status and roadmap decisions required, then terminates the process with exit status 1.
+    Logs warning messages describing the placeholder status and required roadmap decisions, then terminates the process with exit code 1.
     """
     parser = argparse.ArgumentParser(
         description="Populate franchises data (NOT YET IMPLEMENTED)",

@@ -81,9 +81,9 @@ def populate_salaries(*args, **kwargs):
 
 def main():
     """
-    Command-line entry point that outlines salary population options and deliberately exits because the feature is unimplemented.
+    Command-line entry point that outlines salary population options and exits because the feature is unimplemented.
     
-    Parses CLI arguments for seasons, team abbreviations, an all-seasons flag, and a data source choice (choices: "basketball-reference", "hoopshype", "spotrac"); logs warning messages describing required decisions and roadmap references for implementing salary population, then terminates the process with exit status 1.
+    Parses command-line options for seasons, teams, an all-seasons flag, and a data-source choice; logs roadmap notes and key implementation decisions required, then terminates the process with exit status 1. See ROADMAP.md Phase 3.3 for implementation requirements.
     """
     parser = argparse.ArgumentParser(
         description="Populate salary data (NOT YET IMPLEMENTED)",
