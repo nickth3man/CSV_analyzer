@@ -5,40 +5,81 @@
 language: "en-US"
 early_access: false
 
-# Tone and style instructions for code reviews
-tone_instructions: |
-  You are an expert code reviewer specializing in Python, data engineering, and LLM applications.
-  This project is a data analyst agent built with PocketFlow (a minimalist LLM framework).
-  Focus on:
-  - Python best practices and type safety
-  - Data processing patterns with pandas and DuckDB
-  - LLM integration patterns and prompt engineering
-  - Security considerations for code execution
-  - Performance implications for data operations
-  Provide concise, actionable feedback. Elaborate only when explaining complex concepts.
+# Tone and style instructions for code reviews (max 250 chars)
+tone_instructions: "Expert Python/data engineering reviewer. Focus on type safety, pandas efficiency, LLM patterns, and security. Provide concise, actionable feedback."
 
 reviews:
   # Review profile: "chill" is less strict, "assertive" is more thorough
   profile: "chill"
-  
+
   # Don't automatically request changes (let maintainers decide)
   request_changes_workflow: false
-  
+
   # Generate high-level summary of changes
   high_level_summary: true
-  
+
+  # Put high-level summary in walkthrough for cleaner PR descriptions
+  high_level_summary_in_walkthrough: true
+
   # Add a fun poem about the changes (optional, adds personality)
   poem: false
-  
+
   # Show review status
   review_status: true
-  
+
+  # Set commit status during review
+  commit_status: true
+
   # Keep walkthrough expanded for better visibility
   collapse_walkthrough: false
-  
+
+  # Show changed files summary in walkthrough
+  changed_files_summary: true
+
+  # Generate sequence diagrams for complex changes
+  sequence_diagrams: true
+
+  # Estimate code review effort
+  estimate_code_review_effort: true
+
+  # Assess how well changes address linked issues
+  assess_linked_issues: true
+
+  # Include possibly related issues and PRs
+  related_issues: true
+  related_prs: true
+
+  # Suggest labels based on changes
+  suggested_labels: true
+
+  # Label configuration for automatic suggestions
+  labeling_instructions:
+    - label: "python"
+      instructions: "Apply when PR contains Python code changes in src/ or scripts/"
+    - label: "tests"
+      instructions: "Apply when PR contains changes to test files in tests/"
+    - label: "documentation"
+      instructions: "Apply when PR contains changes to .md files or docs/"
+    - label: "ci/cd"
+      instructions: "Apply when PR contains changes to .github/workflows/"
+    - label: "dependencies"
+      instructions: "Apply when PR contains changes to requirements.txt, pyproject.toml, or uv.lock"
+    - label: "frontend"
+      instructions: "Apply when PR contains changes to src/frontend/"
+    - label: "backend"
+      instructions: "Apply when PR contains changes to src/backend/"
+
+  # Suggest reviewers based on changes
+  suggested_reviewers: true
+
+  # Abort review if PR is closed/merged while in progress
+  abort_on_close: true
+
   # Auto-review configuration
   auto_review:
     enabled: true
+    # Enable incremental reviews on each push
+    auto_incremental_review: true
     # Don't review draft PRs until they're ready
     drafts: false
     # Only auto-review PRs targeting these branches
@@ -50,7 +91,47 @@ reviews:
     ignore_title_keywords:
       - "WIP"
       - "DO NOT MERGE"
-  
+      - "[skip ci]"
+      - "[no review]"
+    # Skip reviews from bots
+    ignore_usernames:
+      - "dependabot[bot]"
+      - "renovate[bot]"
+
+  # Finishing touches - auto-generate docstrings and tests
+  finishing_touches:
+    docstrings:
+      enabled: true
+    unit_tests:
+      enabled: true
+
+  # Pre-merge checks
+  pre_merge_checks:
+    # Check docstring coverage
+    docstrings:
+      mode: "warning"
+      threshold: 80
+    # Validate PR title
+    title:
+      mode: "warning"
+      requirements: "Title should be concise, follow conventional commits format (feat/fix/docs/etc), and be under 72 characters"
+    # Validate PR description
+    description:
+      mode: "warning"
+    # Assess linked issues
+    issue_assessment:
+      mode: "warning"
+
+  # Path filters - exclude certain paths from review
+  path_filters:
+    - "!**/*.lock"
+    - "!**/uv.lock"
+    - "!**/.nba_cache/**"
+    - "!**/htmlcov/**"
+    - "!**/.pytest_cache/**"
+    - "!**/.ruff_cache/**"
+    - "!**/.mypy_cache/**"
+
   # Path-specific review instructions
   path_instructions:
     # Python source code - focus on code quality
@@ -63,7 +144,7 @@ reviews:
         - Proper error handling with specific exception types
         - Security considerations for LLM code execution
         - Efficient pandas operations (avoid iterrows, prefer vectorized ops)
-        
+
     # Backend nodes - focus on flow patterns
     - path: "src/backend/nodes/**/*.py"
       instructions: |
@@ -73,7 +154,7 @@ reviews:
         - Appropriate shared state usage
         - Error handling and graceful degradation
         - Consistent logging and status updates
-        
+
     # Frontend handlers - focus on Chainlit patterns
     - path: "src/frontend/**/*.py"
       instructions: |
@@ -82,7 +163,7 @@ reviews:
         - User experience and error messaging
         - Session state management
         - Action and command handling consistency
-        
+
     # Test files - ensure comprehensive coverage
     - path: "tests/**/*.py"
       instructions: |
@@ -94,7 +175,7 @@ reviews:
         - Coverage of edge cases and error conditions
         - Proper use of markers (@pytest.mark.unit, @pytest.mark.integration, @pytest.mark.slow)
         - Avoid mocking internal implementation details
-        
+
     # Scripts - focus on data processing
     - path: "scripts/**/*.py"
       instructions: |
@@ -104,7 +185,7 @@ reviews:
         - Efficient batch processing
         - Clear logging and progress reporting
         - Database transaction handling
-        
+
     # Configuration files
     - path: "pyproject.toml"
       instructions: |
@@ -112,7 +193,7 @@ reviews:
         - Dependency version compatibility
         - Tool configuration consistency
         - No duplicate or conflicting dependencies
-        
+
     - path: ".github/workflows/**/*.yml"
       instructions: |
         Review GitHub Actions workflows for:
@@ -120,7 +201,7 @@ reviews:
         - Efficient job ordering and caching
         - Proper secret handling
         - Matrix testing for Python versions if applicable
-        
+
     # Documentation
     - path: "**/*.md"
       instructions: |
@@ -130,30 +211,123 @@ reviews:
         - Consistent formatting
         - Up-to-date information matching the codebase
 
+    # Shell scripts
+    - path: "**/*.sh"
+      instructions: |
+        Review shell scripts for:
+        - Proper error handling (set -e, set -o pipefail)
+        - Quoting of variables
+        - Security considerations
+        - Portability across shells
+
   # Tools configuration
   tools:
     # Enable ast-grep for advanced pattern matching
     ast-grep:
       essential_rules: true
-    
+
     # Ruff linting (matches pyproject.toml configuration)
     ruff:
       enabled: true
-    
+
+    # Pylint for additional Python analysis
+    pylint:
+      enabled: true
+
+    # Flake8 for Python linting
+    flake8:
+      enabled: true
+
     # GitHub checks integration
     github-checks:
       enabled: true
       timeout_ms: 90000
 
+    # GitHub Actions workflow linting
+    actionlint:
+      enabled: true
+
+    # YAML linting for config files
+    yamllint:
+      enabled: true
+
+    # Markdown linting
+    markdownlint:
+      enabled: true
+
+    # Shell script linting
+    shellcheck:
+      enabled: true
+
+    # Secret scanning
+    gitleaks:
+      enabled: true
+
+    # Grammar and spell checking for documentation
+    languagetool:
+      enabled: true
+      level: "default"
+
+    # Makefile linting
+    checkmake:
+      enabled: true
+
+    # Vulnerability scanning for dependencies
+    osv-scanner:
+      enabled: true
+
 # Chat configuration for interactive reviews
 chat:
   auto_reply: true
 
-# Knowledge Base - auto-detect guideline files
-# CodeRabbit will automatically detect and use:
-# - CLAUDE.md
-# - .cursorrules
-# - .clinerules
-# - .windsurfrules
-# - .goosehints
-# These files contain project-specific coding guidelines
+# Knowledge base configuration
+knowledge_base:
+  # Don't opt out - use knowledge base features
+  opt_out: false
+
+  # Enable web search for context
+  web_search:
+    enabled: true
+
+  # Enable code guidelines from existing files
+  code_guidelines:
+    enabled: true
+    # These are auto-detected by default, but we can be explicit
+    filePatterns:
+      - "**/CLAUDE.md"
+      - "**/GEMINI.md"
+      - "**/AGENTS.md"
+      - "**/.cursorrules"
+      - "**/.clinerules"
+      - "**/.windsurfrules"
+      - "**/.goosehints"
+      - ".github/copilot-instructions.md"
+
+  # Use learnings from repository
+  learnings:
+    scope: "auto"
+
+  # Use issues from repository for context
+  issues:
+    scope: "auto"
+
+  # Use PRs from repository for context
+  pull_requests:
+    scope: "auto"
+
+# Code generation settings
+code_generation:
+  # Docstring generation settings
+  docstrings:
+    language: "en-US"
+    path_instructions:
+      - path: "src/**/*.py"
+        instructions: "Generate Google-style docstrings with Args, Returns, and Raises sections. Include type hints in docstrings."
+      - path: "tests/**/*.py"
+        instructions: "Generate concise docstrings explaining what the test validates."
+
+  # Unit test generation settings
+  unit_tests:
+    path_instructions:
+      - path: "src/**/*.py"
+        instructions: "Generate pytest tests with proper fixtures, markers, and descriptive names. Use conftest.py fixtures where appropriate."
