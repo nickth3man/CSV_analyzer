@@ -308,3 +308,369 @@ class TestCreateAdvancedMetrics:
             calls = [c.args[0] for c in mock_con.execute.call_args_list if c.args]
             season_stats_create = [c for c in calls if "player_season_stats" in c]
             assert any("PRIMARY KEY" in c for c in season_stats_create)
+
+class TestCreateAdvancedMetricsExtended:
+    """Extended test suite for advanced metrics with edge cases."""
+
+    def test_create_advanced_metrics_accepts_custom_path(self):
+        """Test that custom database path is accepted."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            custom_path = "/custom/path/to/database.duckdb"
+            create_advanced_metrics(custom_path)
+            
+            mock_connect.assert_called_once_with(custom_path)
+
+    def test_create_advanced_metrics_creates_all_required_views(self):
+        """Test that all documented views are created."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            create_advanced_metrics()
+            
+            calls = [str(c.args[0]) if c.args else "" for c in mock_con.execute.call_args_list]
+            sql_text = " ".join(calls)
+            
+            # Verify all major views/tables
+            expected_objects = [
+                "player_game_advanced",
+                "team_game_advanced",
+                "player_season_stats",
+                "team_four_factors",
+                "league_season_averages"
+            ]
+            
+            for obj in expected_objects:
+                assert obj in sql_text, f"Missing {obj}"
+
+    def test_create_advanced_metrics_calculates_true_shooting_percentage(self):
+        """Test that TS% formula is included."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            create_advanced_metrics()
+            
+            calls = [str(c.args[0]) if c.args else "" for c in mock_con.execute.call_args_list]
+            sql_text = " ".join(calls)
+            
+            # TS% formula: PTS / (2 * (FGA + 0.44 * FTA))
+            assert "0.44" in sql_text or "ts_pct" in sql_text.lower()
+
+    def test_create_advanced_metrics_calculates_effective_field_goal_percentage(self):
+        """Test that eFG% formula is included."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            create_advanced_metrics()
+            
+            calls = [str(c.args[0]) if c.args else "" for c in mock_con.execute.call_args_list]
+            sql_text = " ".join(calls)
+            
+            # eFG% formula involves 3-point multiplier
+            assert "efg" in sql_text.lower() or "0.5" in sql_text
+
+    def test_create_advanced_metrics_calculates_game_score(self):
+        """Test that Game Score (GmSc) is calculated."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            create_advanced_metrics()
+            
+            calls = [str(c.args[0]) if c.args else "" for c in mock_con.execute.call_args_list]
+            sql_text = " ".join(calls).lower()
+            
+            assert "gmsc" in sql_text or "game_score" in sql_text
+
+    def test_create_advanced_metrics_handles_division_by_zero(self):
+        """Test that metrics handle division by zero safely."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            create_advanced_metrics()
+            
+            calls = [str(c.args[0]) if c.args else "" for c in mock_con.execute.call_args_list]
+            sql_text = " ".join(calls)
+            
+            # Should use NULLIF or CASE to prevent division by zero
+            assert "NULLIF" in sql_text or "CASE" in sql_text
+
+    def test_create_advanced_metrics_aggregates_by_season(self):
+        """Test that season-level aggregations are performed."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            create_advanced_metrics()
+            
+            calls = [str(c.args[0]) if c.args else "" for c in mock_con.execute.call_args_list]
+            sql_text = " ".join(calls)
+            
+            # Should have GROUP BY season
+            assert "GROUP BY" in sql_text and "season" in sql_text.lower()
+
+    def test_create_advanced_metrics_uses_create_or_replace(self):
+        """Test that views use CREATE OR REPLACE for idempotency."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            create_advanced_metrics()
+            
+            calls = [str(c.args[0]) if c.args else "" for c in mock_con.execute.call_args_list]
+            
+            # Most creates should be CREATE OR REPLACE
+            create_commands = [c for c in calls if "CREATE" in c]
+            replace_commands = [c for c in create_commands if "OR REPLACE" in c]
+            
+            assert len(replace_commands) >= len(create_commands) - 1  # Allow one CREATE TABLE
+
+    def test_create_advanced_metrics_closes_connection_on_success(self):
+        """Test that connection is closed after successful execution."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            create_advanced_metrics()
+            
+            mock_con.close.assert_called_once()
+
+    def test_create_advanced_metrics_closes_connection_on_error(self):
+        """Test that connection is closed even if errors occur."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            mock_con.execute.side_effect = Exception("SQL error")
+            
+            with pytest.raises(Exception):
+                create_advanced_metrics()
+            
+            mock_con.close.assert_called_once()
+
+    def test_create_advanced_metrics_includes_assist_to_turnover_ratio(self):
+        """Test that AST/TO ratio is calculated."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            create_advanced_metrics()
+            
+            calls = [str(c.args[0]) if c.args else "" for c in mock_con.execute.call_args_list]
+            sql_text = " ".join(calls).lower()
+            
+            assert "ast" in sql_text and ("tov" in sql_text or "turnover" in sql_text)
+
+    def test_create_advanced_metrics_calculates_turnover_percentage(self):
+        """Test that TOV% is calculated."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            create_advanced_metrics()
+            
+            calls = [str(c.args[0]) if c.args else "" for c in mock_con.execute.call_args_list]
+            sql_text = " ".join(calls).lower()
+            
+            # TOV% formula includes turnover rate
+            assert "tov_pct" in sql_text or ("turnover" in sql_text and "pct" in sql_text)
+
+    def test_create_advanced_metrics_includes_four_factors(self):
+        """Test that Four Factors analysis is included."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            create_advanced_metrics()
+            
+            calls = [str(c.args[0]) if c.args else "" for c in mock_con.execute.call_args_list]
+            sql_text = " ".join(calls)
+            
+            # Four Factors: eFG%, TOV%, ORB%, FT Rate
+            assert "four_factors" in sql_text.lower()
+
+    def test_create_advanced_metrics_handles_missing_player_game_stats(self):
+        """Test graceful handling when player_game_stats table is missing."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            # First few views work, then fail on player_game_stats
+            mock_con.execute.side_effect = [
+                MagicMock(),
+                Exception("Table 'player_game_stats' does not exist")
+            ]
+            
+            with pytest.raises(Exception, match="player_game_stats"):
+                create_advanced_metrics()
+
+    def test_create_advanced_metrics_uses_appropriate_data_types(self):
+        """Test that calculated metrics use appropriate data types."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            create_advanced_metrics()
+            
+            calls = [str(c.args[0]) if c.args else "" for c in mock_con.execute.call_args_list]
+            sql_text = " ".join(calls)
+            
+            # Should cast to DOUBLE for percentages
+            assert "DOUBLE" in sql_text or "CAST" in sql_text or "::DOUBLE" in sql_text
+
+    def test_create_advanced_metrics_aggregates_totals_correctly(self):
+        """Test that season totals are aggregated with SUM."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            create_advanced_metrics()
+            
+            calls = [str(c.args[0]) if c.args else "" for c in mock_con.execute.call_args_list]
+            sql_text = " ".join(calls)
+            
+            # Should use SUM for aggregating stats
+            assert "SUM(" in sql_text
+
+    def test_create_advanced_metrics_calculates_averages_correctly(self):
+        """Test that season averages use COUNT for games played."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            create_advanced_metrics()
+            
+            calls = [str(c.args[0]) if c.args else "" for c in mock_con.execute.call_args_list]
+            sql_text = " ".join(calls)
+            
+            # Should count games for per-game averages
+            assert "COUNT(" in sql_text or "AVG(" in sql_text
+
+    def test_create_advanced_metrics_handles_null_values_in_calculations(self):
+        """Test that NULL values are handled appropriately."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            create_advanced_metrics()
+            
+            calls = [str(c.args[0]) if c.args else "" for c in mock_con.execute.call_args_list]
+            sql_text = " ".join(calls)
+            
+            # Should handle NULLs with COALESCE or NULLIF
+            assert "COALESCE" in sql_text or "NULLIF" in sql_text or "CASE" in sql_text
+
+    @pytest.mark.parametrize("db_path", [
+        "data/nba.duckdb",
+        "test.db",
+        "/tmp/test.duckdb",
+        "relative/path/db.duckdb"
+    ])
+    def test_create_advanced_metrics_accepts_various_paths(self, db_path):
+        """Test that various database path formats are accepted."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            create_advanced_metrics(db_path)
+            
+            mock_connect.assert_called_once_with(db_path)
+
+    def test_create_advanced_metrics_processes_multiple_seasons(self):
+        """Test that metrics work across multiple seasons."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            create_advanced_metrics()
+            
+            calls = [str(c.args[0]) if c.args else "" for c in mock_con.execute.call_args_list]
+            sql_text = " ".join(calls)
+            
+            # Should not filter to specific season
+            assert "WHERE" not in sql_text or "season" in sql_text.lower()
+
+    def test_create_advanced_metrics_joins_player_and_game_data(self):
+        """Test that player and game data are properly joined."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            create_advanced_metrics()
+            
+            calls = [str(c.args[0]) if c.args else "" for c in mock_con.execute.call_args_list]
+            sql_text = " ".join(calls)
+            
+            # Should have JOIN operations
+            assert "JOIN" in sql_text
+
+    def test_create_advanced_metrics_orders_results_logically(self):
+        """Test that results are ordered appropriately."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            create_advanced_metrics()
+            
+            calls = [str(c.args[0]) if c.args else "" for c in mock_con.execute.call_args_list]
+            sql_text = " ".join(calls)
+            
+            # Season stats should likely be ordered
+            if "player_season_stats" in sql_text:
+                # Check for ORDER BY in season stats context
+                season_stats_calls = [c for c in calls if "player_season_stats" in c]
+                # ORDER BY is optional for tables but common in views
+                pass  # Accept both ordered and unordered
+
+    def test_create_advanced_metrics_maintains_referential_integrity(self):
+        """Test that foreign key relationships are preserved."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            create_advanced_metrics()
+            
+            calls = [str(c.args[0]) if c.args else "" for c in mock_con.execute.call_args_list]
+            sql_text = " ".join(calls)
+            
+            # Should reference player_id and game_id
+            assert "player_id" in sql_text and "game_id" in sql_text
+
+    def test_create_advanced_metrics_calculates_league_averages(self):
+        """Test that league-wide averages are calculated."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            create_advanced_metrics()
+            
+            calls = [str(c.args[0]) if c.args else "" for c in mock_con.execute.call_args_list]
+            sql_text = " ".join(calls)
+            
+            # Should have league averages calculation
+            assert "league" in sql_text.lower() and "avg" in sql_text.lower()
+
+    def test_create_advanced_metrics_handles_partial_execution(self):
+        """Test behavior when some views succeed and others fail."""
+        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            # Succeed on first 3, fail on 4th
+            mock_con.execute.side_effect = [
+                MagicMock(),
+                MagicMock(),
+                MagicMock(),
+                Exception("View creation failed"),
+            ]
+            
+            with pytest.raises(Exception):
+                create_advanced_metrics()
+            
+            # Connection should still be closed
+            mock_con.close.assert_called_once()

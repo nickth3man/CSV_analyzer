@@ -5,7 +5,6 @@ Tests validate that they properly indicate non-implementation and provide
 appropriate error messages.
 """
 
-import sys
 from unittest.mock import patch
 
 import pytest
@@ -66,7 +65,7 @@ class TestPopulatePlaceholders:
         with pytest.raises(NotImplementedError, match="not yet implemented"):
             populate_transactions.populate_transactions()
 
-    @pytest.mark.parametrize("module_name,main_func", [
+    @pytest.mark.parametrize(("module_name", "main_func"), [
         ("populate_arenas", "main"),
         ("populate_franchises", "main"),
         ("populate_injury_data", "main"),
@@ -79,11 +78,11 @@ class TestPopulatePlaceholders:
         """Test that main functions exit with non-zero status."""
         module = __import__(f"scripts.populate.{module_name}", fromlist=[main_func])
         main = getattr(module, main_func)
-        
+
         with pytest.raises(SystemExit) as exc_info:
             with patch("sys.argv", [module_name]):
                 main()
-        
+
         assert exc_info.value.code == 1
 
     def test_all_placeholders_log_warnings(self, caplog):
@@ -97,7 +96,7 @@ class TestPopulatePlaceholders:
             populate_shot_chart,
             populate_transactions,
         ]
-        
+
         for script in scripts:
             with pytest.raises(NotImplementedError):
                 # Try to call the populate function
@@ -131,11 +130,11 @@ class TestPopulateSalariesSpecifics:
             populate_salaries.populate_salaries()
         except NotImplementedError as e:
             error_msg = str(e)
-        
+
         # Check module docstring for data source information
         doc = populate_salaries.__doc__
         combined = f"{error_msg} {doc}"
-        
+
         assert any(source in combined for source in [
             "Basketball Reference", "HoopsHype", "Spotrac"
         ])
@@ -159,3 +158,131 @@ class TestPopulateTransactionsSpecifics:
         assert any(ttype in doc for ttype in [
             "trade", "signing", "waiver", "release"
         ])
+
+
+class TestUnusedVariableRenames:
+    """Test suite for verifying unused variable renames don't break functionality."""
+
+    @pytest.mark.parametrize(("module_name", "has_args_parsing"), [
+        ("populate_arenas", True),
+        ("populate_franchises", True),
+        ("populate_injury_data", True),
+        ("populate_officials", True),
+        ("populate_salaries", True),
+        ("populate_shot_chart", True),
+        ("populate_transactions", True),
+    ])
+    def test_unused_args_variable_renamed(self, module_name, has_args_parsing):
+        """Test that _args variable (unused) doesn't break argparse."""
+        import inspect
+        module = __import__(f"scripts.populate.{module_name}", fromlist=["main"])
+        
+        # Get source code
+        source = inspect.getsource(module.main)
+        
+        if has_args_parsing:
+            # Should have argparse
+            assert "argparse" in source or "ArgumentParser" in source
+            # Should use _args (underscore prefix for unused)
+            assert "_args = parser.parse_args()" in source or "_args=parser.parse_args()" in source
+
+    def test_populate_arenas_main_with_args(self):
+        """Test that populate_arenas.main() can be called despite unused _args."""
+        from scripts.populate import populate_arenas
+        
+        with pytest.raises(SystemExit) as exc_info:
+            with patch("sys.argv", ["populate_arenas", "--include-historical"]):
+                populate_arenas.main()
+        
+        # Should exit with error (not implemented)
+        assert exc_info.value.code == 1
+
+    def test_populate_franchises_main_with_args(self):
+        """Test that populate_franchises.main() can be called despite unused _args."""
+        from scripts.populate import populate_franchises
+        
+        with pytest.raises(SystemExit) as exc_info:
+            with patch("sys.argv", ["populate_franchises", "--include-defunct"]):
+                populate_franchises.main()
+        
+        assert exc_info.value.code == 1
+
+    def test_populate_injury_data_main_with_args(self):
+        """Test that populate_injury_data.main() can be called despite unused _args."""
+        from scripts.populate import populate_injury_data
+        
+        with pytest.raises(SystemExit) as exc_info:
+            with patch("sys.argv", ["populate_injury_data", "--player-id", "2544"]):
+                populate_injury_data.main()
+        
+        assert exc_info.value.code == 1
+
+    def test_populate_officials_main_with_args(self):
+        """Test that populate_officials.main() can be called despite unused _args."""
+        from scripts.populate import populate_officials
+        
+        with pytest.raises(SystemExit) as exc_info:
+            with patch("sys.argv", ["populate_officials", "--with-games"]):
+                populate_officials.main()
+        
+        assert exc_info.value.code == 1
+
+    def test_populate_salaries_main_with_args(self):
+        """Test that populate_salaries.main() can be called despite unused _args."""
+        from scripts.populate import populate_salaries
+        
+        with pytest.raises(SystemExit) as exc_info:
+            with patch("sys.argv", ["populate_salaries", "--source", "basketball-reference"]):
+                populate_salaries.main()
+        
+        assert exc_info.value.code == 1
+
+    def test_populate_shot_chart_main_with_args(self):
+        """Test that populate_shot_chart.main() can be called despite unused _args."""
+        from scripts.populate import populate_shot_chart
+        
+        with pytest.raises(SystemExit) as exc_info:
+            with patch("sys.argv", ["populate_shot_chart", "--all-players"]):
+                populate_shot_chart.main()
+        
+        assert exc_info.value.code == 1
+
+    def test_populate_transactions_main_with_args(self):
+        """Test that populate_transactions.main() can be called despite unused _args."""
+        from scripts.populate import populate_transactions
+        
+        with pytest.raises(SystemExit) as exc_info:
+            with patch("sys.argv", ["populate_transactions", "--all-seasons"]):
+                populate_transactions.main()
+        
+        assert exc_info.value.code == 1
+
+    def test_argparse_setup_still_functional(self):
+        """Test that argparse setup is still functional despite _args being unused."""
+        from scripts.populate import populate_arenas
+        import argparse
+        
+        # Check that ArgumentParser is used
+        import inspect
+        source = inspect.getsource(populate_arenas.main)
+        assert "ArgumentParser" in source
+        
+        # Check that arguments are defined
+        assert "add_argument" in source
+
+    def test_unused_variable_convention_followed(self):
+        """Test that unused variables follow Python convention (_prefix)."""
+        import inspect
+        from scripts.populate import (
+            populate_arenas,
+            populate_franchises,
+            populate_injury_data,
+        )
+        
+        modules = [populate_arenas, populate_franchises, populate_injury_data]
+        
+        for module in modules:
+            source = inspect.getsource(module.main)
+            # Should use _args not args
+            if "parse_args()" in source:
+                assert "_args" in source or "_ =" in source
