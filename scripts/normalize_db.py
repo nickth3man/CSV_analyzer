@@ -1,6 +1,28 @@
 #!/usr/bin/env python3
 """Normalize NBA database tables by inferring and applying proper data types.
 
+TODO: ROADMAP Phase 1.2 - Document canonical tables vs raw text tables
+- Current Status: Partial documentation exists
+- Need to clearly document:
+  1. Which tables are canonical (silver/gold) vs raw text
+  2. Relationships between raw and canonical tables
+  3. Transformation logic from raw -> silver -> gold
+- Reference: ROADMAP.md Phase 1.2
+
+TODO: ROADMAP Phase 1.5 - Quarantine raw text tables
+- Current Status: Raw text tables (game, player, team) coexist with typed versions
+- Recommended actions:
+  1. Rename raw tables with '_raw' suffix (e.g., game -> game_raw)
+  2. Or move to separate schema/database (e.g., 'raw' schema)
+  3. Update documentation to clarify canonical vs raw
+  4. Prevent accidental use of raw tables in queries
+- Priority: MEDIUM (Phase 1.5)
+- Canonical tables to prefer:
+  - Use player_silver (not player)
+  - Use team_silver (not team)
+  - Use game_gold (not game)
+- Reference: ROADMAP.md Phase 1.5
+
 This script analyzes VARCHAR columns in the database and converts them to
 appropriate data types (BIGINT, DOUBLE, DATE) based on content analysis.
 Creates "_silver" versions of each table with proper types.

@@ -4,6 +4,15 @@
 This script creates comprehensive player-season statistics by aggregating
 game-level data and calculating advanced metrics like TS%, eFG%, USG%, etc.
 
+TODO: ROADMAP Phase 2.5 - Verify and utilize bridge_player_team_season table
+- Current Status: Partial verification needed
+- Tasks:
+  1. Verify bridge_player_team_season table exists and is populated
+  2. Check data quality and completeness
+  3. Consider using this table for player-team-season relationships
+  4. May simplify season aggregation logic if properly maintained
+- Reference: ROADMAP.md Phase 2.5
+
 Features:
 - Aggregates player game stats into season totals
 - Calculates advanced metrics (TS%, eFG%, fantasy points)
