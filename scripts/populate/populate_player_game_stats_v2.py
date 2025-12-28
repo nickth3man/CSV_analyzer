@@ -72,12 +72,17 @@ class PlayerGameStatsPopulator(BasePopulator):
     def __init__(self, **kwargs):
         """
         Initialize the PlayerGameStatsPopulator.
-        
-        Forwards keyword arguments to the BasePopulator constructor, sets `seasons` to an empty list and `season_types` to `DEFAULT_SEASON_TYPES`.
+
+        Forwards keyword arguments to the BasePopulator constructor, sets
+        `seasons` to an empty list, `season_types` to `DEFAULT_SEASON_TYPES`,
+        and initializes `_fetched_season_keys` to track seasons fetched during
+        the current run (used for deferred progress marking after successful writes).
         """
         super().__init__(**kwargs)
         self.seasons: List[str] = []
         self.season_types: List[str] = DEFAULT_SEASON_TYPES
+        # Track seasons fetched in current run; marked complete after DB write
+        self._fetched_season_keys: List[str] = []
 
     def get_table_name(self) -> str:
         """
@@ -142,9 +147,9 @@ class PlayerGameStatsPopulator(BasePopulator):
                         all_data.append(df)
                         logger.info(f"  Found {len(df):,} records")
                         self.metrics.api_calls += 1
-
-                    self.progress.mark_completed(progress_key)
-                    self.progress.save()
+                        # Track this season for deferred progress marking
+                        # (completion will be marked only after successful DB write)
+                        self._fetched_season_keys.append(progress_key)
 
                     # Respect rate limiting
                     time.sleep(self.client.config.request_delay)
@@ -299,9 +304,13 @@ class PlayerGameStatsPopulator(BasePopulator):
     def pre_run_hook(self, **kwargs):
         """
         Ensure the target table exists, creating it if missing.
-        
-        Checks for the presence of the table named by get_table_name(); if the table does not exist, creates it by calling _create_table.
+
+        Checks for the presence of the table named by get_table_name(); if the
+        table does not exist, creates it by calling _create_table. Also resets
+        the list of fetched season keys for the current run.
         """
+        # Reset fetched keys for this run
+        self._fetched_season_keys = []
         conn = self.connect()
 
         # Check if table exists
@@ -346,6 +355,31 @@ class PlayerGameStatsPopulator(BasePopulator):
             )
         """)
         logger.info("Table created successfully")
+
+    def post_run_hook(self, **kwargs):
+        """
+        Mark fetched seasons as completed after successful database writes.
+
+        This ensures that progress is only saved when data has actually been
+        persisted to the database, preserving resumability if transform or
+        insert steps fail. In dry-run mode, progress is not marked to allow
+        re-running with actual writes.
+        """
+        dry_run = kwargs.get("dry_run", False)
+        if dry_run:
+            logger.info(
+                "DRY RUN - not marking progress for fetched seasons "
+                "(data was not written)"
+            )
+            return
+
+        if self._fetched_season_keys:
+            for progress_key in self._fetched_season_keys:
+                self.progress.mark_completed(progress_key)
+            self.progress.save()
+            logger.info(
+                f"Marked {len(self._fetched_season_keys)} season(s) as completed"
+            )
 
 
 def populate_player_game_stats_v2(
