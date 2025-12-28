@@ -1,3 +1,25 @@
+"""Check database integrity constraints and quality.
+
+TODO: ROADMAP Phase 1.4 - Add comprehensive FK constraints/tests
+- Implement systematic FK constraint validation for all major table relationships
+- Add referential integrity tests for game_gold -> team_silver
+- Add constraints for player_game_stats -> player_silver/game_gold
+- Consider using dbt or similar for automated constraint testing
+Reference: ROADMAP.md Phase 1.4
+
+TODO: ROADMAP Phase 4.5 - Add automated quality tests
+- Implement automated data quality checks beyond FK constraints
+- Tests needed:
+  1. Null value checks for critical columns
+  2. Data range validation (e.g., fg_pct between 0 and 1)
+  3. Cross-table consistency checks
+  4. Duplicate detection beyond primary keys
+  5. Historical data completeness checks
+- Consider: Great Expectations, dbt tests, or custom test suite
+- Priority: MEDIUM (Phase 4.5)
+Reference: ROADMAP.md Phase 4.5
+"""
+
 import contextlib
 
 import duckdb
@@ -7,6 +29,11 @@ DATABASE = "data/nba.duckdb"
 
 
 def check_integrity() -> None:
+    """
+    Validate and enforce primary key and foreign key integrity for a predefined set of tables in the DuckDB database.
+    
+    Checks a set of primary-key candidates and, when every row has a unique, non-null key, attempts to set the column NOT NULL, create a unique index, and add a PRIMARY KEY constraint. Checks a set of foreign-key relationships by counting orphaned child keys; when no orphans are found, attempts to add a FOREIGN KEY constraint, otherwise it fetches up to three sample orphan keys. Operations that modify schema are attempted but errors are suppressed. The function opens a DuckDB connection to DATABASE and closes it before returning.
+    """
     con = duckdb.connect(DATABASE)
 
     # 1. Check Primary Keys
@@ -42,6 +69,14 @@ def check_integrity() -> None:
             pass
 
     # 2. Check Foreign Keys
+    # TODO: ROADMAP Phase 1.4 - Expand FK checks to cover additional relationships
+    # Missing FK checks:
+    # - player_game_stats.player_id -> player_silver.id
+    # - player_game_stats.team_id -> team_silver.id
+    # - player_game_stats.game_id -> game_gold.game_id
+    # - team_game_stats.team_id -> team_silver.id
+    # - team_game_stats.game_id -> game_gold.game_id
+    # Reference: ROADMAP.md Phase 1.4
     fk_checks = [
         ("game_silver", "team_id_home", "team_silver", "id"),
         ("game_silver", "team_id_away", "team_silver", "id"),

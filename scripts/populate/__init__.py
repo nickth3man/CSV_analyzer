@@ -45,9 +45,9 @@ Based on nba_api library documentation:
 __version__ = "1.2.0"
 
 # Core components
-from populate.api_client import NBAClient, get_client
-from populate.base import BasePopulator, PopulationMetrics, ProgressTracker
-from populate.config import (
+from .api_client import NBAClient, get_client
+from .base import BasePopulator, PopulationMetrics, ProgressTracker
+from .config import (
     ALL_SEASONS,
     CACHE_DIR,
     CURRENT_SEASON,
@@ -59,16 +59,16 @@ from populate.config import (
     get_api_config,
     get_db_path,
 )
-from populate.database import DatabaseManager
-from populate.init_db import get_database_info, init_database
-from populate.populate_nba_data import PopulationManager
-from populate.populate_play_by_play import populate_play_by_play
+from .database import DatabaseManager
+from .init_db import get_database_info, init_database
+from .populate_nba_data import PopulationManager
+from .populate_play_by_play import populate_play_by_play
 
 # Population functions
-from populate.populate_player_game_stats import populate_player_game_stats
-from populate.populate_player_game_stats_v2 import populate_player_game_stats_v2
-from populate.populate_player_season_stats import populate_player_season_stats
-from populate.validation import DataValidator
+from .populate_player_game_stats import populate_player_game_stats
+from .populate_player_game_stats_v2 import populate_player_game_stats_v2
+from .populate_player_season_stats import populate_player_season_stats
+from .validation import DataValidator
 
 
 __all__ = [

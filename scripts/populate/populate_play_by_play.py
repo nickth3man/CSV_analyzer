@@ -4,6 +4,18 @@
 This script fetches play-by-play data for games and populates the play_by_play table.
 Play-by-play data includes every event that happens during a game (shots, rebounds, turnovers, etc.)
 
+TODO: ROADMAP Phase 3.1 - Resolve NBA API issues blocking play-by-play population
+- Current Status: Script implemented but blocked by NBA API access issues
+- API endpoints may require authentication or have changed
+- Consider alternatives:
+  1. Use nba_api library's PlayByPlayV2/V3 endpoints
+  2. Investigate if API keys/tokens are needed
+  3. Check for rate limiting or IP blocking
+  4. Consider caching/historical data sources if API unavailable
+- Impact: Blocks clutch analysis, lineup analysis, and detailed event tracking
+- Priority: HIGH (Phase 3.1)
+Reference: ROADMAP.md Phase 3.1
+
 Features:
 - Fetches play-by-play data for specific games or seasons
 - Uses shared NBAClient with rate limiting and retry logic

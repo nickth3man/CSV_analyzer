@@ -4,6 +4,21 @@
 This script creates SQL views and tables for computing advanced NBA statistics
 based on Basketball Reference and industry-standard formulas.
 
+TODO: ROADMAP Phase 2.3 - Complete advanced metrics implementation
+- Current Status: Basic metrics (TS%, eFG%, TOV%, GmSc) implemented
+- Missing: USG%, ORB%, DRB%, TRB%, STL%, BLK%, AST% (requires possessions data)
+- Missing: PER (complex formula requiring league averages)
+- Missing: BPM, VORP (require additional regression models)
+- Missing: ORtg, DRtg (require possessions and team context)
+Reference: ROADMAP.md Phase 2.3
+
+TODO: ROADMAP Phase 2.4 - Add possessions/pace data
+- Need to calculate team possessions per game for advanced metrics
+- Formula: Poss = 0.5 * ((Tm_FGA + 0.4*Tm_FTA - 1.07*(Tm_ORB/(Tm_ORB+Opp_DRB))*(Tm_FGA-Tm_FGM) + Tm_TOV) + (Opp_FGA + 0.4*Opp_FTA - 1.07*(Opp_ORB/(Opp_ORB+Tm_DRB))*(Opp_FGA-Opp_FGM) + Opp_TOV))
+- Required for: USG%, ORtg, DRtg, Pace calculation
+- Blocked by: Need opponent team stats joined per game
+Reference: ROADMAP.md Phase 2.4
+
 Metrics Implemented:
 ====================
 
@@ -48,7 +63,12 @@ import duckdb
 
 
 def create_advanced_metrics(db_path: str = "data/nba.duckdb") -> None:
-    """Create advanced metrics views in the database."""
+    """
+    Create a set of advanced NBA metrics views and a player season summary table in the specified DuckDB database.
+    
+    Parameters:
+        db_path (str): Filesystem path to the DuckDB database file (default: "data/nba.duckdb"). The function will create or replace views and a season-summary table within this database and commit the changes.
+    """
     conn = duckdb.connect(db_path)
 
     try:
@@ -296,6 +316,17 @@ def create_advanced_metrics(db_path: str = "data/nba.duckdb") -> None:
         # =====================================================================
         # 3. PLAYER SEASON SUMMARY TABLE
         # =====================================================================
+
+        # TODO: ROADMAP Phase 2.3 - Enhance player_season_stats with advanced metrics
+        # Consider adding to this table:
+        # - USG% (usage rate)
+        # - ORB%, DRB%, TRB% (rebounding percentages)
+        # - AST% (assist percentage)
+        # - STL%, BLK% (defensive activity rates)
+        # - PER (player efficiency rating)
+        # - WS, WS/48 (win shares)
+        # - BPM, VORP (box plus/minus, value over replacement)
+        # Reference: ROADMAP.md Phase 2.3
 
         # Create table to store aggregated season stats per player
         conn.execute("""
