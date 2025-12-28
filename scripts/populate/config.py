@@ -76,8 +76,9 @@ class NBAAPIConfig:
 # =============================================================================
 
 # All supported seasons (newest first)
+# Updated: December 2025 - includes 2025-26 season
 ALL_SEASONS: List[str] = [
-    "2024-25", "2023-24", "2022-23", "2021-22", "2020-21",
+    "2025-26", "2024-25", "2023-24", "2022-23", "2021-22", "2020-21",
     "2019-20", "2018-19", "2017-18", "2016-17", "2015-16",
     "2014-15", "2013-14", "2012-13", "2011-12", "2010-11",
     "2009-10", "2008-09", "2007-08", "2006-07", "2005-06",
@@ -85,8 +86,14 @@ ALL_SEASONS: List[str] = [
     "1999-00", "1998-99", "1997-98", "1996-97",
 ]
 
+# Current NBA season
+CURRENT_SEASON: str = "2025-26"
+
 # Default seasons for population (recent history)
 DEFAULT_SEASONS: List[str] = ALL_SEASONS[:10]  # Last 10 seasons
+
+# Recent seasons for quick population
+RECENT_SEASONS: List[str] = ALL_SEASONS[:5]  # Last 5 seasons
 
 # Season types from nba_api
 # From: reference/nba_api/src/nba_api/stats/library/parameters.py

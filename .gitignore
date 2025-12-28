@@ -89,6 +89,9 @@ coverage/
 data/*.duckdb
 data/*.duckdb.wal
 
+# NBA population cache (progress tracking)
+.nba_cache/
+
 # Optional npm cache directory
 .npm
 

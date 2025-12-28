@@ -26,7 +26,7 @@ Usage:
             return ["id"]
 
     populator = MyPopulator()
-    populator.run(seasons=["2023-24"])
+    populator.run(seasons=["2025-26"])
 """
 
 import json
@@ -466,6 +466,7 @@ class BasePopulator(ABC):
             """
             return tuple(row[k] for k in keys)
 
+        df = df.copy()  # Avoid SettingWithCopyWarning
         df['_is_update'] = df.apply(lambda r: get_key(r) in existing_keys, axis=1)
 
         inserts_df = df[~df['_is_update']].drop(columns=['_is_update'])

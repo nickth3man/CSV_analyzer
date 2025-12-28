@@ -146,11 +146,112 @@ When the CLI detects an ambiguous query:
 │   ├── convert_csvs.py         # CSV to DuckDB ingestion
 │   ├── normalize_db.py         # Data type normalization
 │   ├── check_integrity.py      # Database integrity checks
+│   ├── populate/               # NBA API data population package
+│   │   ├── cli.py              # Unified CLI for all population commands
+│   │   ├── api_client.py       # Enhanced NBA API client with rate limiting
+│   │   ├── base.py             # Base populator class with common functionality
+│   │   ├── populate_player_game_stats_v2.py  # Bulk player game stats
+│   │   ├── populate_player_season_stats.py   # Aggregated season stats
+│   │   └── populate_play_by_play.py          # Play-by-play data
 │   └── ...                     # Other utility scripts
 ├── docs/
 │   └── design.md               # High-level design documentation
 └── requirements.txt            # Project dependencies
 ```
+
+## Database Population
+
+The project includes a comprehensive NBA data population system that fetches data from the NBA API and stores it in a DuckDB database.
+
+### Quick Population
+
+```bash
+# Run the full population pipeline (init + CSV load + normalize + API fetch + aggregation)
+python -m scripts.populate.cli all --skip-api  # Skip API fetching for faster setup
+
+# Or run individual steps:
+python -m scripts.populate.cli init            # Initialize database schema
+python -m scripts.populate.cli load-csv        # Load CSV files into database
+python -m scripts.populate.cli normalize       # Normalize data types
+python -m scripts.populate.cli player-games --seasons 2025-26 2024-25  # Fetch from NBA API
+python -m scripts.populate.cli season-stats    # Create aggregated stats
+```
+
+### Population CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `init` | Initialize database schema (creates tables) |
+| `info` | Show database information and table row counts |
+| `load-csv` | Load data from CSV files in `data/raw/csv/` |
+| `normalize` | Normalize data types and create silver tables |
+| `player-games` | Fetch player game stats from NBA API (bulk endpoint) |
+| `player-games-legacy` | Fetch player game stats (per-player endpoint, slower) |
+| `play-by-play` | Fetch play-by-play data for games |
+| `season-stats` | Create aggregated player season statistics |
+| `all` | Run full population pipeline |
+
+### Database Contents
+
+The database is **generated** (not tracked in git) and populated from:
+1. **CSV files** in `data/raw/csv/` - historical data included in the repo
+2. **NBA API** - live game stats fetched on demand
+
+After running `load-csv`, the database contains static reference data:
+
+| Table | Source | Description |
+|-------|--------|-------------|
+| `player` | CSV | Player master data (~4,800 players) |
+| `team` | CSV | NBA team information (30 teams) |
+| `game` | CSV | Historical game records (~65,000 games) |
+| `common_player_info` | CSV | Detailed player biographical info |
+| `draft_history` | CSV | NBA draft history |
+
+After running `player-games`, additional data is fetched from NBA API:
+
+| Table | Source | Description |
+|-------|--------|-------------|
+| `player_game_stats` | API | Player box scores per game (~27,000/season) |
+| `player_season_stats` | Aggregated | Season averages (generated from player_game_stats) |
+
+Use `python -m scripts.populate.cli info` to see current database contents.
+
+### Supported Seasons
+
+The system supports NBA seasons from 1996-97 to present (2025-26). Each season typically contains:
+- ~1,230 regular season games (~26,000 player game records)
+- ~80-90 playoff games (~1,700 player game records)
+
+### Incremental Updates
+
+The population system supports incremental updates:
+- Progress is tracked per season/season-type combination in `.nba_cache/`
+- Already completed seasons are automatically skipped
+- Use `--reset` flag to force re-population
+
+```bash
+# Fetch only new seasons (skips already completed)
+python -m scripts.populate.cli player-games --seasons 2025-26
+
+# Force re-fetch all specified seasons
+python -m scripts.populate.cli player-games --seasons 2025-26 --reset
+
+# Fetch specific season types only
+python -m scripts.populate.cli player-games --seasons 2024-25 --regular-only
+python -m scripts.populate.cli player-games --seasons 2024-25 --playoffs-only
+
+# Fetch multiple seasons at once
+python -m scripts.populate.cli player-games --seasons 2025-26 2024-25 2023-24
+```
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `NBA_DB_PATH` | Path to DuckDB database | `data/nba.duckdb` |
+| `NBA_API_TIMEOUT` | API request timeout (seconds) | `30` |
+| `NBA_API_DELAY` | Delay between API requests (seconds) | `0.6` |
+| `NBA_API_PROXY` | Proxy URL for API requests | None |
 
 ## Dependencies
 
@@ -160,6 +261,8 @@ When the CLI detects an ambiguous query:
 - `pandas` - Data manipulation
 - `matplotlib` - Visualizations
 - `requests` - HTTP requests for model fetching
+- `duckdb` - High-performance analytical database
+- `nba_api` - NBA Stats API client
 
 ## Development
 

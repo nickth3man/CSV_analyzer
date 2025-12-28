@@ -21,7 +21,7 @@ Usage:
     python scripts/populate/populate_player_game_stats_v2.py
 
     # Specific seasons only
-    python scripts/populate/populate_player_game_stats_v2.py --seasons 2023-24 2022-23
+    python scripts/populate/populate_player_game_stats_v2.py --seasons 2025-26 2024-25
 
     # With custom delay for rate limiting
     python scripts/populate/populate_player_game_stats_v2.py --delay 1.0

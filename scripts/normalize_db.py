@@ -1,82 +1,244 @@
-import duckdb
-import re
+#!/usr/bin/env python3
+"""Normalize NBA database tables by inferring and applying proper data types.
 
+This script analyzes VARCHAR columns in the database and converts them to
+appropriate data types (BIGINT, DOUBLE, DATE) based on content analysis.
+Creates "_silver" versions of each table with proper types.
+
+The normalization process:
+1. Scans all tables (excluding views and existing _silver tables)
+2. For each VARCHAR column, tests which data type fits best
+3. Creates a new table with suffix "_silver" containing typed data
+
+Type inference hierarchy:
+- BIGINT: If all values can cast to integer
+- DOUBLE: If all values can cast to floating point
+- DATE: If all values can cast to date
+- VARCHAR: Default fallback
+
+Usage:
+    # Run normalization
+    python scripts/normalize_db.py
+
+    # Or via CLI
+    python -m scripts.populate.cli normalize
+"""
+
+import argparse
+import logging
+import sys
+from pathlib import Path
+from typing import List, Optional
+
+import duckdb
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Default database path
 DATABASE = 'data/nba.duckdb'
 SILVER_SUFFIX = '_silver'
 
-def get_tables(con):
-    return [r[0] for r in con.sql("SHOW TABLES").fetchall() if not r[0].endswith('_silver') and not r[0].endswith('_rejects')]
 
-def infer_column_type(con, table, col):
+def get_tables(con: duckdb.DuckDBPyConnection) -> List[str]:
+    """Get actual tables (not views) that don't end with _silver or _rejects.
+    
+    Args:
+        con: DuckDB connection
+        
+    Returns:
+        List of table names to process
     """
-    Determines the best data type for a column by testing casts.
-    Hierarchy: BIGINT -> DOUBLE -> DATE -> BOOLEAN -> VARCHAR
+    # Get list of views to exclude
+    views = set(
+        r[0] for r in con.sql(
+            "SELECT view_name FROM duckdb_views() WHERE internal = false"
+        ).fetchall()
+    )
+    
+    # Get all tables and filter out views and silver/rejects tables
+    all_tables = [r[0] for r in con.sql("SHOW TABLES").fetchall()]
+    return [
+        t for t in all_tables 
+        if t not in views 
+        and not t.endswith('_silver') 
+        and not t.endswith('_rejects')
+    ]
+
+
+def infer_column_type(con: duckdb.DuckDBPyConnection, table: str, col: str) -> str:
+    """Determine the best data type for a column by testing casts.
+    
+    Tests type casts in order of specificity:
+    1. BIGINT - for integer values
+    2. DOUBLE - for floating point values  
+    3. DATE - for date values
+    4. VARCHAR - fallback for text
+    
+    Args:
+        con: DuckDB connection
+        table: Table name
+        col: Column name
+        
+    Returns:
+        Inferred type name (BIGINT, DOUBLE, DATE, or VARCHAR)
     """
+    # Quote the column name to handle reserved words and special characters
+    quoted_col = f'"{col}"'
+    
     # Get total non-null count
-    total_count = con.sql(f"SELECT count({col}) FROM {table}").fetchone()[0]
+    total_count = con.sql(f"SELECT count({quoted_col}) FROM {table}").fetchone()[0]
     if total_count == 0:
-        return 'VARCHAR' # Empty column, stay safe
+        return 'VARCHAR'  # Empty column, stay safe
 
     # 1. Try BIGINT
-    # We check if count(try_cast(...)) == total_count
-    match_count = con.sql(f"SELECT count(TRY_CAST({col} AS BIGINT)) FROM {table}").fetchone()[0]
+    match_count = con.sql(
+        f"SELECT count(TRY_CAST({quoted_col} AS BIGINT)) FROM {table}"
+    ).fetchone()[0]
     if match_count == total_count:
         return 'BIGINT'
 
     # 2. Try DOUBLE
-    match_count = con.sql(f"SELECT count(TRY_CAST({col} AS DOUBLE)) FROM {table}").fetchone()[0]
+    match_count = con.sql(
+        f"SELECT count(TRY_CAST({quoted_col} AS DOUBLE)) FROM {table}"
+    ).fetchone()[0]
     if match_count == total_count:
         return 'DOUBLE'
 
     # 3. Try DATE
-    match_count = con.sql(f"SELECT count(TRY_CAST({col} AS DATE)) FROM {table}").fetchone()[0]
+    match_count = con.sql(
+        f"SELECT count(TRY_CAST({quoted_col} AS DATE)) FROM {table}"
+    ).fetchone()[0]
     if match_count == total_count:
         return 'DATE'
 
-    # 4. Try BOOLEAN (True/False, 0/1 is covered by BigInt but maybe we want boolean?)
-    # DuckDB's boolean cast is smart. Let's stick to explicit if text is 'true'/'false'.
-    # For now, BIGINT usually covers 0/1. Let's skip boolean inference to avoid over-optimizing 0/1 flags as bools unless requested.
-    
+    # Default to VARCHAR
     return 'VARCHAR'
 
-def transform_to_silver():
-    con = duckdb.connect(DATABASE)
-    tables = get_tables(con)
-    print(f"Found {len(tables)} tables to process.")
 
-    for table in tables:
-        print(f"Analyzing table '{table}'...")
-        cols = con.sql(f"DESCRIBE {table}").fetchall()
-        # col structure: name, type, null, key, default, extra
-        
-        select_parts = []
-        
-        for col_info in cols:
-            col_name = col_info[0]
-            current_type = col_info[1]
+def transform_to_silver(db_path: Optional[str] = None, tables: Optional[List[str]] = None):
+    """Transform tables to silver layer with proper data types.
+    
+    Args:
+        db_path: Path to DuckDB database (default: data/nba.duckdb)
+        tables: Specific tables to process (default: all)
+    """
+    db_path = db_path or DATABASE
+    
+    if not Path(db_path).exists():
+        logger.error(f"Database not found: {db_path}")
+        sys.exit(1)
+    
+    con = duckdb.connect(db_path)
+    
+    # Get tables to process
+    if tables:
+        tables_to_process = tables
+    else:
+        tables_to_process = get_tables(con)
+    
+    logger.info(f"Found {len(tables_to_process)} tables to process.")
+    
+    processed = 0
+    errors = 0
+
+    for table in tables_to_process:
+        try:
+            logger.info(f"Analyzing table '{table}'...")
             
-            # Skip checking if it's already typed (though our source is all varchar)
-            if current_type != 'VARCHAR':
-                select_parts.append(f"{col_name}")
-                continue
+            # Get column info
+            cols = con.sql(f"DESCRIBE {table}").fetchall()
+            
+            select_parts = []
+            type_changes = []
+            
+            for col_info in cols:
+                col_name = col_info[0]
+                current_type = col_info[1]
+                quoted_col = f'"{col_name}"'
                 
-            new_type = infer_column_type(con, table, col_name)
+                # Skip checking if it's already typed
+                if current_type != 'VARCHAR':
+                    select_parts.append(quoted_col)
+                    continue
+                    
+                new_type = infer_column_type(con, table, col_name)
+                
+                if new_type != 'VARCHAR':
+                    type_changes.append((col_name, new_type))
+                    select_parts.append(
+                        f"TRY_CAST({quoted_col} AS {new_type}) AS {quoted_col}"
+                    )
+                else:
+                    select_parts.append(quoted_col)
+
+            # Log type changes
+            for col_name, new_type in type_changes:
+                logger.info(f"  - {col_name}: inferred {new_type}")
+
+            # Create Silver Table
+            silver_table = f"{table}{SILVER_SUFFIX}"
+            logger.info(f"  Creating '{silver_table}' with corrected types...")
             
-            if new_type != 'VARCHAR':
-                print(f"  - {col_name}: inferred {new_type}")
-                select_parts.append(f"TRY_CAST({col_name} AS {new_type}) AS {col_name}")
-            else:
-                select_parts.append(f"{col_name}")
+            query = f"""
+                CREATE OR REPLACE TABLE {silver_table} AS 
+                SELECT {', '.join(select_parts)} FROM {table}
+            """
+            con.execute(query)
+            processed += 1
+            
+        except Exception as e:
+            logger.error(f"Error processing table '{table}': {e}")
+            errors += 1
 
-        # Create Silver Table
-        silver_table = f"{table}{SILVER_SUFFIX}"
-        print(f"  Creating '{silver_table}' with corrected types...")
-        
-        query = f"CREATE OR REPLACE TABLE {silver_table} AS SELECT {', '.join(select_parts)} FROM {table}"
-        con.execute(query)
-
-    print("\nTransformation complete.")
     con.close()
+    
+    logger.info("")
+    logger.info("=" * 50)
+    logger.info("NORMALIZATION COMPLETE")
+    logger.info("=" * 50)
+    logger.info(f"Tables processed: {processed}")
+    if errors:
+        logger.warning(f"Errors: {errors}")
+
+
+def main():
+    """Command-line entry point for database normalization."""
+    parser = argparse.ArgumentParser(
+        description="Normalize NBA database tables with proper data types",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+    # Normalize all tables
+    python scripts/normalize_db.py
+
+    # Normalize specific tables
+    python scripts/normalize_db.py --tables player team game
+
+    # Specify custom database
+    python scripts/normalize_db.py --db /path/to/nba.duckdb
+        """
+    )
+    
+    parser.add_argument(
+        "--db",
+        default=DATABASE,
+        help="Path to DuckDB database (default: data/nba.duckdb)"
+    )
+    parser.add_argument(
+        "--tables",
+        nargs="+",
+        help="Specific tables to normalize"
+    )
+    
+    args = parser.parse_args()
+    
+    transform_to_silver(db_path=args.db, tables=args.tables)
+
 
 if __name__ == "__main__":
-    transform_to_silver()
+    main()
