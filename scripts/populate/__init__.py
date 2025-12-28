@@ -34,15 +34,15 @@ Usage:
     from scripts.populate.populate_play_by_play import populate_play_by_play
     from scripts.populate.populate_player_season_stats import populate_player_season_stats
 
-    populate_player_game_stats_v2(seasons=['2023-24'])
-    populate_play_by_play(seasons=['2023-24'], limit=10)
+    populate_player_game_stats_v2(seasons=['2025-26'])
+    populate_play_by_play(seasons=['2025-26'], limit=10)
     populate_player_season_stats()
 
 Based on nba_api library documentation:
     reference/nba_api/
 """
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 # Core components
 from .api_client import NBAClient, get_client
@@ -50,6 +50,9 @@ from .config import (
     get_api_config,
     get_db_path,
     ALL_SEASONS,
+    CURRENT_SEASON,
+    RECENT_SEASONS,
+    DEFAULT_SEASONS,
     SEASON_TYPES,
     DEFAULT_SEASON_TYPES,
     CACHE_DIR,
@@ -74,6 +77,9 @@ __all__ = [
     'get_api_config',
     'get_db_path',
     'ALL_SEASONS',
+    'CURRENT_SEASON',
+    'RECENT_SEASONS',
+    'DEFAULT_SEASONS',
     'SEASON_TYPES',
     'DEFAULT_SEASON_TYPES',
     'CACHE_DIR',

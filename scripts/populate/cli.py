@@ -18,7 +18,7 @@ Usage:
     python -m scripts.populate.cli load-csv
 
     # Fetch player game stats (bulk)
-    python -m scripts.populate.cli player-games --seasons 2023-24
+    python -m scripts.populate.cli player-games --seasons 2025-26 2024-25
 
     # Run full population pipeline
     python -m scripts.populate.cli all
@@ -29,7 +29,13 @@ import logging
 import sys
 from typing import List, Optional
 
-from scripts.populate.config import ALL_SEASONS, DEFAULT_SEASON_TYPES, get_db_path
+from scripts.populate.config import (
+    ALL_SEASONS,
+    CURRENT_SEASON,
+    RECENT_SEASONS,
+    DEFAULT_SEASON_TYPES,
+    get_db_path,
+)
 
 # Configure logging
 logging.basicConfig(

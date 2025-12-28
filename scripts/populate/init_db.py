@@ -288,6 +288,41 @@ SCHEMA_DEFINITIONS = {
             PRIMARY KEY (season, player_id)
         )
     """,
+
+    "player_season_stats": """
+        CREATE TABLE IF NOT EXISTS player_season_stats (
+            player_id BIGINT NOT NULL,
+            player_name VARCHAR,
+            team_id BIGINT,
+            team_abbreviation VARCHAR(3),
+            season_id VARCHAR,
+            season_type VARCHAR,
+            games_played INTEGER,
+            minutes_played DOUBLE,
+            fgm DOUBLE,
+            fga DOUBLE,
+            fg_pct DOUBLE,
+            fg3m DOUBLE,
+            fg3a DOUBLE,
+            fg3_pct DOUBLE,
+            ftm DOUBLE,
+            fta DOUBLE,
+            ft_pct DOUBLE,
+            oreb DOUBLE,
+            dreb DOUBLE,
+            reb DOUBLE,
+            ast DOUBLE,
+            stl DOUBLE,
+            blk DOUBLE,
+            tov DOUBLE,
+            pf DOUBLE,
+            pts DOUBLE,
+            plus_minus DOUBLE,
+            ts_pct DOUBLE,
+            efg_pct DOUBLE,
+            PRIMARY KEY (player_id, season_id, team_id)
+        )
+    """,
 }
 
 
@@ -295,11 +330,17 @@ SCHEMA_DEFINITIONS = {
 INDEX_DEFINITIONS = [
     "CREATE INDEX IF NOT EXISTS idx_player_game_stats_player ON player_game_stats(player_id)",
     "CREATE INDEX IF NOT EXISTS idx_player_game_stats_game ON player_game_stats(game_id)",
+    "CREATE INDEX IF NOT EXISTS idx_player_game_stats_team ON player_game_stats(team_id)",
     "CREATE INDEX IF NOT EXISTS idx_play_by_play_game ON play_by_play(game_id)",
     "CREATE INDEX IF NOT EXISTS idx_play_by_play_player1 ON play_by_play(player1_id)",
     "CREATE INDEX IF NOT EXISTS idx_game_date ON game(game_date)",
     "CREATE INDEX IF NOT EXISTS idx_game_home_team ON game(team_id_home)",
     "CREATE INDEX IF NOT EXISTS idx_game_away_team ON game(team_id_away)",
+    "CREATE INDEX IF NOT EXISTS idx_player_season_stats_player ON player_season_stats(player_id)",
+    "CREATE INDEX IF NOT EXISTS idx_player_season_stats_season ON player_season_stats(season_id)",
+    "CREATE INDEX IF NOT EXISTS idx_player_season_stats_team ON player_season_stats(team_id)",
+    "CREATE INDEX IF NOT EXISTS idx_common_player_info_team ON common_player_info(team_id)",
+    "CREATE INDEX IF NOT EXISTS idx_draft_history_team ON draft_history(team_id)",
 ]
 
 
