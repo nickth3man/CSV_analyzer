@@ -5,6 +5,7 @@ import logging
 
 from pocketflow import Node
 
+
 logger = logging.getLogger(__name__)
 
 from backend.utils.call_llm import call_llm
@@ -49,8 +50,7 @@ Only query tables listed there - don't assume tables exist.
 """
 
     def prep(self, shared):
-        """
-        Assembles and normalizes required inputs from the shared execution context for the CSV code generator.
+        """Assembles and normalizes required inputs from the shared execution context for the CSV code generator.
 
         Parameters:
             shared (dict): Shared state containing execution context and interim results produced by previous nodes. Expected keys used below may be absent; defaults are applied where appropriate.
@@ -84,8 +84,7 @@ Only query tables listed there - don't assume tables exist.
         }
 
     def exec(self, prep_res):
-        """
-        Generate Python analysis code by composing a prompt from prepared context and calling the LLM.
+        """Generate Python analysis code by composing a prompt from prepared context and calling the LLM.
 
         Parameters:
             prep_res (dict): Prepared context from prep(), expected keys include:
@@ -153,17 +152,17 @@ FIX APPROACH: The error is likely due to incompatible dtypes or merge keys.
 {self.DYNAMIC_GUIDANCE}
 {error_fix_hint}
 DATABASE SCHEMA (available as dfs dictionary):
-{prep_res['schema']}
+{prep_res["schema"]}
 {entity_info}
 {cross_ref_info}
 {context_summary}
 {comparison_hint}
-USER QUESTION: <user_question>{prep_res['question']}</user_question>
+USER QUESTION: <user_question>{prep_res["question"]}</user_question>
 
 PREVIOUS CODE:
-{prep_res.get('previous_code', 'None')}
+{prep_res.get("previous_code", "None")}
 
-ERROR: {prep_res['error']}
+ERROR: {prep_res["error"]}
 
 Write ONLY the corrected Python code. AVOID complex merges - query tables separately instead.
 The DataFrames are in a dict called 'dfs' where keys are table names.
@@ -173,14 +172,14 @@ Do NOT include markdown code blocks. Just raw Python code."""
             prompt = f"""You are a Python data analyst. Write comprehensive code to answer the user's question using CSV data.
 {self.DYNAMIC_GUIDANCE}
 DATABASE SCHEMA (available as dfs dictionary):
-{prep_res['schema']}
+{prep_res["schema"]}
 {entity_info}
 {cross_ref_info}
 {context_summary}
 {comparison_hint}
-USER QUESTION: <user_question>{prep_res['question']}</user_question>
+USER QUESTION: <user_question>{prep_res["question"]}</user_question>
 
-PLAN: {prep_res['plan']}
+PLAN: {prep_res["plan"]}
 
 Write Python code to thoroughly analyze and answer the question.
 - The DataFrames are in a dict called 'dfs' where keys are table names
@@ -200,8 +199,7 @@ Write Python code to thoroughly analyze and answer the question.
         return code
 
     def exec_fallback(self, prep_res, exc) -> str:
-        """
-        Provide a minimal fallback Python snippet when code generation fails.
+        """Provide a minimal fallback Python snippet when code generation fails.
 
         Parameters:
             prep_res (dict): Prepared inputs that were passed to the generator (unused by this fallback).
@@ -214,8 +212,7 @@ Write Python code to thoroughly analyze and answer the question.
         return "print('Code generation failed due to LLM error.')\nfinal_result = {}"
 
     def post(self, shared, prep_res, exec_res) -> str:
-        """
-        Store the generated CSV code snippet in the shared execution context and advance the node flow.
+        """Store the generated CSV code snippet in the shared execution context and advance the node flow.
 
         Parameters:
             exec_res (str): Generated Python code (or snippet) produced by the node.
@@ -231,8 +228,7 @@ class NBAApiCodeGenerator(Node):
     """Generate nba_api specific code leveraging the shared nba_client helper."""
 
     def prep(self, shared):
-        """
-        Assembles and returns the subset of shared runtime state required to generate NBA API code.
+        """Assembles and returns the subset of shared runtime state required to generate NBA API code.
 
         Parameters:
             shared (dict): Shared execution context containing pipeline state and artifacts.
@@ -258,8 +254,7 @@ class NBAApiCodeGenerator(Node):
         }
 
     def exec(self, prep_res):
-        """
-        Generate Python code that calls the NBA API helper according to the prepared plan, context, and entity IDs.
+        """Generate Python code that calls the NBA API helper according to the prepared plan, context, and entity IDs.
 
         Parameters:
             prep_res (dict): Prepared inputs from prep(), expected keys:
@@ -284,11 +279,11 @@ class NBAApiCodeGenerator(Node):
         base_prompt = f"""You are a Python engineer generating code that uses nba_api via the helper `nba_client` from backend.utils.nba_api_client.
 Available helper methods: get_player_career_stats, get_player_game_log, get_team_game_log, get_league_leaders, get_common_team_roster, get_scoreboard.
 Use pandas as pd. Do NOT import os/sys/subprocess/requests.
-Schema (API data already loaded): {prep_res.get('api_schema', '')}
+Schema (API data already loaded): {prep_res.get("api_schema", "")}
 Entity IDs (use these for API calls): {entity_ids}
 Context: {context}
 PLAN: {plan}
-USER QUESTION: <user_question>{prep_res['question']}</user_question>
+USER QUESTION: <user_question>{prep_res["question"]}</user_question>
 Requirements:
 - Store results in variable `api_result`
 - Prefer cached helper methods instead of direct HTTP
@@ -315,8 +310,7 @@ Requirements:
         return code
 
     def exec_fallback(self, prep_res, exc) -> str:
-        """
-        Provide a minimal fallback Python snippet when NBA API code generation fails.
+        """Provide a minimal fallback Python snippet when NBA API code generation fails.
 
         Parameters:
             prep_res (dict): Prepared input that was passed to exec; used for context in logging or debugging.
@@ -329,8 +323,7 @@ Requirements:
         return "api_result = {}"
 
     def post(self, shared, prep_res, exec_res) -> str:
-        """
-        Persist the generated API code snippet in the shared workflow state and signal the default next step.
+        """Persist the generated API code snippet in the shared workflow state and signal the default next step.
 
         Parameters:
             shared (dict): Shared workflow/state dictionary used across nodes; the code snippet will be stored here under the "api_code_snippet" key.

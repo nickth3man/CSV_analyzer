@@ -45,58 +45,59 @@ Based on nba_api library documentation:
 __version__ = "1.2.0"
 
 # Core components
-from .api_client import NBAClient, get_client
-from .config import (
+from populate.api_client import NBAClient, get_client
+from populate.base import BasePopulator, PopulationMetrics, ProgressTracker
+from populate.config import (
+    ALL_SEASONS,
+    CACHE_DIR,
+    CURRENT_SEASON,
+    DEFAULT_SEASON_TYPES,
+    DEFAULT_SEASONS,
+    RECENT_SEASONS,
+    SEASON_TYPES,
+    ensure_cache_dir,
     get_api_config,
     get_db_path,
-    ALL_SEASONS,
-    CURRENT_SEASON,
-    RECENT_SEASONS,
-    DEFAULT_SEASONS,
-    SEASON_TYPES,
-    DEFAULT_SEASON_TYPES,
-    CACHE_DIR,
-    ensure_cache_dir,
 )
-from .database import DatabaseManager
-from .validation import DataValidator
-from .base import BasePopulator, PopulationMetrics, ProgressTracker
-from .populate_nba_data import PopulationManager
+from populate.database import DatabaseManager
+from populate.init_db import get_database_info, init_database
+from populate.populate_nba_data import PopulationManager
+from populate.populate_play_by_play import populate_play_by_play
 
 # Population functions
-from .populate_player_game_stats import populate_player_game_stats
-from .populate_player_game_stats_v2 import populate_player_game_stats_v2
-from .populate_play_by_play import populate_play_by_play
-from .populate_player_season_stats import populate_player_season_stats
-from .init_db import init_database, get_database_info
+from populate.populate_player_game_stats import populate_player_game_stats
+from populate.populate_player_game_stats_v2 import populate_player_game_stats_v2
+from populate.populate_player_season_stats import populate_player_season_stats
+from populate.validation import DataValidator
+
 
 __all__ = [
-    # Core components
-    'NBAClient',
-    'get_client',
-    'get_api_config',
-    'get_db_path',
-    'ALL_SEASONS',
-    'CURRENT_SEASON',
-    'RECENT_SEASONS',
-    'DEFAULT_SEASONS',
-    'SEASON_TYPES',
-    'DEFAULT_SEASON_TYPES',
-    'CACHE_DIR',
-    'ensure_cache_dir',
-    'DatabaseManager',
-    'DataValidator',
-    'PopulationManager',
+    "ALL_SEASONS",
+    "CACHE_DIR",
+    "CURRENT_SEASON",
+    "DEFAULT_SEASONS",
+    "DEFAULT_SEASON_TYPES",
+    "RECENT_SEASONS",
+    "SEASON_TYPES",
     # Base classes
-    'BasePopulator',
-    'PopulationMetrics',
-    'ProgressTracker',
-    # Population functions
-    'populate_player_game_stats',
-    'populate_player_game_stats_v2',
-    'populate_play_by_play',
-    'populate_player_season_stats',
+    "BasePopulator",
+    "DataValidator",
+    "DatabaseManager",
+    # Core components
+    "NBAClient",
+    "PopulationManager",
+    "PopulationMetrics",
+    "ProgressTracker",
+    "ensure_cache_dir",
+    "get_api_config",
+    "get_client",
+    "get_database_info",
+    "get_db_path",
     # Database utilities
-    'init_database',
-    'get_database_info',
+    "init_database",
+    "populate_play_by_play",
+    # Population functions
+    "populate_player_game_stats",
+    "populate_player_game_stats_v2",
+    "populate_player_season_stats",
 ]

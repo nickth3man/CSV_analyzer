@@ -53,12 +53,18 @@ import time
 import pandas as pd
 from pocketflow import Node
 
+
 logger = logging.getLogger(__name__)
 
 from typing import Never
 
 from backend.config import API_EXECUTION_TIMEOUT, CSV_EXECUTION_TIMEOUT
 from backend.utils.nba_api_client import nba_client
+
+
+def _blocked_global_call(*_args, **_kwargs) -> Never:
+    """Raise runtime error when globals() is called in sandbox."""
+    raise RuntimeError("globals() is not available in the sandbox")
 
 
 class SafetyCheck(Node):
@@ -115,8 +121,7 @@ class SafetyCheck(Node):
     }
 
     def prep(self, shared):
-        """
-        Extract CSV and API code snippets from the shared state.
+        """Extract CSV and API code snippets from the shared state.
 
         Parameters:
             shared (dict): Shared state mapping that may contain "csv_code_snippet" and "api_code_snippet".
@@ -127,8 +132,7 @@ class SafetyCheck(Node):
         return shared.get("csv_code_snippet", ""), shared.get("api_code_snippet", "")
 
     def _check_code(self, code):
-        """
-        Validate a Python source string for disallowed imports, function calls, attribute access, and subscripts.
+        """Validate a Python source string for disallowed imports, function calls, attribute access, and subscripts.
 
         Parameters:
             code (str): Python source code to analyze.
@@ -160,20 +164,23 @@ class SafetyCheck(Node):
             elif isinstance(node, ast.Attribute):
                 if node.attr in self.FORBIDDEN_ATTRIBUTES:
                     return "unsafe", f"Forbidden attribute access: {node.attr}"
-            elif isinstance(node, ast.Subscript) and isinstance(
-                node.slice, ast.Constant
-            ):
-                if (
+            elif (
+                isinstance(node, ast.Subscript)
+                and isinstance(
+                    node.slice,
+                    ast.Constant,
+                )
+                and (
                     isinstance(node.slice.value, str)
                     and node.slice.value in self.FORBIDDEN_ATTRIBUTES
-                ):
-                    return "unsafe", f"Forbidden subscript access: {node.slice.value}"
+                )
+            ):
+                return "unsafe", f"Forbidden subscript access: {node.slice.value}"
 
         return "safe", None
 
     def exec(self, prep_res):
-        """
-        Validate the provided CSV and API code snippets for forbidden imports, calls, or attribute access.
+        """Validate the provided CSV and API code snippets for forbidden imports, calls, or attribute access.
 
         Parameters:
             prep_res (tuple): A tuple (csv_code, api_code) containing the code snippets to validate as strings.
@@ -193,8 +200,7 @@ class SafetyCheck(Node):
         return "safe", None
 
     def post(self, shared, prep_res, exec_res) -> str:
-        """
-        Finalize the safety check by interpreting exec_res and updating shared state.
+        """Finalize the safety check by interpreting exec_res and updating shared state.
 
         Parameters:
             shared (dict): Shared state mapping; will receive an 'exec_error' entry when a violation is detected.
@@ -221,8 +227,7 @@ class Executor(Node):
     """Execute generated code in a restricted local scope with timeout and resource limits."""
 
     def prep(self, shared):
-        """
-        Prepare execution inputs by extracting CSV code, API code, and dataframe state from the shared context.
+        """Prepare execution inputs by extracting CSV code, API code, and dataframe state from the shared context.
 
         Parameters:
             shared (dict): Mutable shared state containing optional keys used by execution nodes.
@@ -241,8 +246,7 @@ class Executor(Node):
 
     @staticmethod
     def _execute_code_with_timeout(code, dfs, extra_scope=None, timeout=None):
-        """
-        Execute a user-provided code snippet in a restricted sandbox and return its result or an error.
+        """Execute a user-provided code snippet in a restricted sandbox and return its result or an error.
 
         The function runs `code` inside a constrained execution environment where only a limited set of builtins and the provided scopes are available. The executed code must assign the final output to a variable named `final_result`; otherwise an error is returned. If execution exceeds `timeout` seconds, an error describing the timeout is returned.
 
@@ -255,19 +259,15 @@ class Executor(Node):
         Returns:
             tuple: A two-element tuple `(status, payload)` where `status` is `"success"` or `"error"`. For `"success"`, `payload` is the value of `final_result`. For `"error"`, `payload` is an error message describing why execution failed (syntax/runtime error, missing `final_result`, or timeout).
         """
-        result_queue = queue.Queue()
+        result_queue: queue.Queue[tuple[str, object]] = queue.Queue()
 
         def target() -> None:
-            """
-            Execute the provided code string in a restricted sandbox and push a result tuple into `result_queue`.
+            """Execute the provided code string in a restricted sandbox and push a result tuple into `result_queue`.
 
             Executes `code` with a local scope that includes `dfs`, `pd`, a limited set of safe builtins (with `globals()` blocked), and any mappings from `extra_scope`. On successful execution, if the executed code assigns a value to `final_result`, the function puts ("success", final_result) into `result_queue`. If `final_result` is missing or unchanged, it puts ("error", "Code did not define 'final_result' variable"). Any exception raised during execution is caught and put as ("error", str(exception)) into `result_queue`.
             """
             try:
                 final_result_sentinel = object()
-
-                def blocked_global_call(*_args, **_kwargs) -> Never:
-                    raise RuntimeError("globals() is not available in the sandbox")
 
                 safe_builtins = {
                     "abs": abs,
@@ -296,7 +296,7 @@ class Executor(Node):
                     "KeyError": KeyError,
                     "TypeError": TypeError,
                     "RuntimeError": RuntimeError,
-                    "globals": blocked_global_call,
+                    "globals": _blocked_global_call,
                 }
 
                 local_scope = {
@@ -308,14 +308,14 @@ class Executor(Node):
                 if extra_scope:
                     local_scope.update(extra_scope)
 
-                exec(code, local_scope, local_scope)  # nosec B102
+                exec(code, local_scope, local_scope)  # nosec B102  # noqa: S102
 
                 if (
                     "final_result" not in local_scope
                     or local_scope["final_result"] is final_result_sentinel
                 ):
                     result_queue.put(
-                        ("error", "Code did not define 'final_result' variable")
+                        ("error", "Code did not define 'final_result' variable"),
                     )
                 else:
                     result_queue.put(("success", local_scope["final_result"]))
@@ -338,8 +338,7 @@ class Executor(Node):
             return "error", "Execution failed without producing a result"
 
     def exec(self, prep_res):
-        """
-        Execute prepared CSV and API code snippets with sandboxing and timeouts, returning their execution statuses.
+        """Execute prepared CSV and API code snippets with sandboxing and timeouts, returning their execution statuses.
 
         Parameters:
             prep_res (dict): Prepared inputs with keys:
@@ -359,18 +358,22 @@ class Executor(Node):
 
         if csv_code:
             csv_status = self._execute_code_with_timeout(
-                csv_code, dfs, timeout=CSV_EXECUTION_TIMEOUT
+                csv_code,
+                dfs,
+                timeout=CSV_EXECUTION_TIMEOUT,
             )
         if api_code:
             api_scope = {"nba_client": nba_client, "time": time}
             api_status = self._execute_code_with_timeout(
-                api_code, dfs, extra_scope=api_scope, timeout=API_EXECUTION_TIMEOUT
+                api_code,
+                dfs,
+                extra_scope=api_scope,
+                timeout=API_EXECUTION_TIMEOUT,
             )
         return {"csv": csv_status, "api": api_status}
 
     def post(self, shared, prep_res, exec_res) -> str:
-        """
-        Aggregate CSV and API execution outcomes, record results or errors into `shared`, and return the overall status.
+        """Aggregate CSV and API execution outcomes, record results or errors into `shared`, and return the overall status.
 
         Parameters:
             shared (dict): Mutable state shared between nodes; on success this will receive keys
@@ -417,8 +420,7 @@ class ErrorFixer(Node):
     MAX_RETRIES = 3
 
     def prep(self, shared):
-        """
-        Prepare retry metadata and the latest generated code snippets from the shared state.
+        """Prepare retry metadata and the latest generated code snippets from the shared state.
 
         Parameters:
             shared (dict): Shared state dictionary containing execution context and artifacts.
@@ -439,8 +441,7 @@ class ErrorFixer(Node):
         )
 
     def exec(self, prep_res) -> str:
-        """
-        Decide whether to stop retrying or request another attempt based on the current retry count.
+        """Decide whether to stop retrying or request another attempt based on the current retry count.
 
         Parameters:
             prep_res (tuple): A tuple of (last_error, code_dict, retry_count) where `retry_count` is the number of attempts already made.
@@ -454,8 +455,7 @@ class ErrorFixer(Node):
         return "try_again"
 
     def post(self, shared, prep_res, exec_res) -> str:
-        """
-        Handle post-execution retry logic and update shared state accordingly.
+        """Handle post-execution retry logic and update shared state accordingly.
 
         When exec_res is "max_retries_exceeded", records a final failure message in shared["final_text"] (including the last exec_error if present), prints a stop message, and returns "give_up". Otherwise increments shared["retry_count"] (initializing it to 1 if missing) and returns "fix".
 

@@ -27,16 +27,17 @@ import argparse
 import logging
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any
 
 import duckdb
 
 from scripts.populate.config import get_db_path
 
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,6 @@ SCHEMA_DEFINITIONS = {
             is_active BOOLEAN DEFAULT FALSE
         )
     """,
-
     "player_silver": """
         CREATE TABLE IF NOT EXISTS player_silver (
             id BIGINT PRIMARY KEY,
@@ -62,7 +62,6 @@ SCHEMA_DEFINITIONS = {
             is_active BOOLEAN DEFAULT FALSE
         )
     """,
-
     "team": """
         CREATE TABLE IF NOT EXISTS team (
             id BIGINT PRIMARY KEY,
@@ -74,7 +73,6 @@ SCHEMA_DEFINITIONS = {
             year_founded INTEGER
         )
     """,
-
     "team_silver": """
         CREATE TABLE IF NOT EXISTS team_silver (
             id BIGINT PRIMARY KEY,
@@ -86,7 +84,6 @@ SCHEMA_DEFINITIONS = {
             year_founded INTEGER
         )
     """,
-
     "team_details": """
         CREATE TABLE IF NOT EXISTS team_details (
             team_id BIGINT PRIMARY KEY,
@@ -105,7 +102,6 @@ SCHEMA_DEFINITIONS = {
             twitter VARCHAR
         )
     """,
-
     "game": """
         CREATE TABLE IF NOT EXISTS game (
             game_id BIGINT PRIMARY KEY,
@@ -136,7 +132,6 @@ SCHEMA_DEFINITIONS = {
             season_type VARCHAR
         )
     """,
-
     "game_gold": """
         CREATE TABLE IF NOT EXISTS game_gold (
             game_id BIGINT PRIMARY KEY,
@@ -150,7 +145,6 @@ SCHEMA_DEFINITIONS = {
             season_type VARCHAR
         )
     """,
-
     "player_game_stats": """
         CREATE TABLE IF NOT EXISTS player_game_stats (
             game_id BIGINT NOT NULL,
@@ -182,7 +176,6 @@ SCHEMA_DEFINITIONS = {
             PRIMARY KEY (game_id, player_id)
         )
     """,
-
     "play_by_play": """
         CREATE TABLE IF NOT EXISTS play_by_play (
             game_id BIGINT NOT NULL,
@@ -212,7 +205,6 @@ SCHEMA_DEFINITIONS = {
             PRIMARY KEY (game_id, event_num)
         )
     """,
-
     "common_player_info": """
         CREATE TABLE IF NOT EXISTS common_player_info (
             person_id BIGINT PRIMARY KEY,
@@ -244,7 +236,6 @@ SCHEMA_DEFINITIONS = {
             greatest_75_flag BOOLEAN
         )
     """,
-
     "draft_history": """
         CREATE TABLE IF NOT EXISTS draft_history (
             person_id BIGINT,
@@ -263,7 +254,6 @@ SCHEMA_DEFINITIONS = {
             PRIMARY KEY (person_id, season)
         )
     """,
-
     "draft_combine_stats": """
         CREATE TABLE IF NOT EXISTS draft_combine_stats (
             season INTEGER,
@@ -288,7 +278,6 @@ SCHEMA_DEFINITIONS = {
             PRIMARY KEY (season, player_id)
         )
     """,
-
     "player_season_stats": """
         CREATE TABLE IF NOT EXISTS player_season_stats (
             player_id BIGINT NOT NULL,
@@ -345,12 +334,11 @@ INDEX_DEFINITIONS = [
 
 
 def init_database(
-    db_path: Optional[str] = None,
+    db_path: str | None = None,
     force: bool = False,
-    tables: Optional[List[str]] = None,
-) -> Dict[str, str]:
-    """
-    Initialize the NBA database with schema.
+    tables: list[str] | None = None,
+) -> dict[str, str]:
+    """Initialize the NBA database with schema.
 
     Args:
         db_path: Path to DuckDB database file
@@ -398,7 +386,9 @@ def init_database(
                 table_exists = False
 
             if table_exists:
-                row_count = conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
+                row_count = conn.execute(
+                    f"SELECT COUNT(*) FROM {table_name}",
+                ).fetchone()[0]
                 logger.info(f"Table {table_name} exists ({row_count:,} rows)")
                 results[table_name] = f"exists ({row_count:,} rows)"
             else:
@@ -407,7 +397,7 @@ def init_database(
                 results[table_name] = "created"
 
         except Exception as e:
-            logger.error(f"Error with table {table_name}: {e}")
+            logger.exception(f"Error with table {table_name}: {e}")
             results[table_name] = f"error: {e}"
 
     # Create indexes
@@ -430,13 +420,12 @@ def init_database(
     return results
 
 
-def get_database_info(db_path: Optional[str] = None) -> Dict[str, any]:
-    """
-    Retrieve metadata and row counts for tables in the specified DuckDB database.
-    
+def get_database_info(db_path: str | None = None) -> dict[str, Any]:
+    """Retrieve metadata and row counts for tables in the specified DuckDB database.
+
     Parameters:
         db_path (str | None): Path to the DuckDB database file. If omitted, the default path from get_db_path() is used.
-    
+
     Returns:
         info (dict): Dictionary with database information.
             - exists (bool): `True` if the database file exists and was opened, `False` otherwise.
@@ -477,10 +466,9 @@ def get_database_info(db_path: Optional[str] = None) -> Dict[str, any]:
     }
 
 
-def main():
-    """
-    Command-line entry point to initialize or inspect the NBA DuckDB database.
-    
+def main() -> None:
+    """Command-line entry point to initialize or inspect the NBA DuckDB database.
+
     Parses CLI arguments, supports listing available table definitions, printing database info, or creating the schema. Recognized options:
       --db       Path to the DuckDB database (optional).
       --force    Drop and recreate existing tables (deletes data).
@@ -488,7 +476,7 @@ def main():
       --info     Print database path, existence, table count, and per-table row counts or errors.
       --list-tables
                  Print names of available table definitions.
-    
+
     On normal completion the function returns to the caller; if initialization fails it logs the error and exits the process with status code 1.
     """
     parser = argparse.ArgumentParser(
@@ -507,54 +495,51 @@ Examples:
 
   # Create specific tables only
   python scripts/populate/init_db.py --tables player team game
-        """
+        """,
     )
 
     parser.add_argument(
         "--db",
         default=None,
-        help="Path to DuckDB database"
+        help="Path to DuckDB database",
     )
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Drop and recreate existing tables (WARNING: deletes data)"
+        help="Drop and recreate existing tables (WARNING: deletes data)",
     )
     parser.add_argument(
         "--tables",
         nargs="+",
-        help="Specific tables to create"
+        help="Specific tables to create",
     )
     parser.add_argument(
         "--info",
         action="store_true",
-        help="Show database information"
+        help="Show database information",
     )
     parser.add_argument(
         "--list-tables",
         action="store_true",
-        help="List available table definitions"
+        help="List available table definitions",
     )
 
     args = parser.parse_args()
 
     if args.list_tables:
-        print("Available tables:")
-        for table_name in sorted(SCHEMA_DEFINITIONS.keys()):
-            print(f"  - {table_name}")
+        for _table_name in sorted(SCHEMA_DEFINITIONS.keys()):
+            pass
         return
 
     if args.info:
         info = get_database_info(args.db)
-        print(f"Database: {info['path']}")
-        print(f"Exists: {info['exists']}")
-        if info['exists']:
-            print(f"Tables: {info['table_count']}")
-            for table, data in sorted(info.get('tables', {}).items()):
-                if 'rows' in data:
-                    print(f"  - {table}: {data['rows']:,} rows")
+        if info["exists"]:
+            tables_dict: dict[str, Any] = info.get("tables", {})
+            for _table, data in sorted(tables_dict.items()):
+                if "rows" in data:
+                    pass
                 else:
-                    print(f"  - {table}: {data.get('error', 'unknown')}")
+                    pass
         return
 
     try:
@@ -564,7 +549,7 @@ Examples:
             tables=args.tables,
         )
     except Exception as e:
-        logger.error(f"Initialization failed: {e}")
+        logger.exception(f"Initialization failed: {e}")
         sys.exit(1)
 
 

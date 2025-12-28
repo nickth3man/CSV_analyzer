@@ -1,17 +1,17 @@
 import duckdb
 
-DATABASE = 'data/nba.duckdb'
 
-def expand_schema():
+DATABASE = "data/nba.duckdb"
+
+
+def expand_schema() -> None:
     con = duckdb.connect(DATABASE)
-    print("Expanding Database Schema...")
 
     # 1. Create Normalized 'games' Table (Metadata only)
-    print("Creating 'games' table (normalized metadata)...")
     con.sql("DROP TABLE IF EXISTS games")
     con.sql("""
         CREATE TABLE games AS
-        SELECT 
+        SELECT
             game_id,
             season_id,
             game_date,
@@ -23,15 +23,14 @@ def expand_schema():
             wl_away AS visitor_wl
         FROM game_gold
     """)
-    
+
     # 2. Create 'team_game_stats' (Unpivoted Stats)
     # This transforms wide format (home_pts, away_pts) into long format (one row per team per game)
-    print("Creating 'team_game_stats' (unpivoted)...")
     con.sql("DROP TABLE IF EXISTS team_game_stats")
-    
+
     # We select Home stats first
     q_home = """
-        SELECT 
+        SELECT
             game_id,
             team_id_home AS team_id,
             season_id,
@@ -46,10 +45,10 @@ def expand_schema():
             plus_minus_home AS plus_minus
         FROM game_gold
     """
-    
+
     # Then Visitor stats
     q_away = """
-        SELECT 
+        SELECT
             game_id,
             team_id_away AS team_id,
             season_id,
@@ -64,12 +63,11 @@ def expand_schema():
             plus_minus_away AS plus_minus
         FROM game_gold
     """
-    
+
     con.sql(f"CREATE TABLE team_game_stats AS {q_home} UNION ALL {q_away}")
-    
+
     # 3. Create 'player_team_history'
     # Extracting relationship between players and teams from common_player_info
-    print("Creating 'player_team_history'...")
     con.sql("DROP TABLE IF EXISTS player_team_history")
     con.sql("""
         CREATE TABLE player_team_history AS
@@ -84,10 +82,9 @@ def expand_schema():
         FROM common_player_info_silver
         WHERE team_id IS NOT NULL
     """)
-    
+
     # 4. Create Empty Tables for Future Data (Standard Schema)
-    print("Creating empty placeholders for future expansion...")
-    
+
     # Play-by-Play
     con.sql("""
         CREATE TABLE IF NOT EXISTS play_by_play (
@@ -115,7 +112,7 @@ def expand_schema():
             player3_team_id BIGINT
         )
     """)
-    
+
     # Player Game Stats (Box Scores)
     con.sql("""
         CREATE TABLE IF NOT EXISTS player_game_stats (
@@ -135,7 +132,7 @@ def expand_schema():
             plus_minus BIGINT
         )
     """)
-    
+
     # Salaries
     con.sql("""
         CREATE TABLE IF NOT EXISTS salaries (
@@ -148,14 +145,20 @@ def expand_schema():
     """)
 
     # 5. Verification
-    print("\n--- Expansion Summary ---")
-    tables = ['games', 'team_game_stats', 'player_team_history', 'play_by_play', 'player_game_stats', 'salaries']
+    tables = [
+        "games",
+        "team_game_stats",
+        "player_team_history",
+        "play_by_play",
+        "player_game_stats",
+        "salaries",
+    ]
     for t in tables:
-        count = con.sql(f"SELECT count(*) FROM {t}").fetchone()[0]
-        cols = len(con.sql(f"DESCRIBE {t}").fetchall())
-        print(f"Table '{t}': {count} rows, {cols} columns")
+        con.sql(f"SELECT count(*) FROM {t}").fetchone()[0]
+        len(con.sql(f"DESCRIBE {t}").fetchall())
 
     con.close()
+
 
 if __name__ == "__main__":
     expand_schema()

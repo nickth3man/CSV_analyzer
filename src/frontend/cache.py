@@ -6,20 +6,21 @@ import os
 
 import pandas as pd
 
+
 logger = logging.getLogger(__name__)
 
 
 class DataFrameCache:
-    """
-    Cache for loaded DataFrames to avoid re-reading CSV files on each command.
+    """Cache for loaded DataFrames to avoid re-reading CSV files on each command.
+
     Implements cache invalidation based on directory modification time.
     """
 
-    def __init__(self, csv_dir="data/raw/csv") -> None:
+    def __init__(self, csv_dir: str = "data/raw/csv") -> None:
         self.csv_dir = csv_dir
-        self._cache = {}
-        self._last_mtime = None
-        self._file_mtimes = {}
+        self._cache: dict[str, pd.DataFrame] = {}
+        self._last_mtime: float | None = None
+        self._file_mtimes: dict[str, float] = {}
 
     def _get_dir_state(self):
         """Get the current state of the CSV directory (files and their mtimes)."""

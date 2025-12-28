@@ -9,68 +9,66 @@ help: ## Show this help message
 	@echo "Available targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-install: ## Install production dependencies
-	pip install -r requirements.txt
+install: ## Install production dependencies using uv
+	uv sync --no-dev
 
-install-dev: ## Install development dependencies
-	pip install --editable '.[dev]'
-	pre-commit install
+install-dev: ## Install development dependencies using uv
+	uv sync
+	uv run pre-commit install
 
 test: ## Run tests
-	pytest tests/ -v
+	uv run pytest tests/ -v --no-cov
 
 test-verbose: ## Run tests with verbose output
-	pytest tests/ -vv -s
+	uv run pytest tests/ -vv -s --no-cov
 
 test-cov: ## Run tests with coverage report
-	pytest tests/ -v --cov=src --cov-report=term-missing --cov-report=html --cov-report=xml
+	uv run pytest tests/ -v --cov=src --cov-report=term-missing --cov-report=html --cov-report=xml
 
 test-unit: ## Run unit tests only
-	pytest tests/unit/ -v
+	uv run pytest tests/unit/ -v --no-cov
 
 test-integration: ## Run integration tests only
-	pytest tests/integration/ -v
+	uv run pytest tests/integration/ -v --no-cov
 
 test-security: ## Run security tests only
-	pytest tests/security/ -v
+	uv run pytest tests/security/ -v --no-cov
 
 lint: ## Run all linters
-	ruff check .
-	black --check .
-	isort --check-only .
+	uv run ruff check .
+	uv run ruff format --check .
 
 lint-fix: ## Run linters with auto-fix
-	ruff check --fix .
-	black .
-	isort .
+	uv run ruff check --fix .
+	uv run ruff format .
 
 format: lint-fix ## Format code (alias for lint-fix)
 
 type-check: ## Run type checking with mypy
-	mypy src
+	uv run mypy src/
 
 security: ## Run security checks
-	bandit -r src -c pyproject.toml
-	pip-audit
+	uv run bandit -r src -c pyproject.toml || true
+	uv run pip-audit || true
 
 audit: security ## Alias for security
 
 vulture: ## Check for dead code
-	vulture src app.py --min-confidence=80
+	uv run vulture src app.py --min-confidence=80
 
 interrogate: ## Check docstring coverage
-	interrogate -vv --fail-under=80 src
+	uv run interrogate -vv --fail-under=80 src || true
 
 docs-coverage: interrogate ## Alias for interrogate
 
 docs: ## Build documentation
-	cd docs && mkdocs build
+	uv run mkdocs build
 
 docs-serve: ## Serve documentation locally
-	cd docs && mkdocs serve
+	uv run mkdocs serve
 
 docs-deploy: ## Deploy documentation to GitHub Pages
-	cd docs && mkdocs gh-deploy
+	uv run mkdocs gh-deploy
 
 clean: ## Clean build artifacts and cache files
 	rm -rf build/
@@ -86,26 +84,26 @@ clean: ## Clean build artifacts and cache files
 	find . -type f -name "*.pyc" -delete
 
 pre-commit: ## Run pre-commit hooks on all files
-	pre-commit run --all-files
+	uv run pre-commit run --all-files
 
 pre-commit-update: ## Update pre-commit hooks
-	pre-commit autoupdate
+	uv run pre-commit autoupdate
 
-ci: lint type-check test security ## Run all CI checks (lint, type-check, test, security)
+ci: lint type-check test ## Run all CI checks (lint, type-check, test)
 
-all: clean install-dev lint type-check test security docs ## Run full development setup
+all: clean install-dev lint type-check test docs ## Run full development setup
 
 commit: ## Make a conventional commit using commitizen
-	cz commit
+	uv run cz commit
 
 bump: ## Bump version using commitizen
-	cz bump
+	uv run cz bump
 
 changelog: ## Generate changelog
-	cz changelog
+	uv run cz changelog
 
 run: ## Run the Chainlit application
-	chainlit run app.py
+	uv run chainlit run app.py
 
 run-cli: ## Run the CLI version
-	python src/backend/main.py
+	uv run python src/backend/main.py

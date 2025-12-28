@@ -268,6 +268,32 @@ python -m scripts.populate.cli player-games --seasons 2025-26 2024-25 2023-24
 
 ### Quick Start for Developers
 
+This project uses [uv](https://docs.astral.sh/uv/) for fast, reliable Python package management.
+
+```bash
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install all dependencies (creates .venv automatically)
+uv sync
+
+# Run the application
+uv run chainlit run app.py
+
+# Run tests
+uv run pytest tests/
+
+# Run linting
+uv run ruff check .
+uv run mypy src/
+
+# Auto-fix linting issues
+uv run ruff check --fix .
+uv run ruff format .
+```
+
+### Alternative: Using Make
+
 ```bash
 # Install development dependencies
 make install-dev
@@ -283,7 +309,8 @@ make help
 
 This project uses a comprehensive set of modern development tools:
 
-- **Code Quality**: Ruff, Black, isort, mypy
+- **Package Management**: [uv](https://docs.astral.sh/uv/) - Fast Python package installer and resolver
+- **Code Quality**: Ruff, mypy
 - **Testing**: pytest with coverage
 - **Security**: Bandit, pip-audit
 - **Documentation**: MkDocs, interrogate
@@ -292,7 +319,19 @@ This project uses a comprehensive set of modern development tools:
 
 See [DEVELOPMENT_TOOLS.md](DEVELOPMENT_TOOLS.md) for comprehensive documentation on all development tools and workflows.
 
-### Common Commands
+### Common Commands with uv
+
+```bash
+uv run pytest tests/           # Run tests
+uv run ruff check .            # Check code quality
+uv run ruff check --fix .      # Auto-fix linting issues
+uv run ruff format .           # Format code
+uv run mypy src/               # Type checking
+uv run pip-audit               # Security audit
+uv run mkdocs serve            # View documentation locally
+```
+
+### Common Commands with Make
 
 ```bash
 make test          # Run tests

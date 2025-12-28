@@ -27,28 +27,25 @@ Usage:
 import argparse
 import logging
 import sys
-from typing import List, Optional
+from typing import Any
 
 from scripts.populate.config import (
-    ALL_SEASONS,
-    CURRENT_SEASON,
-    RECENT_SEASONS,
     DEFAULT_SEASON_TYPES,
-    get_db_path,
 )
+
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
+
 logger = logging.getLogger(__name__)
 
 
 def cmd_init(args):
-    """
-    Initialize the database schema at the configured database path.
-    
+    """Initialize the database schema at the configured database path.
+
     Returns:
         dict: Result of the initialization operation; may include an `error_count` key indicating the number of errors encountered.
     """
@@ -61,10 +58,9 @@ def cmd_init(args):
     )
 
 
-def cmd_info(args):
-    """
-    Prints information about the database at the path specified in `args.db`.
-    
+def cmd_info(args) -> None:
+    """Prints information about the database at the path specified in `args.db`.
+
     Parameters:
         args: An object (typically argparse.Namespace) with attribute `db` giving the path to the database. The function prints the database path, whether it exists, the number of tables (if present), and per-table row counts or error messages.
     """
@@ -72,23 +68,18 @@ def cmd_info(args):
 
     info = get_database_info(args.db)
 
-    print(f"\nDatabase: {info['path']}")
-    print(f"Exists: {info['exists']}")
-
-    if info['exists']:
-        print(f"Tables: {info['table_count']}")
-        print("\nTable details:")
-        for table, data in sorted(info.get('tables', {}).items()):
-            if 'rows' in data:
-                print(f"  {table}: {data['rows']:,} rows")
+    if info["exists"]:
+        tables_dict: dict[str, Any] = info.get("tables", {})
+        for _table, data in sorted(tables_dict.items()):
+            if "rows" in data:
+                pass
             else:
-                print(f"  {table}: {data.get('error', 'unknown')}")
+                pass
 
 
-def cmd_load_csv(args):
-    """
-    Load data from CSV files into the configured database.
-    
+def cmd_load_csv(args) -> None:
+    """Load data from CSV files into the configured database.
+
     Runs the scripts/convert_csvs.py helper and prints its stdout. If the helper exits with a non-zero status, prints the helper's stderr and exits the process with status 1.
     """
     import subprocess
@@ -96,19 +87,17 @@ def cmd_load_csv(args):
     logger.info("Loading CSV files into database...")
     result = subprocess.run(
         [sys.executable, "scripts/convert_csvs.py"],
+        check=False,
         capture_output=True,
-        text=True
+        text=True,
     )
-    print(result.stdout)
     if result.returncode != 0:
-        print(result.stderr)
         sys.exit(1)
 
 
-def cmd_normalize(args):
-    """
-    Run the database normalization step to create the "silver" tables.
-    
+def cmd_normalize(args) -> None:
+    """Run the database normalization step to create the "silver" tables.
+
     Invokes the external scripts/normalize_db.py script, prints its standard output, and on non-zero exit prints the script's standard error and terminates the process with status 1.
     """
     import subprocess
@@ -116,22 +105,22 @@ def cmd_normalize(args):
     logger.info("Normalizing database tables...")
     result = subprocess.run(
         [sys.executable, "scripts/normalize_db.py"],
+        check=False,
         capture_output=True,
-        text=True
+        text=True,
     )
-    print(result.stdout)
     if result.returncode != 0:
-        print(result.stderr)
         sys.exit(1)
 
 
 def cmd_player_games(args):
-    """
-    Run the bulk player game stats population step for the specified seasons and season types.
-    
+    """Run the bulk player game stats population step for the specified seasons and season types.
+
     @returns The value returned by populate_player_game_stats_v2 — typically a dict containing status information (may include an `error_count` key).
     """
-    from scripts.populate.populate_player_game_stats_v2 import populate_player_game_stats_v2
+    from scripts.populate.populate_player_game_stats_v2 import (
+        populate_player_game_stats_v2,
+    )
 
     season_types = DEFAULT_SEASON_TYPES
     if args.regular_only:
@@ -150,9 +139,8 @@ def cmd_player_games(args):
 
 
 def cmd_player_games_legacy(args):
-    """
-    Populate player game statistics using the legacy per-player endpoint according to the provided CLI arguments.
-    
+    """Populate player game statistics using the legacy per-player endpoint according to the provided CLI arguments.
+
     Returns:
         The value returned by `populate_player_game_stats` — typically a dictionary containing status information (for example progress or `error_count`).
     """
@@ -176,9 +164,8 @@ def cmd_player_games_legacy(args):
 
 
 def cmd_play_by_play(args):
-    """
-    Fetch play-by-play data for the specified games or seasons.
-    
+    """Fetch play-by-play data for the specified games or seasons.
+
     Parameters:
         args (argparse.Namespace): Parsed CLI arguments containing:
             - db: path to the DuckDB database
@@ -187,7 +174,7 @@ def cmd_play_by_play(args):
             - limit: maximum number of games to fetch (optional)
             - delay: delay in seconds between API requests
             - resume_from: game ID or cursor to resume fetching from (optional)
-    
+
     Returns:
         result (dict): Summary of the operation. May include keys such as `error_count` (int) and other status details.
     """
@@ -205,7 +192,9 @@ def cmd_play_by_play(args):
 
 def cmd_season_stats(args):
     """Create player season stats (aggregated)."""
-    from scripts.populate.populate_player_season_stats import populate_player_season_stats
+    from scripts.populate.populate_player_season_stats import (
+        populate_player_season_stats,
+    )
 
     return populate_player_season_stats(
         db_path=args.db,
@@ -213,10 +202,9 @@ def cmd_season_stats(args):
     )
 
 
-def cmd_all(args):
-    """
-    Run the complete database population pipeline using the provided CLI arguments.
-    
+def cmd_all(args) -> None:
+    """Run the complete database population pipeline using the provided CLI arguments.
+
     Parameters:
         args (argparse.Namespace): Parsed CLI arguments. Recognized attributes:
             - skip_api (bool): If true, skip API fetching steps.
@@ -234,20 +222,22 @@ def cmd_all(args):
     ]
 
     if not args.skip_api:
-        steps.extend([
-            ("Fetch player game stats", lambda: cmd_player_games(args)),
-        ])
+        steps.extend(
+            [
+                ("Fetch player game stats", lambda: cmd_player_games(args)),
+            ],
+        )
 
     steps.append(("Create season stats", lambda: cmd_season_stats(args)))
 
     for step_name, step_func in steps:
-        logger.info(f"\n{'='*60}")
+        logger.info(f"\n{'=' * 60}")
         logger.info(f"Step: {step_name}")
         logger.info("=" * 60)
         try:
             step_func()
         except Exception as e:
-            logger.error(f"Step failed: {e}")
+            logger.exception(f"Step failed: {e}")
             if not args.continue_on_error:
                 sys.exit(1)
 
@@ -256,10 +246,9 @@ def cmd_all(args):
     logger.info("=" * 70)
 
 
-def main():
-    """
-    Parse CLI arguments for NBA population tasks and invoke the chosen command handler.
-    
+def main() -> None:
+    """Parse CLI arguments for NBA population tasks and invoke the chosen command handler.
+
     Supports global options (database path, verbose), multiple subcommands (init, info, load-csv, normalize,
     player-games, player-games-legacy, play-by-play, season-stats, all), and dispatches to the corresponding
     cmd_* handler. Sets logging to DEBUG when verbose is enabled, prints help and exits when no command is given,
@@ -274,49 +263,60 @@ def main():
     parser.add_argument(
         "--db",
         default=None,
-        help="Path to DuckDB database (default: data/nba.duckdb)"
+        help="Path to DuckDB database (default: data/nba.duckdb)",
     )
     parser.add_argument(
-        "-v", "--verbose",
+        "-v",
+        "--verbose",
         action="store_true",
-        help="Enable verbose logging"
+        help="Enable verbose logging",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # init command
     init_parser = subparsers.add_parser("init", help="Initialize database schema")
-    init_parser.add_argument("--force", action="store_true", help="Force recreate tables")
+    init_parser.add_argument(
+        "--force", action="store_true", help="Force recreate tables",
+    )
     init_parser.add_argument("--tables", nargs="+", help="Specific tables to create")
 
     # info command
-    info_parser = subparsers.add_parser("info", help="Show database information")
+    subparsers.add_parser("info", help="Show database information")
 
     # load-csv command
-    csv_parser = subparsers.add_parser("load-csv", help="Load CSV files into database")
+    subparsers.add_parser("load-csv", help="Load CSV files into database")
 
     # normalize command
-    norm_parser = subparsers.add_parser("normalize", help="Normalize database tables")
+    subparsers.add_parser("normalize", help="Normalize database tables")
 
     # player-games command
     pg_parser = subparsers.add_parser(
         "player-games",
-        help="Fetch player game stats (bulk endpoint)"
+        help="Fetch player game stats (bulk endpoint)",
     )
     pg_parser.add_argument("--seasons", nargs="+", help="Seasons to fetch")
-    pg_parser.add_argument("--delay", type=float, default=0.6, help="API delay in seconds")
-    pg_parser.add_argument("--regular-only", action="store_true", help="Regular season only")
+    pg_parser.add_argument(
+        "--delay", type=float, default=0.6, help="API delay in seconds",
+    )
+    pg_parser.add_argument(
+        "--regular-only", action="store_true", help="Regular season only",
+    )
     pg_parser.add_argument("--playoffs-only", action="store_true", help="Playoffs only")
     pg_parser.add_argument("--reset", action="store_true", help="Reset progress")
-    pg_parser.add_argument("--dry-run", action="store_true", help="Don't write to database")
+    pg_parser.add_argument(
+        "--dry-run", action="store_true", help="Don't write to database",
+    )
 
     # player-games-legacy command
     pgl_parser = subparsers.add_parser(
         "player-games-legacy",
-        help="Fetch player game stats (per-player endpoint)"
+        help="Fetch player game stats (per-player endpoint)",
     )
     pgl_parser.add_argument("--seasons", nargs="+", help="Seasons to fetch")
-    pgl_parser.add_argument("--active-only", action="store_true", help="Active players only")
+    pgl_parser.add_argument(
+        "--active-only", action="store_true", help="Active players only",
+    )
     pgl_parser.add_argument("--limit", type=int, help="Limit number of players")
     pgl_parser.add_argument("--resume-from", type=int, help="Resume from player ID")
     pgl_parser.add_argument("--delay", type=float, default=0.6, help="API delay")
@@ -338,12 +338,16 @@ def main():
     # all command
     all_parser = subparsers.add_parser("all", help="Run full population pipeline")
     all_parser.add_argument("--skip-api", action="store_true", help="Skip API fetching")
-    all_parser.add_argument("--continue-on-error", action="store_true", help="Continue on errors")
+    all_parser.add_argument(
+        "--continue-on-error", action="store_true", help="Continue on errors",
+    )
     all_parser.add_argument("--seasons", nargs="+", help="Seasons for API fetch")
     all_parser.add_argument("--delay", type=float, default=0.6, help="API delay")
     all_parser.add_argument("--regular-only", action="store_true")
     all_parser.add_argument("--playoffs-only", action="store_true")
-    all_parser.add_argument("--force", action="store_true", help="Force recreate tables")
+    all_parser.add_argument(
+        "--force", action="store_true", help="Force recreate tables",
+    )
     all_parser.add_argument("--tables", nargs="+", help="Specific tables")
     all_parser.add_argument("--reset", action="store_true")
     all_parser.add_argument("--dry-run", action="store_true")
@@ -380,9 +384,10 @@ def main():
             logger.info("\nInterrupted by user")
             sys.exit(1)
         except Exception as e:
-            logger.error(f"Command failed: {e}")
+            logger.exception(f"Command failed: {e}")
             if args.verbose:
                 import traceback
+
                 traceback.print_exc()
             sys.exit(1)
     else:

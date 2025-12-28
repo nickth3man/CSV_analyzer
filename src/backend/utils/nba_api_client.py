@@ -74,8 +74,8 @@ class NBAApiClient:
     """Lightweight wrapper around nba_api with caching and rate limiting."""
 
     def __init__(self) -> None:
-        self.request_delay = float(os.environ.get("NBA_API_REQUEST_DELAY", 0.6))
-        self.cache_ttl = int(os.environ.get("NBA_API_CACHE_TTL", 3600))
+        self.request_delay = float(os.environ.get("NBA_API_REQUEST_DELAY", "0.6"))
+        self.cache_ttl = int(os.environ.get("NBA_API_CACHE_TTL", "3600"))
         self.cache_dir = os.environ.get("NBA_API_CACHE_DIR", ".nba_cache")
         os.makedirs(self.cache_dir, exist_ok=True)
 
@@ -101,7 +101,8 @@ class NBAApiClient:
     def _deserialize(self, payload):
         if isinstance(payload, dict) and payload.get("__type") == "dataframe":
             return pd.DataFrame(
-                payload.get("data", []), columns=payload.get("columns", [])
+                payload.get("data", []),
+                columns=payload.get("columns", []),
             )
         if isinstance(payload, dict):
             return {k: self._deserialize(v) for k, v in payload.items()}
@@ -111,7 +112,9 @@ class NBAApiClient:
 
     def _cache_path(self, name, params):
         key_str = json.dumps(
-            {"name": name, "params": params}, sort_keys=True, default=str
+            {"name": name, "params": params},
+            sort_keys=True,
+            default=str,
         )
         hashed = hashlib.sha256(key_str.encode("utf-8")).hexdigest()
         return os.path.join(self.cache_dir, f"{name}_{hashed}.json")
@@ -132,7 +135,8 @@ class NBAApiClient:
         os.makedirs(self.cache_dir, exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(
-                {"timestamp": time.time(), "payload": self._serialize(payload)}, f
+                {"timestamp": time.time(), "payload": self._serialize(payload)},
+                f,
             )
 
     def _throttle(self) -> None:
@@ -206,47 +210,61 @@ class NBAApiClient:
             }
 
         return self._call_with_cache(
-            "player_career_stats", {"player_id": player_id}, fetch
+            "player_career_stats",
+            {"player_id": player_id},
+            fetch,
         )
 
     def get_player_game_log(self, player_id, season):
         def fetch():
             return endpoints.PlayerGameLog(
-                player_id=player_id, season=season
+                player_id=player_id,
+                season=season,
             ).get_data_frames()[0]
 
         return self._call_with_cache(
-            "player_game_log", {"player_id": player_id, "season": season}, fetch
+            "player_game_log",
+            {"player_id": player_id, "season": season},
+            fetch,
         )
 
     def get_team_game_log(self, team_id, season):
         def fetch():
             return endpoints.TeamGameLog(
-                team_id=team_id, season=season
+                team_id=team_id,
+                season=season,
             ).get_data_frames()[0]
 
         return self._call_with_cache(
-            "team_game_log", {"team_id": team_id, "season": season}, fetch
+            "team_game_log",
+            {"team_id": team_id, "season": season},
+            fetch,
         )
 
     def get_league_leaders(self, season, stat_category="PTS"):
         def fetch():
             return endpoints.LeagueLeaders(
-                season=season, stat_category_abbreviation=stat_category
+                season=season,
+                stat_category_abbreviation=stat_category,
             ).get_data_frames()[0]
 
         return self._call_with_cache(
-            "league_leaders", {"season": season, "stat_category": stat_category}, fetch
+            "league_leaders",
+            {"season": season, "stat_category": stat_category},
+            fetch,
         )
 
     def get_common_team_roster(self, team_id, season):
         def fetch():
             return endpoints.CommonTeamRoster(
-                team_id=team_id, season=season
+                team_id=team_id,
+                season=season,
             ).get_data_frames()[0]
 
         return self._call_with_cache(
-            "common_team_roster", {"team_id": team_id, "season": season}, fetch
+            "common_team_roster",
+            {"team_id": team_id, "season": season},
+            fetch,
         )
 
     def get_scoreboard(self):

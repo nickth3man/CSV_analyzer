@@ -42,7 +42,7 @@ async def on_upload_action(action: cl.Action) -> str:
         # Invalidate cache after upload
         invalidate_dataframe_cache()
         await cl.Message(
-            content=f"✅ Uploaded: {', '.join(uploaded)}\n\nYou can now ask questions about your data!"
+            content=f"✅ Uploaded: {', '.join(uploaded)}\n\nYou can now ask questions about your data!",
         ).send()
 
     return "Upload complete"

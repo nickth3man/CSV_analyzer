@@ -6,7 +6,7 @@ from backend.nodes import ErrorFixer
 class TestErrorFixerRetryLogic:
     """Test retry counting and max retries enforcement."""
 
-    def test_first_attempt_allows_retry(self):
+    def test_first_attempt_allows_retry(self) -> None:
         """Test that first attempt returns 'try_again'."""
         node = ErrorFixer()
         shared = {
@@ -20,7 +20,7 @@ class TestErrorFixerRetryLogic:
 
         assert exec_res == "try_again"
 
-    def test_second_attempt_allows_retry(self):
+    def test_second_attempt_allows_retry(self) -> None:
         """Test that second attempt returns 'try_again'."""
         node = ErrorFixer()
         shared = {
@@ -34,7 +34,7 @@ class TestErrorFixerRetryLogic:
 
         assert exec_res == "try_again"
 
-    def test_third_attempt_allows_retry(self):
+    def test_third_attempt_allows_retry(self) -> None:
         """Test that third attempt (last one) returns 'try_again'."""
         node = ErrorFixer()
         shared = {
@@ -48,7 +48,7 @@ class TestErrorFixerRetryLogic:
 
         assert exec_res == "try_again"
 
-    def test_max_retries_exceeded(self):
+    def test_max_retries_exceeded(self) -> None:
         """Test that after max retries, returns 'max_retries_exceeded'."""
         node = ErrorFixer()
         shared = {
@@ -62,7 +62,7 @@ class TestErrorFixerRetryLogic:
 
         assert exec_res == "max_retries_exceeded"
 
-    def test_way_over_max_retries(self):
+    def test_way_over_max_retries(self) -> None:
         """Test that even if retry_count is way over, it's still exceeded."""
         node = ErrorFixer()
         shared = {
@@ -80,7 +80,7 @@ class TestErrorFixerRetryLogic:
 class TestErrorFixerPostMethod:
     """Test the post() method behavior."""
 
-    def test_post_try_again(self):
+    def test_post_try_again(self) -> None:
         """Test post() when retry is allowed."""
         node = ErrorFixer()
         shared = {
@@ -96,7 +96,7 @@ class TestErrorFixerPostMethod:
         assert action == "fix"
         assert shared["retry_count"] == 1
 
-    def test_post_increments_retry_count(self):
+    def test_post_increments_retry_count(self) -> None:
         """Test that post() increments retry_count."""
         node = ErrorFixer()
         shared = {
@@ -112,7 +112,7 @@ class TestErrorFixerPostMethod:
         assert action == "fix"
         assert shared["retry_count"] == 2
 
-    def test_post_give_up(self):
+    def test_post_give_up(self) -> None:
         """Test post() when max retries exceeded."""
         node = ErrorFixer()
         shared = {
@@ -130,7 +130,7 @@ class TestErrorFixerPostMethod:
         assert "Unable to answer" in shared["final_text"]
         assert "Persistent error" in shared["final_text"]
 
-    def test_post_initializes_retry_count_if_missing(self):
+    def test_post_initializes_retry_count_if_missing(self) -> None:
         """Test that post() initializes retry_count if not present."""
         node = ErrorFixer()
         shared = {
@@ -150,7 +150,7 @@ class TestErrorFixerPostMethod:
 class TestErrorFixerPrepMethod:
     """Test the prep() method."""
 
-    def test_prep_with_retry_count(self):
+    def test_prep_with_retry_count(self) -> None:
         """Test prep() when retry_count exists."""
         node = ErrorFixer()
         shared = {
@@ -165,7 +165,7 @@ class TestErrorFixerPrepMethod:
         assert code["csv"] == "some code"
         assert retry_count == 2
 
-    def test_prep_without_retry_count(self):
+    def test_prep_without_retry_count(self) -> None:
         """Test prep() when retry_count doesn't exist."""
         node = ErrorFixer()
         shared = {"exec_error": "Some error", "csv_code_snippet": "some code"}
@@ -180,12 +180,12 @@ class TestErrorFixerPrepMethod:
 class TestErrorFixerMaxRetriesConstant:
     """Test the MAX_RETRIES constant."""
 
-    def test_max_retries_is_three(self):
+    def test_max_retries_is_three(self) -> None:
         """Test that MAX_RETRIES is set to 3."""
         node = ErrorFixer()
         assert node.MAX_RETRIES == 3
 
-    def test_boundary_at_max_retries(self):
+    def test_boundary_at_max_retries(self) -> None:
         """Test behavior exactly at MAX_RETRIES boundary."""
         node = ErrorFixer()
 
@@ -213,7 +213,7 @@ class TestErrorFixerMaxRetriesConstant:
 class TestErrorFixerErrorMessages:
     """Test error message handling."""
 
-    def test_preserves_error_message_in_final_text(self):
+    def test_preserves_error_message_in_final_text(self) -> None:
         """Test that the error message is included in final_text when giving up."""
         node = ErrorFixer()
         error_msg = "KeyError: 'nonexistent_column'"
@@ -230,7 +230,7 @@ class TestErrorFixerErrorMessages:
         assert action == "give_up"
         assert error_msg in shared["final_text"]
 
-    def test_handles_missing_exec_error(self):
+    def test_handles_missing_exec_error(self) -> None:
         """Test behavior when exec_error is missing."""
         node = ErrorFixer()
         shared = {"csv_code_snippet": "some code", "retry_count": 3}
@@ -246,7 +246,7 @@ class TestErrorFixerErrorMessages:
 class TestErrorFixerFullCycle:
     """Test full retry cycle."""
 
-    def test_full_retry_cycle(self):
+    def test_full_retry_cycle(self) -> None:
         """Test a complete cycle from first error to give up."""
         node = ErrorFixer()
         shared = {"exec_error": "Initial error", "csv_code_snippet": "bad code"}

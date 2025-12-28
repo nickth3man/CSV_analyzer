@@ -69,6 +69,7 @@ import os
 import pandas as pd
 from pocketflow import Node
 
+
 logger = logging.getLogger(__name__)
 
 from backend.config import DEFAULT_DATA_DIR, NBA_DEFAULT_SEASON
@@ -80,8 +81,7 @@ class LoadData(Node):
     """Load CSV files from the configured data directory into DataFrames."""
 
     def prep(self, shared):
-        """
-        Resolve the data directory path from shared state or fall back to the configured default.
+        """Resolve the data directory path from shared state or fall back to the configured default.
 
         Parameters:
             shared (dict): Shared state that may contain a "data_dir" key with a filesystem path.
@@ -92,8 +92,7 @@ class LoadData(Node):
         return shared.get("data_dir", DEFAULT_DATA_DIR)
 
     def exec(self, prep_res):
-        """
-        Load all CSV files found in the provided directory into pandas DataFrames.
+        """Load all CSV files found in the provided directory into pandas DataFrames.
 
         Parameters:
             prep_res (str): Path to the directory containing CSV files.
@@ -126,8 +125,7 @@ class LoadData(Node):
         return data
 
     def post(self, shared, prep_res, exec_res) -> str:
-        """
-        Finalize CSV load results into the shared workflow state and choose the next transition.
+        """Finalize CSV load results into the shared workflow state and choose the next transition.
 
         Parameters:
             shared (dict): Shared workflow state to update with loaded data and metadata.
@@ -154,8 +152,7 @@ class NBAApiDataLoader(Node):
     """Fetch relevant data from the NBA API based on question context and detected entities."""
 
     def prep(self, shared):
-        """
-        Prepare context for NBA API data loading by extracting the question and resolving entities.
+        """Prepare context for NBA API data loading by extracting the question and resolving entities.
 
         Parameters:
             shared (dict): Shared runtime state. Expected keys:
@@ -174,8 +171,7 @@ class NBAApiDataLoader(Node):
         }
 
     def _resolve_ids(self, entities):
-        """
-        Resolve NBA player or team identifiers for the given entity names.
+        """Resolve NBA player or team identifiers for the given entity names.
 
         Parameters:
             entities (Iterable[str]): Names of entities (players or teams) to resolve.
@@ -197,8 +193,7 @@ class NBAApiDataLoader(Node):
         return entity_ids
 
     def exec(self, prep_res):
-        """
-        Assemble and fetch NBA API datasets determined from the provided question and entities, returning the fetched tables, any errors, the endpoints invoked, and resolved entity identifiers.
+        """Assemble and fetch NBA API datasets determined from the provided question and entities, returning the fetched tables, any errors, the endpoints invoked, and resolved entity identifiers.
 
         Parameters:
             prep_res (dict): Preparation result containing:
@@ -220,7 +215,8 @@ class NBAApiDataLoader(Node):
         entity_ids = self._resolve_ids(entities)
 
         endpoints_to_call = data_source_manager.determine_api_endpoints(
-            entities, question
+            entities,
+            question,
         )
         api_dfs = {}
         errors = []
@@ -242,7 +238,8 @@ class NBAApiDataLoader(Node):
                 elif name == "league_leaders":
                     season = NBA_DEFAULT_SEASON
                     leaders = nba_client.get_league_leaders(
-                        season=season, stat_category="PTS"
+                        season=season,
+                        stat_category="PTS",
                     )
                     api_dfs[f"league_leaders_{season}"] = leaders
                 elif name == "common_team_roster":
@@ -251,7 +248,8 @@ class NBAApiDataLoader(Node):
                     if not team_id:
                         continue
                     roster = nba_client.get_common_team_roster(
-                        team_id=team_id, season=NBA_DEFAULT_SEASON
+                        team_id=team_id,
+                        season=NBA_DEFAULT_SEASON,
                     )
                     api_dfs[f"{ent}_roster"] = roster
                 elif name == "player_game_log":
@@ -260,7 +258,8 @@ class NBAApiDataLoader(Node):
                     if not player_id:
                         continue
                     game_log = nba_client.get_player_game_log(
-                        player_id=player_id, season=NBA_DEFAULT_SEASON
+                        player_id=player_id,
+                        season=NBA_DEFAULT_SEASON,
                     )
                     api_dfs[f"{ent}_game_log"] = game_log
                 elif name == "scoreboard":
@@ -278,8 +277,7 @@ class NBAApiDataLoader(Node):
         }
 
     def post(self, shared, prep_res, exec_res) -> str:
-        """
-        Store NBA API fetch results into the shared state and log a brief summary.
+        """Store NBA API fetch results into the shared state and log a brief summary.
 
         Writes `api_dfs`, `api_errors`, `api_endpoints_used`, and `entity_ids` from `exec_res` into the `shared` mapping so downstream nodes can access fetched API tables, any errors, endpoints used, and resolved entity IDs. Also prints a one-line summary reporting how many tables were fetched and how many errors occurred.
 
@@ -291,7 +289,7 @@ class NBAApiDataLoader(Node):
         shared["api_endpoints_used"] = exec_res["used"]
         shared["entity_ids"] = exec_res.get("entity_ids", {})
         logger.info(
-            f"NBA API loader fetched {len(exec_res['api_dfs'])} tables with {len(exec_res['errors'])} errors."
+            f"NBA API loader fetched {len(exec_res['api_dfs'])} tables with {len(exec_res['errors'])} errors.",
         )
         return "default"
 
@@ -300,8 +298,7 @@ class DataMerger(Node):
     """Combine CSV and API dataframes with source tracking and discrepancy flags."""
 
     def prep(self, shared):
-        """
-        Prepare merged-data inputs from the workflow shared state.
+        """Prepare merged-data inputs from the workflow shared state.
 
         Parameters:
             shared (dict): Workflow shared state containing previously loaded DataFrames.
@@ -317,8 +314,7 @@ class DataMerger(Node):
         }
 
     def exec(self, prep_res):
-        """
-        Merge CSV and API DataFrames into a unified set and identify discrepancies and source metadata.
+        """Merge CSV and API DataFrames into a unified set and identify discrepancies and source metadata.
 
         Parameters:
             prep_res (dict): Preparation result containing:
@@ -332,13 +328,13 @@ class DataMerger(Node):
                 - sources (dict): Metadata mapping each table/field to its originating data source(s).
         """
         merged, discrepancies, sources = data_source_manager.merge_data_sources(
-            prep_res["csv_dfs"], prep_res["api_dfs"]
+            prep_res["csv_dfs"],
+            prep_res["api_dfs"],
         )
         return merged, discrepancies, sources
 
     def post(self, shared, prep_res, exec_res) -> str:
-        """
-        Finalize merging by storing merge results into shared state and returning the next node outcome.
+        """Finalize merging by storing merge results into shared state and returning the next node outcome.
 
         Parameters:
             shared (dict): Shared runtime state; will be updated with merged DataFrames and metadata.
@@ -356,6 +352,6 @@ class DataMerger(Node):
         shared["discrepancies"] = discrepancies
         shared["data_sources"] = sources
         logger.info(
-            f"Data merged: {len(merged)} tables ({len(discrepancies)} discrepancies flagged)."
+            f"Data merged: {len(merged)} tables ({len(discrepancies)} discrepancies flagged).",
         )
         return "default"

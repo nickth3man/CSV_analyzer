@@ -10,7 +10,7 @@ from backend.nodes import CodeGenerator, DataProfiler, SchemaInference, Visualiz
 class TestSchemaInference:
     """Test SchemaInference node."""
 
-    def test_infers_schema_from_dataframe(self, sample_df):
+    def test_infers_schema_from_dataframe(self, sample_df) -> None:
         """Test schema inference from a DataFrame."""
         node = SchemaInference()
         shared = {"dfs": {"employees": sample_df}}
@@ -27,7 +27,7 @@ class TestSchemaInference:
         assert "age" in str(schemas["employees"])
         assert "salary" in str(schemas["employees"])
 
-    def test_stores_schema_in_shared(self, sample_df):
+    def test_stores_schema_in_shared(self, sample_df) -> None:
         """Test that schema is stored in shared store."""
         node = SchemaInference()
         shared = {"dfs": {"employees": sample_df}}
@@ -39,7 +39,7 @@ class TestSchemaInference:
         assert "schemas" in shared
         assert "schema_str" in shared
 
-    def test_handles_multiple_dataframes(self, sample_df, sample_sales_df):
+    def test_handles_multiple_dataframes(self, sample_df, sample_sales_df) -> None:
         """Test schema inference for multiple DataFrames."""
         node = SchemaInference()
         shared = {"dfs": {"employees": sample_df, "sales": sample_sales_df}}
@@ -52,7 +52,7 @@ class TestSchemaInference:
         assert "employees" in schemas
         assert "sales" in schemas
 
-    def test_handles_empty_dataframe(self):
+    def test_handles_empty_dataframe(self) -> None:
         """Test handling of empty DataFrame."""
         node = SchemaInference()
         empty_df = pd.DataFrame(columns=["col1", "col2"])
@@ -69,7 +69,7 @@ class TestSchemaInference:
 class TestDataProfiler:
     """Test DataProfiler node."""
 
-    def test_profiles_dataframe(self, sample_df):
+    def test_profiles_dataframe(self, sample_df) -> None:
         """Test basic profiling of a DataFrame."""
         node = DataProfiler()
         shared = {"dfs": {"employees": sample_df}}
@@ -82,7 +82,7 @@ class TestDataProfiler:
         assert "row_count" in profile
         assert profile["row_count"] == 3
 
-    def test_identifies_numeric_columns(self, sample_df):
+    def test_identifies_numeric_columns(self, sample_df) -> None:
         """Test identification of numeric columns."""
         node = DataProfiler()
         shared = {"dfs": {"employees": sample_df}}
@@ -95,7 +95,7 @@ class TestDataProfiler:
         # age and salary should be numeric
         assert len(profile["numeric_cols"]) >= 2
 
-    def test_identifies_name_columns(self, sample_df):
+    def test_identifies_name_columns(self, sample_df) -> None:
         """Test identification of name-related columns."""
         node = DataProfiler()
         shared = {"dfs": {"employees": sample_df}}
@@ -108,7 +108,7 @@ class TestDataProfiler:
         # Should find the 'name' column
         assert len(profile["name_cols"]) >= 1
 
-    def test_stores_profiles_in_shared(self, sample_df):
+    def test_stores_profiles_in_shared(self, sample_df) -> None:
         """Test that profiles are stored in shared store."""
         node = DataProfiler()
         shared = {"dfs": {"employees": sample_df}}
@@ -124,7 +124,7 @@ class TestDataProfiler:
 class TestCodeGenerator:
     """Test CodeGenerator node."""
 
-    def test_generates_code(self, mock_call_llm_in_nodes, sample_shared_store):
+    def test_generates_code(self, mock_call_llm_in_nodes, sample_shared_store) -> None:
         """Test basic code generation."""
         # Mock LLM to return Python code
         mock_call_llm_in_nodes.return_value = """```python
@@ -147,8 +147,10 @@ final_result = dfs['employees']['salary'].mean()
         assert "dfs" in exec_res
 
     def test_strips_markdown_code_fences(
-        self, mock_call_llm_in_nodes, sample_shared_store
-    ):
+        self,
+        mock_call_llm_in_nodes,
+        sample_shared_store,
+    ) -> None:
         """Test that markdown code fences are removed."""
         mock_call_llm_in_nodes.return_value = """```python
 final_result = 42
@@ -169,7 +171,7 @@ final_result = 42
         # Should not contain the backticks
         assert "```" not in exec_res
 
-    def test_handles_error_context(self, mock_call_llm_in_nodes):
+    def test_handles_error_context(self, mock_call_llm_in_nodes) -> None:
         """Test code generation with error context for fixing."""
         mock_call_llm_in_nodes.return_value = """```python
 # Fixed code
@@ -192,7 +194,7 @@ final_result = dfs['employees']['salary'].mean()
         # Should generate corrected code
         assert exec_res is not None
 
-    def test_stores_code_in_shared(self, mock_call_llm_in_nodes):
+    def test_stores_code_in_shared(self, mock_call_llm_in_nodes) -> None:
         """Test that generated code is stored in shared."""
         mock_call_llm_in_nodes.return_value = "final_result = 42"
 
@@ -215,7 +217,7 @@ final_result = dfs['employees']['salary'].mean()
 class TestVisualizer:
     """Test Visualizer node."""
 
-    def test_generates_chart_for_dataframe(self, sample_df, mock_matplotlib):
+    def test_generates_chart_for_dataframe(self, sample_df, mock_matplotlib) -> None:
         """Test chart generation for DataFrame result."""
         node = Visualizer()
         shared = {"exec_result": sample_df}
@@ -229,7 +231,7 @@ class TestVisualizer:
         assert exec_res is not None
         assert "chart_" in exec_res
 
-    def test_skips_non_dataframe_results(self, mock_matplotlib):
+    def test_skips_non_dataframe_results(self, mock_matplotlib) -> None:
         """Test that non-DataFrame results are skipped."""
         node = Visualizer()
         shared = {"exec_result": 42}  # Scalar, not DataFrame
@@ -242,7 +244,7 @@ class TestVisualizer:
         # Should not try to save a chart
         mock_matplotlib["savefig"].assert_not_called()
 
-    def test_skips_dataframe_without_numeric_columns(self, mock_matplotlib):
+    def test_skips_dataframe_without_numeric_columns(self, mock_matplotlib) -> None:
         """Test that DataFrames without numeric columns are skipped."""
         node = Visualizer()
         df = pd.DataFrame({"name": ["Alice", "Bob"], "city": ["NYC", "LA"]})
@@ -254,7 +256,9 @@ class TestVisualizer:
         # Should return None when no numeric columns
         assert exec_res is None
 
-    def test_creates_output_directory(self, sample_df, mock_matplotlib, tmp_path):
+    def test_creates_output_directory(
+        self, sample_df, mock_matplotlib, tmp_path,
+    ) -> None:
         """Test that output directory is created if it doesn't exist."""
         node = Visualizer()
 
@@ -266,7 +270,9 @@ class TestVisualizer:
             # Should try to create the assets directory
             mock_makedirs.assert_called_once()
 
-    def test_limits_chart_files_to_ten(self, sample_df, mock_matplotlib, tmp_path):
+    def test_limits_chart_files_to_ten(
+        self, sample_df, mock_matplotlib, tmp_path,
+    ) -> None:
         """Test that old chart files are cleaned up (keep last 10)."""
         # Create the assets directory with mock files
         assets_dir = tmp_path / "assets"
@@ -277,25 +283,27 @@ class TestVisualizer:
             chart_file = assets_dir / f"chart_{i}.png"
             chart_file.write_text("fake chart")
 
-        with patch("backend.nodes.analysis.os.makedirs"):
-            with patch(
+        with (
+            patch("backend.nodes.analysis.os.makedirs"),
+            patch(
                 "backend.nodes.analysis.os.listdir",
                 return_value=[f"chart_{i}.png" for i in range(15)],
-            ):
-                with patch(
-                    "backend.nodes.analysis.os.path.getmtime",
-                    side_effect=lambda x: int(x.split("_")[1].split(".")[0]),
-                ):
-                    with patch("backend.nodes.analysis.os.remove") as mock_remove:
-                        node = Visualizer()
-                        shared = {"exec_result": sample_df}
-                        node.prep(shared)
-                        node.exec(sample_df)
+            ),
+            patch(
+                "backend.nodes.analysis.os.path.getmtime",
+                side_effect=lambda x: int(x.split("_")[1].split(".")[0]),
+            ),
+            patch("backend.nodes.analysis.os.remove") as mock_remove,
+        ):
+            node = Visualizer()
+            shared = {"exec_result": sample_df}
+            node.prep(shared)
+            node.exec(sample_df)
 
-                        # Should have removed 5 oldest files (15 - 10 = 5)
-                        assert mock_remove.call_count == 5
+            # Should have removed 5 oldest files (15 - 10 = 5)
+            assert mock_remove.call_count == 5
 
-    def test_stores_chart_path_in_shared(self, sample_df, mock_matplotlib):
+    def test_stores_chart_path_in_shared(self, sample_df, mock_matplotlib) -> None:
         """Test that chart path is stored in shared."""
         node = Visualizer()
         shared = {"exec_result": sample_df}
@@ -306,7 +314,7 @@ class TestVisualizer:
 
         assert "chart_path" in shared
 
-    def test_handles_none_result(self):
+    def test_handles_none_result(self) -> None:
         """Test handling when exec_result is None."""
         node = Visualizer()
         shared = {"exec_result": None}
@@ -316,7 +324,7 @@ class TestVisualizer:
 
         assert exec_res is None
 
-    def test_uses_timestamp_in_filename(self, sample_df, mock_matplotlib):
+    def test_uses_timestamp_in_filename(self, sample_df, mock_matplotlib) -> None:
         """Test that chart filename includes timestamp."""
         node = Visualizer()
         shared = {"exec_result": sample_df}
@@ -327,17 +335,19 @@ class TestVisualizer:
 
             assert "1234567890" in exec_res
 
-    def test_plots_first_numeric_column(self, mock_matplotlib):
+    def test_plots_first_numeric_column(self, mock_matplotlib) -> None:
         """Test that the first numeric column is plotted."""
         node = Visualizer()
         df = pd.DataFrame(
-            {"name": ["A", "B", "C"], "score": [10, 20, 30], "value": [100, 200, 300]}
+            {"name": ["A", "B", "C"], "score": [10, 20, 30], "value": [100, 200, 300]},
         )
         shared = {"exec_result": df}
 
         prep_res = node.prep(shared)
-        with patch("matplotlib.pyplot.figure"):
-            with patch("matplotlib.pyplot.title") as mock_title:
+        with (
+            patch("matplotlib.pyplot.figure"),
+            patch("matplotlib.pyplot.title") as mock_title,
+        ):
                 node.exec(prep_res)
 
                 # Should use the first numeric column (score)
@@ -346,7 +356,7 @@ class TestVisualizer:
                     title_arg = str(mock_title.call_args)
                     assert "score" in title_arg or "Top 10" in title_arg
 
-    def test_limits_to_top_10_rows(self, mock_matplotlib):
+    def test_limits_to_top_10_rows(self, mock_matplotlib) -> None:
         """Test that only top 10 rows are plotted."""
         node = Visualizer()
         # Create DataFrame with 20 rows
@@ -365,7 +375,7 @@ class TestVisualizer:
 class TestDataProcessingIntegration:
     """Integration tests for data processing pipeline."""
 
-    def test_schema_to_profiler_pipeline(self, sample_df):
+    def test_schema_to_profiler_pipeline(self, sample_df) -> None:
         """Test SchemaInference -> DataProfiler pipeline."""
         shared = {"dfs": {"employees": sample_df}}
 
@@ -386,8 +396,11 @@ class TestDataProcessingIntegration:
         assert "profiles" in shared
 
     def test_full_data_processing_pipeline(
-        self, mock_call_llm_in_nodes, sample_df, mock_matplotlib
-    ):
+        self,
+        mock_call_llm_in_nodes,
+        sample_df,
+        mock_matplotlib,
+    ) -> None:
         """Test full pipeline: Schema -> Profiler -> CodeGen -> Visualizer."""
         mock_call_llm_in_nodes.return_value = """```python
 final_result = dfs['employees']

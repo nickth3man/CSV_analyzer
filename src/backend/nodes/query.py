@@ -4,6 +4,7 @@ import logging
 
 from pocketflow import Node
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -11,8 +12,7 @@ class ClarifyQuery(Node):
     """Detect whether a user query references unknown tables or columns."""
 
     def prep(self, shared):
-        """
-        Extract the current question, schema string, and list of dataframe/table names from the shared state.
+        """Extract the current question, schema string, and list of dataframe/table names from the shared state.
 
         Parameters:
             shared (dict): Shared runtime state expected to contain the keys:
@@ -28,8 +28,7 @@ class ClarifyQuery(Node):
         return shared["question"], shared["schema_str"], list(shared["dfs"].keys())
 
     def exec(self, prep_res):
-        """
-        Detects whether the user's question contains identifiers (words with underscores) that are not present in the provided schema.
+        """Detects whether the user's question contains identifiers (words with underscores) that are not present in the provided schema.
 
         Parameters:
             prep_res (tuple): A tuple (question, schema, _table_names) where `question` is the user query string, `schema` is a string representation of available table/column names, and `_table_names` is a list of table names (unused).
@@ -42,9 +41,11 @@ class ClarifyQuery(Node):
         suspicious_patterns = []
 
         words = question_lower.split()
-        for word in words:
-            if "_" in word and len(word) > 3 and word not in schema.lower():
-                suspicious_patterns.append(word)
+        suspicious_patterns = [
+            word
+            for word in words
+            if "_" in word and len(word) > 3 and word not in schema.lower()
+        ]
 
         if suspicious_patterns:
             schema_lower = schema.lower()
@@ -59,8 +60,7 @@ class ClarifyQuery(Node):
         return "clear", None
 
     def post(self, shared, prep_res, exec_res) -> str:
-        """
-        Update shared state when the clarification step completes and indicate next flow status.
+        """Update shared state when the clarification step completes and indicate next flow status.
 
         Parameters:
             shared (dict): Mutable workflow state; may be updated with a user-facing final_text when references are missing.
@@ -84,8 +84,7 @@ class AskUser(Node):
     """Terminal node for ambiguous queries. In CLI mode, prompts user for clarification."""
 
     def prep(self, shared):
-        """
-        Assemble the values AskUser needs from the shared execution state for its exec step.
+        """Assemble the values AskUser needs from the shared execution state for its exec step.
 
         Parameters:
             shared (dict): Shared runtime state; may contain keys "final_text", "question", "schema_str", and "is_cli".
@@ -105,8 +104,7 @@ class AskUser(Node):
         }
 
     def exec(self, prep_res):
-        """
-        Prompt the user for a clarified question when running in CLI mode and return the chosen action.
+        """Prompt the user for a clarified question when running in CLI mode and return the chosen action.
 
         Parameters:
             prep_res (dict): Preparation result containing:
@@ -137,8 +135,7 @@ class AskUser(Node):
         return {"action": "exit", "clarified_question": None}
 
     def post(self, shared, prep_res, exec_res) -> str:
-        """
-        Apply the user's response to the shared runtime state and determine the next node outcome.
+        """Apply the user's response to the shared runtime state and determine the next node outcome.
 
         Parameters:
             shared (dict): Mutable shared state for the flow; may be updated when the user provides a clarified question or ends the session.

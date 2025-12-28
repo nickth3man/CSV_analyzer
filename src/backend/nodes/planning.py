@@ -5,6 +5,7 @@ import logging
 
 from pocketflow import Node
 
+
 logger = logging.getLogger(__name__)
 
 from backend.config import MAX_PLAN_STEPS, MIN_PLAN_STEPS
@@ -16,8 +17,7 @@ class Planner(Node):
     """Generate an analysis plan that leverages both CSV and NBA API data."""
 
     def prep(self, shared):
-        """
-        Build a prepared payload extracted from the shared runtime state for plan generation.
+        """Build a prepared payload extracted from the shared runtime state for plan generation.
 
         Parameters:
             shared (dict): Runtime shared state containing inputs and intermediate results. Expected keys used:
@@ -47,8 +47,7 @@ class Planner(Node):
         }
 
     def exec(self, prep_res):
-        """
-        Generate a multi-step analysis plan that combines CSV and NBA API data based on the provided preparation results.
+        """Generate a multi-step analysis plan that combines CSV and NBA API data based on the provided preparation results.
 
         Parameters:
             prep_res (dict): Prepared input dictionary containing:
@@ -116,8 +115,7 @@ Be thorough - this is for deep analysis, not just a simple lookup."""
         return plan
 
     def exec_fallback(self, prep_res, exc) -> str:
-        """
-        Provide a fallback plan message when plan generation fails.
+        """Provide a fallback plan message when plan generation fails.
 
         Parameters:
             prep_res (dict): The prepared execution payload passed to the node.
@@ -130,8 +128,7 @@ Be thorough - this is for deep analysis, not just a simple lookup."""
         return "Plan generation failed. Please proceed with caution."
 
     def post(self, shared, prep_res, exec_res) -> str:
-        """
-        Persist the generated plan into the shared execution state and mark the node as complete.
+        """Persist the generated plan into the shared execution state and mark the node as complete.
 
         Parameters:
             shared (dict): Shared state dictionary used by nodes; the plan will be stored under the "plan_steps" key.
@@ -149,8 +146,7 @@ class ContextAggregator(Node):
     """Collect insights from previous nodes and create enriched context for code generation."""
 
     def prep(self, shared):
-        """
-        Builds the execution payload for ContextAggregator by extracting required values from the shared execution state.
+        """Builds the execution payload for ContextAggregator by extracting required values from the shared execution state.
 
         Parameters:
             shared (dict): Shared node state containing prior results and configuration. Expected keys (if present) include:
@@ -191,8 +187,7 @@ class ContextAggregator(Node):
         }
 
     def exec(self, prep_res):
-        """
-        Builds an aggregated context object and a human-readable summary from prepared inputs about entities and data profiles.
+        """Builds an aggregated context object and a human-readable summary from prepared inputs about entities and data profiles.
 
         Parameters:
             prep_res (dict): Prepared inputs containing:
@@ -253,11 +248,11 @@ class ContextAggregator(Node):
 
         context_summary = f"""
 AGGREGATED CONTEXT:
-- Query Type: {context['query_type']}
-- Entities: {', '.join(context['entities'])}
-- Recommended Tables: {', '.join(context['recommended_tables'])}
-- Join Keys: {'; '.join(context['join_keys']) if context['join_keys'] else 'None identified'}
-- Entity Locations: {json.dumps(context['entity_locations'], indent=2)}
+- Query Type: {context["query_type"]}
+- Entities: {", ".join(context["entities"])}
+- Recommended Tables: {", ".join(context["recommended_tables"])}
+- Join Keys: {"; ".join(context["join_keys"]) if context["join_keys"] else "None identified"}
+- Entity Locations: {json.dumps(context["entity_locations"], indent=2)}
 """
         if context.get("cross_references"):
             context_summary += f"- Cross-References: {json.dumps(context['cross_references'], indent=2)}\n"
@@ -277,8 +272,7 @@ AGGREGATED CONTEXT:
         return {"context": context, "summary": context_summary}
 
     def post(self, shared, prep_res, exec_res) -> str:
-        """
-        Store the aggregated context and its textual summary into the shared state.
+        """Store the aggregated context and its textual summary into the shared state.
 
         Parameters:
             shared (dict): Mutable shared state for the node pipeline; will be updated with aggregated context and summary.
@@ -295,6 +289,6 @@ AGGREGATED CONTEXT:
         logger.info(
             "Context aggregated: "
             f"{exec_res['context']['query_type']} query with "
-            f"{len(exec_res['context']['recommended_tables'])} tables"
+            f"{len(exec_res['context']['recommended_tables'])} tables",
         )
         return "default"
