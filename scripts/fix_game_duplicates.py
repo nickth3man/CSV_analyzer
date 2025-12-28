@@ -1,6 +1,6 @@
 import duckdb
 
-DATABASE = 'project_data.db'
+DATABASE = 'data/nba.duckdb'
 
 def fix_duplicates():
     con = duckdb.connect(DATABASE)

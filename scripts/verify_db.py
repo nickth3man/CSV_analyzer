@@ -1,6 +1,6 @@
 import duckdb
 
-DATABASE_FILE = 'project_data.db'
+DATABASE_FILE = 'data/nba.duckdb'
 
 def verify_database():
     print(f"Connecting to {DATABASE_FILE} for verification...\n")

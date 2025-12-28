@@ -308,7 +308,7 @@ async def on_message(message: cl.Message) -> None:
     """Handle incoming messages."""
     # Handle file uploads via message elements
     if message.elements:
-        csv_dir = "CSV"
+        csv_dir = "data/raw/csv"
         os.makedirs(csv_dir, exist_ok=True)
 
         uploaded = []

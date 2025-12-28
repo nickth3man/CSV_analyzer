@@ -1,6 +1,6 @@
 import duckdb
 
-DATABASE_FILE = 'project_data.db'
+DATABASE_FILE = 'data/nba.duckdb'
 
 def detailed_check():
     print(f"Connecting to {DATABASE_FILE}...\n")

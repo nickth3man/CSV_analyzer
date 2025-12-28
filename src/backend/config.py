@@ -17,7 +17,7 @@
 # variables. Consider:
 #   1. Use a single configuration class with validation:
 #      class Config:
-#          data_dir: str = Field(default="CSV")
+#          data_dir: str = Field(default="data/raw/csv")
 #          nba_season: str = Field(default_factory=get_current_season)
 #          execution_timeout: int = Field(default=30, ge=5, le=300)
 #   2. Or use pydantic-settings for environment variable loading:
@@ -52,7 +52,7 @@ from __future__ import annotations
 import os
 import re
 
-DEFAULT_DATA_DIR = "CSV"
+DEFAULT_DATA_DIR = "data/raw/csv"
 NBA_DEFAULT_SEASON = os.environ.get("NBA_API_DEFAULT_SEASON", "2023-24")
 ENTITY_SAMPLE_SIZE = 1000
 SEARCH_SAMPLE_SIZE = 1000

@@ -1,6 +1,6 @@
 import duckdb
 
-DATABASE = 'project_data.db'
+DATABASE = 'data/nba.duckdb'
 
 def check_integrity():
     print(f"Connecting to {DATABASE} to verify relational integrity...")

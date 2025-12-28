@@ -1,6 +1,6 @@
 ### Current DuckDB Snapshot
 
-- **Breadth vs. depth** – The `project_data.db` catalog exposes 43 tables, but many are empty (`salaries`, `arenas`, `transactions`, `play_by_play`, `seasons`, etc.) and several core tables are duplicated as raw text (`game`, `player`, `team`) versus typed “silver/gold” versions.  
+- **Breadth vs. depth** – The `data/nba.duckdb` catalog exposes 43 tables, but many are empty (`salaries`, `arenas`, `transactions`, `play_by_play`, `seasons`, etc.) and several core tables are duplicated as raw text (`game`, `player`, `team`) versus typed “silver/gold” versions.  
 - **Data-type drift** – Key numeric fields were coerced to `BIGINT`, so shooting percentages end up as 0/1 flags (`fg_pct`, `fg3_pct`, `ft_pct`, `plus_minus`, etc.), wiping out real precision.  
 - **Season semantics** – `season_id` encodes both season type and year (e.g., `42022` for 2021-22 playoffs) but lacks a shared dimension table, making analytics brittle.  
 - **Coverage focus** – The database is richest at the team-game grain (`team_game_stats`, `game_gold`) and limited at player-season, player-game, and transactional layers.

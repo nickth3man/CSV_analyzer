@@ -138,7 +138,15 @@ When the CLI detects an ambiguous query:
 │       ├── actions.py          # Action callbacks
 │       ├── steps.py            # Analysis pipeline steps
 │       └── handlers.py         # Main event handlers
-├── CSV/                        # Data directory for CSV files
+├── data/
+│   ├── raw/
+│   │   └── csv/                # Raw CSV data files
+│   └── nba.duckdb              # DuckDB database (generated)
+├── scripts/                    # Database and data processing scripts
+│   ├── convert_csvs.py         # CSV to DuckDB ingestion
+│   ├── normalize_db.py         # Data type normalization
+│   ├── check_integrity.py      # Database integrity checks
+│   └── ...                     # Other utility scripts
 ├── docs/
 │   └── design.md               # High-level design documentation
 └── requirements.txt            # Project dependencies

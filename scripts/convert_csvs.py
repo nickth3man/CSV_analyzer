@@ -4,8 +4,8 @@ import os
 import sys
 
 # Configuration
-DATABASE_FILE = 'project_data.db'
-DATA_DIRECTORY = './CSV/'
+DATABASE_FILE = 'data/nba.duckdb'
+DATA_DIRECTORY = './data/raw/csv/'
 # We will iterate through files, so we don't use a single source pattern for read_csv
 
 def run_ingestion_pipeline():
@@ -96,7 +96,7 @@ def run_ingestion_pipeline():
             print(f"  FAILED to process {filename}: {e}")
 
     print("\n--- Verification Summary ---")
-    report_file = open("migration_report.txt", "w")
+    report_file = open("scripts/migration_report.txt", "w")
     report_file.write("MIGRATION REPORT\n")
     report_file.write("================\n\n")
     
@@ -125,7 +125,7 @@ def run_ingestion_pipeline():
     report_file.close()
     con.close()
     print(f"\nMigration complete. Database saved to {DATABASE_FILE}")
-    print(f"Detailed report saved to migration_report.txt")
+    print(f"Detailed report saved to scripts/migration_report.txt")
 
 if __name__ == "__main__":
     run_ingestion_pipeline()

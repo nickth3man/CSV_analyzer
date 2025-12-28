@@ -1,7 +1,7 @@
 import duckdb
 import re
 
-DATABASE = 'project_data.db'
+DATABASE = 'data/nba.duckdb'
 SILVER_SUFFIX = '_silver'
 
 def get_tables(con):
