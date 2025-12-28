@@ -191,14 +191,19 @@ def populate_player_season_stats(
     db_path: Optional[str] = None,
     seasons: Optional[List[str]] = None
 ) -> Dict[str, Any]:
-    """Populate player_season_stats table with aggregated statistics.
-
-    Args:
-        db_path: Path to DuckDB database
-        seasons: Optional list of seasons to filter (not yet implemented in SQL)
-
+    """
+    Populate the player_season_stats table by aggregating per-game player statistics into season-level metrics.
+    
+    Parameters:
+        db_path (Optional[str]): Path to the DuckDB database file; when omitted the default from get_db_path() is used.
+        seasons (Optional[List[str]]): Optional list of season identifiers to target; currently logged but not applied to the SQL population query.
+    
     Returns:
-        Dictionary with statistics about the population process
+        Dict[str, Any]: Summary of the population run containing:
+            - start_time (str): ISO timestamp when the run started.
+            - end_time (str): ISO timestamp when the run completed.
+            - records_created (int): Number of player-season records written to the table.
+            - errors (List[str]): List of error messages encountered during the run (empty if none).
     """
     db_path = db_path or str(get_db_path())
 
@@ -277,6 +282,11 @@ def populate_player_season_stats(
 # =============================================================================
 
 def main():
+    """
+    Parse command-line arguments and run the player season stats population process.
+    
+    Parses optional `--db` (database path) and `--seasons` (one or more seasons) arguments, calls populate_player_season_stats with the parsed values, and exits with status 1 if the population reports errors or an exception occurs.
+    """
     parser = argparse.ArgumentParser(
         description='Populate player season statistics',
         formatter_class=argparse.RawDescriptionHelpFormatter,

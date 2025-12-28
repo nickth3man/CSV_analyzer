@@ -95,7 +95,17 @@ COLUMN_MAPPING = {
 # =============================================================================
 
 def load_progress() -> Dict[str, Any]:
-    """Load progress from file."""
+    """
+    Load the persistent progress state for play-by-play population.
+    
+    Reads the JSON progress file and returns its contents. If the progress file does not exist, returns a default structure.
+    
+    Returns:
+        progress (dict): Progress dictionary with keys:
+            - completed_games (List[str]): game IDs that have been completed.
+            - last_game_id (Optional[str]): the most recently processed game ID or None.
+            - errors (List[Any]): recorded errors encountered during processing.
+    """
     if PROGRESS_FILE.exists():
         with open(PROGRESS_FILE, 'r') as f:
             return json.load(f)
@@ -103,21 +113,32 @@ def load_progress() -> Dict[str, Any]:
 
 
 def save_progress(progress: Dict[str, Any]):
-    """Save progress to file."""
+    """
+    Persist the progress dictionary to the progress file in the cache directory.
+    
+    Parameters:
+        progress (dict): Progress state to save. Expected keys include:
+            - "completed_games" (list): game IDs already processed.
+            - "last_game_id" (str|None): most recently processed game ID.
+            - "errors" (list): recorded error entries.
+    """
     ensure_cache_dir()
     with open(PROGRESS_FILE, 'w') as f:
         json.dump(progress, f, indent=2)
 
 
 def process_play_by_play_data(df: pd.DataFrame, game_id: str) -> pd.DataFrame:
-    """Process play-by-play data for insertion into database.
-
-    Args:
-        df: Raw DataFrame from NBA API
-        game_id: Game ID for this data
-
+    """
+    Normalize a raw NBA play-by-play DataFrame to the play_by_play table schema.
+    
+    Ensures all expected NBA API columns are present (filling missing columns with None), renames columns according to the internal COLUMN_MAPPING, injects the provided game_id, and returns the DataFrame with columns ordered for insertion.
+    
+    Parameters:
+        df (pd.DataFrame): Raw play-by-play DataFrame returned by the NBA API.
+        game_id (str): Game identifier to assign to every row in the processed DataFrame.
+    
     Returns:
-        Processed DataFrame matching play_by_play table schema
+        pd.DataFrame: Processed DataFrame with 'game_id' as the first column followed by the mapped play_by_play fields, ready for database insertion.
     """
     if df.empty:
         return df
@@ -148,14 +169,15 @@ def process_play_by_play_data(df: pd.DataFrame, game_id: str) -> pd.DataFrame:
 
 
 def insert_play_by_play(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame) -> int:
-    """Insert play-by-play data into database.
-
-    Args:
-        conn: DuckDB connection
-        df: DataFrame to insert
-
+    """
+    Insert processed play-by-play rows from a DataFrame into the play_by_play table.
+    
+    Parameters:
+        conn (duckdb.DuckDBPyConnection): Active DuckDB connection used for the insert.
+        df (pd.DataFrame): DataFrame whose columns match the play_by_play table schema.
+    
     Returns:
-        Number of rows inserted
+        int: Number of rows inserted; returns 0 if `df` is empty or if an error occurs during insertion.
     """
     if df.empty:
         return 0
@@ -196,19 +218,27 @@ def populate_play_by_play(
     resume_from: Optional[str] = None,
     client: Optional[NBAClient] = None,
 ) -> Dict[str, Any]:
-    """Populate play_by_play table with NBA data.
-
-    Args:
-        db_path: Path to DuckDB database
-        games: Optional list of specific game IDs to process
-        seasons: Optional list of seasons to process
-        limit: Maximum number of games to process
-        delay: Delay between API requests in seconds
-        resume_from: Resume from specific game ID
-        client: NBAClient instance (creates default if None)
-
+    """
+    Populate the play_by_play table in the DuckDB database with play-by-play data fetched from the NBA API.
+    
+    Parameters:
+        db_path (Optional[str]): Path to the DuckDB database file; uses the configured default when omitted.
+        games (Optional[List[str]]): Explicit list of game IDs to process; when provided, overrides reading game IDs from the database.
+        seasons (Optional[List[str]]): List of seasons to filter game IDs when querying the database (e.g., "2022-23"); used only when `games` is not provided.
+        limit (Optional[int]): Maximum number of games to process from the resolved game list.
+        delay (float): Per-request delay in seconds applied to the NBAClient to avoid rate limits.
+        resume_from (Optional[str]): If provided, processing will start from this game ID within the remaining (uncompleted) games.
+        client (Optional[NBAClient]): NBAClient instance to use for API calls; a default client is created if not supplied.
+    
     Returns:
-        Dictionary with statistics about the population process
+        dict: Statistics and metadata about the run, including at least:
+            - start_time: ISO timestamp when processing started.
+            - end_time: ISO timestamp when processing ended.
+            - games_processed: Number of games successfully processed.
+            - events_added: Total number of play-by-play events inserted.
+            - final_count: Final row count of the play_by_play table (best-effort).
+            - net_added: final_count minus initial table count (best-effort).
+            - errors: List of error messages encountered during processing.
     """
     db_path = db_path or str(get_db_path())
     client = client or get_client()
@@ -397,6 +427,11 @@ def populate_play_by_play(
 # =============================================================================
 
 def main():
+    """
+    Entry point for the play-by-play population CLI.
+    
+    Parses command-line arguments for database path, game IDs, seasons, processing limit, API call delay, and resume point; invokes populate_play_by_play with those options and exits with a non-zero status when the operation is cancelled, returns errors, or a fatal exception occurs.
+    """
     parser = argparse.ArgumentParser(
         description='Populate play-by-play data from NBA API',
         formatter_class=argparse.RawDescriptionHelpFormatter,
