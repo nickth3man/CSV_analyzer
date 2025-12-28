@@ -117,3 +117,6 @@ site/
 
 # interrogate badge
 interrogate_badge.svg
+
+# Reference documentation (cloned external repos)
+reference/nba_api/
