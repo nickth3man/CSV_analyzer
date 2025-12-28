@@ -5,7 +5,6 @@ Tests validate that they properly indicate non-implementation and provide
 appropriate error messages.
 """
 
-import sys
 from unittest.mock import patch
 
 import pytest
@@ -66,7 +65,7 @@ class TestPopulatePlaceholders:
         with pytest.raises(NotImplementedError, match="not yet implemented"):
             populate_transactions.populate_transactions()
 
-    @pytest.mark.parametrize("module_name,main_func", [
+    @pytest.mark.parametrize(("module_name", "main_func"), [
         ("populate_arenas", "main"),
         ("populate_franchises", "main"),
         ("populate_injury_data", "main"),
@@ -79,11 +78,11 @@ class TestPopulatePlaceholders:
         """Test that main functions exit with non-zero status."""
         module = __import__(f"scripts.populate.{module_name}", fromlist=[main_func])
         main = getattr(module, main_func)
-        
+
         with pytest.raises(SystemExit) as exc_info:
             with patch("sys.argv", [module_name]):
                 main()
-        
+
         assert exc_info.value.code == 1
 
     def test_all_placeholders_log_warnings(self, caplog):
@@ -97,7 +96,7 @@ class TestPopulatePlaceholders:
             populate_shot_chart,
             populate_transactions,
         ]
-        
+
         for script in scripts:
             with pytest.raises(NotImplementedError):
                 # Try to call the populate function
@@ -131,11 +130,11 @@ class TestPopulateSalariesSpecifics:
             populate_salaries.populate_salaries()
         except NotImplementedError as e:
             error_msg = str(e)
-        
+
         # Check module docstring for data source information
         doc = populate_salaries.__doc__
         combined = f"{error_msg} {doc}"
-        
+
         assert any(source in combined for source in [
             "Basketball Reference", "HoopsHype", "Spotrac"
         ])

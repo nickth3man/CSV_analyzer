@@ -98,7 +98,7 @@ def main():
     parser.add_argument("--include-defunct", action="store_true",
                         help="Include defunct franchises")
 
-    args = parser.parse_args()
+    _args = parser.parse_args()
 
     logger.warning("=" * 70)
     logger.warning("FRANCHISES POPULATION - NOT YET IMPLEMENTED")

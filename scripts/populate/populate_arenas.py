@@ -96,7 +96,7 @@ def main():
     parser.add_argument("--include-historical", action="store_true",
                         help="Include defunct/historical arenas")
 
-    args = parser.parse_args()
+    _args = parser.parse_args()
 
     logger.warning("=" * 70)
     logger.warning("ARENAS POPULATION - NOT YET IMPLEMENTED")

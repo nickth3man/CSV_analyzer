@@ -4,7 +4,6 @@ Tests for scripts that have been updated with TODO comments
 but retain their existing functionality.
 """
 
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -16,10 +15,9 @@ class TestPopulatePlayByPlayUpdated:
         """Test that module docstring includes ROADMAP TODO."""
         import sys
         # Ensure module is loaded
-        import scripts.populate.populate_play_by_play
         # Get the actual module object from sys.modules to avoid function shadowing
         module = sys.modules["scripts.populate.populate_play_by_play"]
-        
+
         doc = module.__doc__
         assert "TODO" in doc or "ROADMAP" in doc
         assert "Phase 3.1" in doc
@@ -27,9 +25,8 @@ class TestPopulatePlayByPlayUpdated:
     def test_populate_play_by_play_todo_mentions_api_issues(self):
         """Test that TODO mentions NBA API access issues."""
         import sys
-        import scripts.populate.populate_play_by_play
         module = sys.modules["scripts.populate.populate_play_by_play"]
-        
+
         doc = module.__doc__
         assert any(term in doc for term in [
             "API", "authentication", "blocked", "access"
@@ -42,9 +39,8 @@ class TestPopulatePlayerSeasonStatsUpdated:
     def test_populate_player_season_stats_has_todo_marker(self):
         """Test that module includes bridge table TODO."""
         import sys
-        import scripts.populate.populate_player_season_stats
         module = sys.modules["scripts.populate.populate_player_season_stats"]
-        
+
         doc = module.__doc__
         assert "TODO" in doc or "ROADMAP" in doc
         assert "bridge_player_team_season" in doc or "Phase 2.5" in doc
@@ -52,9 +48,8 @@ class TestPopulatePlayerSeasonStatsUpdated:
     def test_populate_player_season_stats_todo_mentions_verification(self):
         """Test that TODO mentions verification tasks."""
         import sys
-        import scripts.populate.populate_player_season_stats
         module = sys.modules["scripts.populate.populate_player_season_stats"]
-        
+
         doc = module.__doc__
         assert any(term in doc for term in [
             "verify", "Verify", "check", "Check"
@@ -73,7 +68,7 @@ class TestScriptsModuleStructure:
             "scripts.populate.populate_play_by_play",
             "scripts.populate.populate_player_season_stats",
         ]
-        
+
         for module_name in modules:
             try:
                 __import__(module_name)
@@ -91,7 +86,7 @@ class TestScriptsModuleStructure:
             "scripts.populate.populate_shot_chart",
             "scripts.populate.populate_transactions",
         ]
-        
+
         for module_name in placeholders:
             try:
                 __import__(module_name)
@@ -105,7 +100,7 @@ class TestScriptsModuleStructure:
             "scripts.create_advanced_metrics",
             "scripts.normalize_db",
         ]
-        
+
         for module_name in modules:
             module = __import__(module_name, fromlist=["__doc__"])
             assert module.__doc__ is not None
@@ -126,7 +121,7 @@ class TestScriptsModuleStructure:
             f"scripts.populate.{script_name}",
             fromlist=["__doc__"]
         )
-        
+
         doc = module.__doc__
         assert doc is not None
         assert len(doc) > 200  # Very detailed documentation
@@ -147,11 +142,11 @@ class TestTODOMarkersConsistency:
             "scripts.populate.populate_play_by_play",
             "scripts.populate.populate_player_season_stats",
         ]
-        
+
         for module_name in modules_with_todos:
             module = __import__(module_name, fromlist=["__doc__"])
             doc = module.__doc__ or ""
-            
+
             # Should reference ROADMAP
             assert "ROADMAP" in doc or "roadmap" in doc.lower()
 
@@ -162,9 +157,9 @@ class TestTODOMarkersConsistency:
             ("scripts.create_advanced_metrics", ["Phase 2.3", "Phase 2.4"]),
             ("scripts.normalize_db", ["Phase 1.2", "Phase 1.5"]),
         ]
-        
+
         for module_name, expected_phases in modules_with_todos:
             module = __import__(module_name, fromlist=["__doc__"])
             doc = module.__doc__ or ""
-            
+
             assert any(phase in doc for phase in expected_phases)

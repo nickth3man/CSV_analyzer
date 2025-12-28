@@ -45,9 +45,9 @@ Based on nba_api library documentation:
 __version__ = "1.2.0"
 
 # Core components
-from .api_client import NBAClient, get_client
-from .base import BasePopulator, PopulationMetrics, ProgressTracker
-from .config import (
+from scripts.populate.api_client import NBAClient, get_client
+from scripts.populate.base import BasePopulator, PopulationMetrics, ProgressTracker
+from scripts.populate.config import (
     ALL_SEASONS,
     CACHE_DIR,
     CURRENT_SEASON,
@@ -59,16 +59,16 @@ from .config import (
     get_api_config,
     get_db_path,
 )
-from .database import DatabaseManager
-from .init_db import get_database_info, init_database
-from .populate_nba_data import PopulationManager
-from .populate_play_by_play import populate_play_by_play
+from scripts.populate.database import DatabaseManager
+from scripts.populate.init_db import get_database_info, init_database
+from scripts.populate.populate_nba_data import PopulationManager
+from scripts.populate.populate_play_by_play import populate_play_by_play
 
 # Population functions
-from .populate_player_game_stats import populate_player_game_stats
-from .populate_player_game_stats_v2 import populate_player_game_stats_v2
-from .populate_player_season_stats import populate_player_season_stats
-from .validation import DataValidator
+from scripts.populate.populate_player_game_stats import populate_player_game_stats
+from scripts.populate.populate_player_game_stats_v2 import populate_player_game_stats_v2
+from scripts.populate.populate_player_season_stats import populate_player_season_stats
+from scripts.populate.validation import DataValidator
 
 
 __all__ = [

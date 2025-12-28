@@ -85,7 +85,7 @@ def main():
     parser.add_argument("--seasons", nargs="+", help="Seasons to process")
     parser.add_argument("--all-players", action="store_true", help="All players")
 
-    args = parser.parse_args()
+    _args = parser.parse_args()
 
     logger.warning("=" * 70)
     logger.warning("SHOT CHART POPULATION - NOT YET IMPLEMENTED")

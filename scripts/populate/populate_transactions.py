@@ -93,7 +93,7 @@ def main():
     parser.add_argument("--player-id", type=int, help="Specific player ID")
     parser.add_argument("--all-seasons", action="store_true", help="All available seasons")
 
-    args = parser.parse_args()
+    _args = parser.parse_args()
 
     logger.warning("=" * 70)
     logger.warning("TRANSACTIONS POPULATION - NOT YET IMPLEMENTED")

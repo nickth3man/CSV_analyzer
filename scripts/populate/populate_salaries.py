@@ -94,7 +94,7 @@ def main():
     parser.add_argument("--source", choices=["basketball-reference", "hoopshype", "spotrac"],
                         default="basketball-reference", help="Data source to use")
 
-    args = parser.parse_args()
+    _args = parser.parse_args()
 
     logger.warning("=" * 70)
     logger.warning("SALARY POPULATION - NOT YET IMPLEMENTED")
