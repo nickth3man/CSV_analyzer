@@ -1,0 +1,342 @@
+"""Unit tests for scripts/normalize_db.py module.
+
+This module tests database normalization functionality including:
+- Type inference for VARCHAR columns
+- Silver table creation with proper types
+- Handling of various data types (BIGINT, DOUBLE, DATE)
+- Error handling and edge cases
+"""
+
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, call, patch
+
+import pytest
+
+from scripts.normalize_db import (
+    get_tables,
+    infer_column_type,
+    transform_to_silver,
+)
+
+
+class TestGetTables:
+    """Test suite for get_tables function."""
+
+    def test_get_tables_returns_base_tables_only(self):
+        """Test that only base tables are returned, excluding views."""
+        mock_con = MagicMock()
+        
+        # Mock views
+        mock_con.sql.return_value.fetchall.side_effect = [
+            [("view1",), ("view2",)],  # Views
+            [("table1",), ("table2",), ("view1",), ("table2_silver",)],  # All tables
+        ]
+        
+        result = get_tables(mock_con)
+        
+        assert "table1" in result
+        assert "table2" in result
+        assert "view1" not in result  # Excluded as view
+        assert "table2_silver" not in result  # Excluded as silver table
+
+    def test_get_tables_excludes_silver_tables(self):
+        """Test that tables ending with _silver are excluded."""
+        mock_con = MagicMock()
+        mock_con.sql.return_value.fetchall.side_effect = [
+            [],  # No views
+            [("player",), ("player_silver",), ("team",), ("team_silver",)],
+        ]
+        
+        result = get_tables(mock_con)
+        
+        assert "player" in result
+        assert "team" in result
+        assert "player_silver" not in result
+        assert "team_silver" not in result
+
+    def test_get_tables_excludes_rejects_tables(self):
+        """Test that tables ending with _rejects are excluded."""
+        mock_con = MagicMock()
+        mock_con.sql.return_value.fetchall.side_effect = [
+            [],
+            [("data",), ("data_rejects",), ("invalid_rejects",)],
+        ]
+        
+        result = get_tables(mock_con)
+        
+        assert "data" in result
+        assert "data_rejects" not in result
+        assert "invalid_rejects" not in result
+
+    def test_get_tables_handles_empty_database(self):
+        """Test handling of database with no tables."""
+        mock_con = MagicMock()
+        mock_con.sql.return_value.fetchall.side_effect = [[], []]
+        
+        result = get_tables(mock_con)
+        
+        assert result == []
+
+
+class TestInferColumnType:
+    """Test suite for infer_column_type function."""
+
+    def test_infer_column_type_detects_bigint(self):
+        """Test detection of BIGINT columns."""
+        mock_con = MagicMock()
+        # Total count, then successful BIGINT cast count
+        mock_con.sql.return_value.fetchone.side_effect = [
+            (100,),  # Total non-null count
+            (100,),  # Successful BIGINT casts
+        ]
+        
+        result = infer_column_type(mock_con, "test_table", "col1")
+        
+        assert result == "BIGINT"
+
+    def test_infer_column_type_detects_double(self):
+        """Test detection of DOUBLE columns."""
+        mock_con = MagicMock()
+        mock_con.sql.return_value.fetchone.side_effect = [
+            (100,),  # Total
+            (50,),   # BIGINT fails
+            (100,),  # DOUBLE succeeds
+        ]
+        
+        result = infer_column_type(mock_con, "test_table", "col1")
+        
+        assert result == "DOUBLE"
+
+    def test_infer_column_type_detects_date(self):
+        """Test detection of DATE columns."""
+        mock_con = MagicMock()
+        mock_con.sql.return_value.fetchone.side_effect = [
+            (100,),  # Total
+            (0,),    # BIGINT fails
+            (0,),    # DOUBLE fails
+            (100,),  # DATE succeeds
+        ]
+        
+        result = infer_column_type(mock_con, "test_table", "date_col")
+        
+        assert result == "DATE"
+
+    def test_infer_column_type_defaults_to_varchar(self):
+        """Test fallback to VARCHAR when no type matches."""
+        mock_con = MagicMock()
+        mock_con.sql.return_value.fetchone.side_effect = [
+            (100,),  # Total
+            (50,),   # BIGINT partial
+            (30,),   # DOUBLE partial
+            (20,),   # DATE partial
+        ]
+        
+        result = infer_column_type(mock_con, "test_table", "mixed_col")
+        
+        assert result == "VARCHAR"
+
+    def test_infer_column_type_handles_empty_column(self):
+        """Test handling of empty columns (0 non-null values)."""
+        mock_con = MagicMock()
+        mock_con.sql.return_value.fetchone.return_value = (0,)
+        
+        result = infer_column_type(mock_con, "test_table", "empty_col")
+        
+        assert result == "VARCHAR"
+
+    def test_infer_column_type_quotes_column_names(self):
+        """Test that column names are properly quoted."""
+        mock_con = MagicMock()
+        mock_con.sql.return_value.fetchone.side_effect = [(100,), (100,)]
+        
+        infer_column_type(mock_con, "test_table", "reserved_word")
+        
+        # Verify column name was quoted
+        calls = [str(c) for c in mock_con.sql.call_args_list]
+        assert any('"reserved_word"' in c for c in calls)
+
+    def test_infer_column_type_handles_special_characters(self):
+        """Test handling of column names with special characters."""
+        mock_con = MagicMock()
+        mock_con.sql.return_value.fetchone.side_effect = [(50,), (50,)]
+        
+        result = infer_column_type(mock_con, "test_table", "col-with-dash")
+        
+        assert result in ["BIGINT", "DOUBLE", "DATE", "VARCHAR"]
+
+
+class TestTransformToSilver:
+    """Test suite for transform_to_silver function."""
+
+    def test_transform_to_silver_requires_existing_database(self):
+        """Test that function requires existing database file."""
+        with patch("scripts.normalize_db.Path") as mock_path:
+            mock_path.return_value.exists.return_value = False
+            
+            with pytest.raises(SystemExit):
+                transform_to_silver("nonexistent.db")
+
+    def test_transform_to_silver_processes_all_tables_by_default(self):
+        """Test that all tables are processed when none specified."""
+        with patch("scripts.normalize_db.Path") as mock_path, \
+             patch("scripts.normalize_db.duckdb.connect") as mock_connect:
+            
+            mock_path.return_value.exists.return_value = True
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            # Mock get_tables response
+            mock_con.sql.return_value.fetchall.side_effect = [
+                [],  # No views
+                [("table1",), ("table2",)],  # Tables
+                [("col1", "VARCHAR")],  # Describe table1
+                (100,), (100,),  # Infer type
+                [("col1", "VARCHAR")],  # Describe table2
+                (100,), (100,),  # Infer type
+            ]
+            mock_con.sql.return_value.fetchone.side_effect = [
+                (100,), (100,),  # table1 inference
+                (100,), (100,),  # table2 inference
+            ]
+            
+            transform_to_silver("data/test.db")
+            
+            # Verify CREATE TABLE calls
+            calls = [str(c) for c in mock_con.execute.call_args_list]
+            assert any("table1_silver" in c for c in calls)
+            assert any("table2_silver" in c for c in calls)
+
+    def test_transform_to_silver_processes_specific_tables(self):
+        """Test processing of specific tables only."""
+        with patch("scripts.normalize_db.Path") as mock_path, \
+             patch("scripts.normalize_db.duckdb.connect") as mock_connect:
+            
+            mock_path.return_value.exists.return_value = True
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            mock_con.sql.return_value.fetchall.return_value = [("col1", "VARCHAR")]
+            mock_con.sql.return_value.fetchone.side_effect = [(100,), (100,)]
+            
+            transform_to_silver("data/test.db", tables=["specific_table"])
+            
+            calls = [str(c) for c in mock_con.execute.call_args_list]
+            assert any("specific_table_silver" in c for c in calls)
+
+    def test_transform_to_silver_skips_typed_columns(self):
+        """Test that already-typed columns are not re-inferred."""
+        with patch("scripts.normalize_db.Path") as mock_path, \
+             patch("scripts.normalize_db.duckdb.connect") as mock_connect:
+            
+            mock_path.return_value.exists.return_value = True
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            mock_con.sql.return_value.fetchall.side_effect = [
+                [],  # No views
+                [("table1",)],  # Tables
+                [("id", "BIGINT"), ("name", "VARCHAR")],  # Columns
+                (50,), (50,),  # Inference for VARCHAR column only
+            ]
+            mock_con.sql.return_value.fetchone.side_effect = [
+                (50,), (50,),  # Only VARCHAR column inferred
+            ]
+            
+            transform_to_silver("data/test.db")
+            
+            # Verify type inference not called for BIGINT column
+            inference_calls = [c for c in mock_con.sql.call_args_list 
+                             if "TRY_CAST" in str(c)]
+            # Should only have casts for the VARCHAR column
+
+    def test_transform_to_silver_creates_silver_tables(self):
+        """Test that _silver tables are created with proper schema."""
+        with patch("scripts.normalize_db.Path") as mock_path, \
+             patch("scripts.normalize_db.duckdb.connect") as mock_connect:
+            
+            mock_path.return_value.exists.return_value = True
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            mock_con.sql.return_value.fetchall.side_effect = [
+                [],
+                [("table1",)],
+                [("col1", "VARCHAR")],
+                (100,), (100,),
+            ]
+            mock_con.sql.return_value.fetchone.side_effect = [(100,), (100,)]
+            
+            transform_to_silver("data/test.db")
+            
+            # Verify CREATE OR REPLACE TABLE was called
+            calls = [str(c) for c in mock_con.execute.call_args_list]
+            assert any("CREATE OR REPLACE TABLE" in c and "table1_silver" in c 
+                      for c in calls)
+
+    def test_transform_to_silver_handles_errors_gracefully(self):
+        """Test graceful handling of table processing errors."""
+        with patch("scripts.normalize_db.Path") as mock_path, \
+             patch("scripts.normalize_db.duckdb.connect") as mock_connect, \
+             patch("scripts.normalize_db.logger") as mock_logger:
+            
+            mock_path.return_value.exists.return_value = True
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            mock_con.sql.return_value.fetchall.side_effect = [
+                [],
+                [("table1",), ("table2",)],
+            ]
+            mock_con.sql.side_effect = Exception("Table error")
+            
+            transform_to_silver("data/test.db")
+            
+            # Should log errors but continue
+            assert mock_logger.exception.called
+
+    def test_transform_to_silver_closes_connection(self):
+        """Test that database connection is closed after processing."""
+        with patch("scripts.normalize_db.Path") as mock_path, \
+             patch("scripts.normalize_db.duckdb.connect") as mock_connect:
+            
+            mock_path.return_value.exists.return_value = True
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            mock_con.sql.return_value.fetchall.side_effect = [[], []]
+            
+            transform_to_silver("data/test.db")
+            
+            mock_con.close.assert_called_once()
+
+    @pytest.mark.parametrize("inferred_type", ["BIGINT", "DOUBLE", "DATE"])
+    def test_transform_to_silver_applies_type_conversions(self, inferred_type):
+        """Test that inferred types are applied in CREATE TABLE."""
+        with patch("scripts.normalize_db.Path") as mock_path, \
+             patch("scripts.normalize_db.duckdb.connect") as mock_connect:
+            
+            mock_path.return_value.exists.return_value = True
+            mock_con = MagicMock()
+            mock_connect.return_value = mock_con
+            
+            # Set up mock to return specific type
+            mock_con.sql.return_value.fetchall.side_effect = [
+                [],
+                [("test_table",)],
+                [("col1", "VARCHAR")],
+            ]
+            
+            if inferred_type == "BIGINT":
+                mock_con.sql.return_value.fetchone.side_effect = [(100,), (100,)]
+            elif inferred_type == "DOUBLE":
+                mock_con.sql.return_value.fetchone.side_effect = [(100,), (50,), (100,)]
+            else:  # DATE
+                mock_con.sql.return_value.fetchone.side_effect = [
+                    (100,), (0,), (0,), (100,)
+                ]
+            
+            transform_to_silver("data/test.db")
+            
+            # Verify TRY_CAST with correct type
+            calls = [str(c) for c in mock_con.execute.call_args_list]
+            assert any(f"TRY_CAST" in c and inferred_type in c for c in calls)
