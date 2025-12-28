@@ -63,11 +63,12 @@ import duckdb
 
 
 def create_advanced_metrics(db_path: str = "data/nba.duckdb") -> None:
-    """
-    Create a set of advanced NBA metrics views and a player season summary table in the specified DuckDB database.
-    
+    """Create advanced NBA metrics views and a player season summary table in the DuckDB database.
+
     Parameters:
-        db_path (str): Filesystem path to the DuckDB database file (default: "data/nba.duckdb"). The function will create or replace views and a season-summary table within this database and commit the changes.
+        db_path (str): Filesystem path to the DuckDB database file (default: "data/nba.duckdb").
+            The function will create or replace views and a season-summary table within this
+            database and commit the changes.
     """
     conn = duckdb.connect(db_path)
 

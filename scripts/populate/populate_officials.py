@@ -110,7 +110,7 @@ def main():
     parser.add_argument("--with-games", action="store_true",
                         help="Create game-official linkages")
 
-    args = parser.parse_args()
+    _args = parser.parse_args()
 
     logger.warning("=" * 70)
     logger.warning("OFFICIALS POPULATION - NOT YET IMPLEMENTED")

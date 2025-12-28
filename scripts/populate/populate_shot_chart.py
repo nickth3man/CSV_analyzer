@@ -73,9 +73,9 @@ def populate_shot_chart(*args, **kwargs):
 
 def main():
     """
-    Provide a CLI entry point for shot chart population.
+    CLI entry point for shot chart population.
     
-    Parses command-line options (--player-id, --games, --seasons, --all-players), logs warning messages that the feature is not yet implemented and refers to ROADMAP.md Phase 3.2, then exits the process with status code 1.
+    Parses command-line options (--player-id, --games, --seasons, --all-players), logs warnings that the feature is not yet implemented and refers to ROADMAP.md Phase 3.2, then terminates the process with exit code 1.
     """
     parser = argparse.ArgumentParser(
         description="Populate shot chart data from NBA API (NOT YET IMPLEMENTED)",
@@ -85,7 +85,7 @@ def main():
     parser.add_argument("--seasons", nargs="+", help="Seasons to process")
     parser.add_argument("--all-players", action="store_true", help="All players")
 
-    args = parser.parse_args()
+    _args = parser.parse_args()
 
     logger.warning("=" * 70)
     logger.warning("SHOT CHART POPULATION - NOT YET IMPLEMENTED")
