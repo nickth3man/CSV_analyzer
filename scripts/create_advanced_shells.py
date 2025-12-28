@@ -1,15 +1,15 @@
 import duckdb
 
-DATABASE = 'data/nba.duckdb'
 
-def create_advanced_schema():
+DATABASE = "data/nba.duckdb"
+
+
+def create_advanced_schema() -> None:
     con = duckdb.connect(DATABASE)
-    print("Initializing Advanced Relational Schema Shells...")
 
     # --- 1. Lookup Tables (Static Data) ---
-    
+
     # Game Types
-    print("Creating 'game_types'...")
     con.sql("DROP TABLE IF EXISTS game_types")
     con.sql("""
         CREATE TABLE game_types (
@@ -19,7 +19,7 @@ def create_advanced_schema():
     """)
     # Seed standard values
     con.sql("""
-        INSERT INTO game_types VALUES 
+        INSERT INTO game_types VALUES
         ('Regular Season', 'Regular Season Games'),
         ('Playoffs', 'Post-Season Playoff Games'),
         ('Pre Season', 'Pre-Season Exhibition Games'),
@@ -27,7 +27,6 @@ def create_advanced_schema():
     """)
 
     # Player Positions
-    print("Creating 'positions'...")
     con.sql("DROP TABLE IF EXISTS positions")
     con.sql("""
         CREATE TABLE positions (
@@ -36,7 +35,7 @@ def create_advanced_schema():
         )
     """)
     con.sql("""
-        INSERT INTO positions VALUES 
+        INSERT INTO positions VALUES
         ('G', 'Guard'),
         ('F', 'Forward'),
         ('C', 'Center'),
@@ -49,7 +48,6 @@ def create_advanced_schema():
     # --- 2. Entity Tables (Shells) ---
 
     # Seasons
-    print("Creating 'seasons'...")
     con.sql("DROP TABLE IF EXISTS seasons")
     con.sql("""
         CREATE TABLE seasons (
@@ -63,7 +61,6 @@ def create_advanced_schema():
     """)
 
     # Arenas / Venues
-    print("Creating 'arenas'...")
     con.sql("DROP TABLE IF EXISTS arenas")
     con.sql("""
         CREATE TABLE arenas (
@@ -78,7 +75,6 @@ def create_advanced_schema():
     """)
 
     # Franchises (Linking history)
-    print("Creating 'franchises'...")
     con.sql("DROP TABLE IF EXISTS franchises")
     con.sql("""
         CREATE TABLE franchises (
@@ -89,9 +85,8 @@ def create_advanced_schema():
             established_year INTEGER
         )
     """)
-    
+
     # Officials Directory (Referees)
-    print("Creating 'officials_directory'...")
     con.sql("DROP TABLE IF EXISTS officials_directory")
     con.sql("""
         CREATE TABLE officials_directory (
@@ -106,8 +101,7 @@ def create_advanced_schema():
 
     # --- 3. Transactional / History Tables (Shells) ---
 
-    # Transactions (Trades, Signings)
-    print("Creating 'transactions'...")
+    # Drop and create Transactions table (Trades, Signings)
     con.sql("DROP TABLE IF EXISTS transactions")
     con.sql("""
         CREATE TABLE transactions (
@@ -122,7 +116,6 @@ def create_advanced_schema():
     """)
 
     # Awards
-    print("Creating 'awards'...")
     con.sql("DROP TABLE IF EXISTS awards")
     con.sql("""
         CREATE TABLE awards (
@@ -137,7 +130,6 @@ def create_advanced_schema():
     """)
 
     # Draft Combines (Normalized)
-    print("Creating 'draft_combines'...")
     con.sql("DROP TABLE IF EXISTS draft_combines")
     con.sql("""
         CREATE TABLE draft_combines (
@@ -159,25 +151,30 @@ def create_advanced_schema():
     """)
 
     # --- 4. Validation ---
-    print("\n--- Advanced Schema Summary ---")
     tables = [
-        'game_types', 'positions', 'seasons', 'arenas', 
-        'franchises', 'officials_directory', 'transactions', 
-        'awards', 'draft_combines'
+        "game_types",
+        "positions",
+        "seasons",
+        "arenas",
+        "franchises",
+        "officials_directory",
+        "transactions",
+        "awards",
+        "draft_combines",
     ]
-    
+
     for t in tables:
         try:
-            cols = con.sql(f"DESCRIBE {t}").fetchall()
+            con.sql(f"DESCRIBE {t}").fetchall()
             row_count = con.sql(f"SELECT count(*) FROM {t}").fetchone()[0]
-            print(f"Table '{t}': {row_count} rows, {len(cols)} columns")
             if row_count > 0:
-                 # Show sample for lookups
-                 print(f"  Sample: {con.sql(f'SELECT * FROM {t} LIMIT 3').fetchall()}")
-        except Exception as e:
-            print(f"Error checking {t}: {e}")
+                # Show sample for lookups
+                pass
+        except Exception:
+            pass
 
     con.close()
+
 
 if __name__ == "__main__":
     create_advanced_schema()

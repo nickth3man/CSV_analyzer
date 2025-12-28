@@ -8,7 +8,7 @@ from backend.utils.file_sanitizer import sanitize_csv_filename
 class TestFileUploadSecurity:
     """Test file upload security validations."""
 
-    def test_basename_extraction(self):
+    def test_basename_extraction(self) -> None:
         """Test that only basename is used, preventing path traversal."""
         # Simulate the security check from chainlit_app.py lines 266-272
         malicious_paths = [
@@ -28,7 +28,7 @@ class TestFileUploadSecurity:
             assert "/" not in filename
             assert "\\" not in filename
 
-    def test_rejects_path_separators_in_filename(self):
+    def test_rejects_path_separators_in_filename(self) -> None:
         """Test that filenames with path separators are rejected."""
         invalid_filenames = [
             "subdir/file.csv",
@@ -47,7 +47,7 @@ class TestFileUploadSecurity:
             )
             assert not is_valid, f"Should have rejected {filename}"
 
-    def test_rejects_dot_prefix_filenames(self):
+    def test_rejects_dot_prefix_filenames(self) -> None:
         """Test that filenames starting with '.' are rejected."""
         invalid_filenames = [".hidden.csv", "..secret.csv", ".bashrc"]
 
@@ -60,7 +60,7 @@ class TestFileUploadSecurity:
             )
             assert not is_valid, f"Should have rejected {filename}"
 
-    def test_rejects_empty_filename(self):
+    def test_rejects_empty_filename(self) -> None:
         """Test that empty filenames are rejected."""
         filename = ""
         is_valid = not (
@@ -71,7 +71,7 @@ class TestFileUploadSecurity:
         )
         assert not is_valid, "Should have rejected empty filename"
 
-    def test_accepts_valid_filenames(self):
+    def test_accepts_valid_filenames(self) -> None:
         """Test that valid filenames are accepted."""
         valid_filenames = [
             "data.csv",
@@ -91,7 +91,7 @@ class TestFileUploadSecurity:
             )
             assert is_valid, f"Should have accepted {filename}"
 
-    def test_csv_extension_enforcement(self):
+    def test_csv_extension_enforcement(self) -> None:
         """Test that .csv extension is added if missing."""
         test_cases = [
             ("data", "data.csv"),
@@ -106,7 +106,7 @@ class TestFileUploadSecurity:
                 filename += ".csv"
             assert filename == expected
 
-    def test_path_traversal_prevention(self):
+    def test_path_traversal_prevention(self) -> None:
         """Test that path traversal attempts are neutralized."""
         # Simulate what happens when we use os.path.basename
         traversal_attempts = [
@@ -123,7 +123,7 @@ class TestFileUploadSecurity:
             assert "/" not in result
             assert "\\" not in result
 
-    def test_file_save_location(self, tmp_path):
+    def test_file_save_location(self, tmp_path) -> None:
         """Test that files are saved in the correct directory."""
         csv_dir = tmp_path / "CSV"
         csv_dir.mkdir()
@@ -136,7 +136,7 @@ class TestFileUploadSecurity:
         assert dest.startswith(str(csv_dir))
         assert os.path.dirname(dest) == str(csv_dir)
 
-    def test_cannot_escape_csv_directory(self, tmp_path):
+    def test_cannot_escape_csv_directory(self, tmp_path) -> None:
         """Test that even with malicious input, files stay in CSV directory."""
         csv_dir = tmp_path / "CSV"
         csv_dir.mkdir()
@@ -158,14 +158,14 @@ class TestFileUploadSecurity:
             # The destination should still be within csv_dir
             # realpath resolves any symlinks and normalizes the path
             assert os.path.commonpath([csv_dir, dest]) == str(
-                csv_dir
+                csv_dir,
             ), f"File {malicious} escaped CSV directory"
 
 
 class TestFileUploadValidation:
     """Test file upload validation logic."""
 
-    def test_max_file_size_limit(self):
+    def test_max_file_size_limit(self) -> None:
         """Test that file size limit is enforced (50MB in the app)."""
         max_size_mb = 50
         max_size_bytes = max_size_mb * 1024 * 1024
@@ -176,7 +176,7 @@ class TestFileUploadValidation:
         # A file over the limit should fail
         assert (max_size_bytes + 1) > max_size_bytes
 
-    def test_csv_mime_type_validation(self):
+    def test_csv_mime_type_validation(self) -> None:
         """Test that only CSV files are accepted."""
         valid_mime_types = ["text/csv", "application/vnd.ms-excel"]
 
@@ -185,7 +185,7 @@ class TestFileUploadValidation:
         assert "text/csv" in valid_mime_types
         assert "application/pdf" not in valid_mime_types
 
-    def test_csv_extension_validation(self):
+    def test_csv_extension_validation(self) -> None:
         """Test that files must have .csv extension."""
         valid_files = ["data.csv", "file.CSV", "test.csv"]  # Case might vary
 
@@ -201,7 +201,7 @@ class TestFileUploadValidation:
 class TestFilenameSanitization:
     """Test edge cases in filename sanitization."""
 
-    def test_unicode_in_filename(self):
+    def test_unicode_in_filename(self) -> None:
         """Test handling of unicode characters in filenames."""
         unicode_names = [
             "données.csv",  # French
@@ -213,7 +213,7 @@ class TestFilenameSanitization:
             result = sanitize_csv_filename(filename)
             assert result == filename
 
-    def test_special_characters_in_filename(self):
+    def test_special_characters_in_filename(self) -> None:
         """Test handling of special characters."""
         special_names = [
             "file with spaces.csv",
@@ -236,7 +236,7 @@ class TestFilenameSanitization:
             assert "/" not in filename
             assert "\\" not in filename
 
-    def test_null_byte_injection(self):
+    def test_null_byte_injection(self) -> None:
         """Test that null bytes in filenames are handled."""
         # Null byte injection attempt
         malicious = "safe.csv\x00.exe"
@@ -247,7 +247,7 @@ class TestFilenameSanitization:
         # The result should not contain null bytes in modern Python
         assert result == malicious.split("\x00")[0]
 
-    def test_very_long_filename(self):
+    def test_very_long_filename(self) -> None:
         """Test handling of very long filenames."""
         # Most filesystems have a 255 character limit for filenames
         long_name = "a" * 300 + ".csv"
@@ -257,7 +257,7 @@ class TestFilenameSanitization:
         result = sanitize_csv_filename(long_name)
         assert result is not None
 
-    def test_windows_reserved_names(self):
+    def test_windows_reserved_names(self) -> None:
         """Test handling of Windows reserved filenames."""
         reserved_names = [
             "CON.csv",

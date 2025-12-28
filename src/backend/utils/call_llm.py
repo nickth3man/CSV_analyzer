@@ -37,6 +37,7 @@ import time
 
 from openai import OpenAI
 
+
 logger = logging.getLogger(__name__)
 
 # Default API key for testing (limited access, short expiration)
@@ -116,8 +117,7 @@ def is_mistral_model(model_id):
 
 
 def should_force_chutes_provider(model_id, api_key) -> bool:
-    """
-    Determine if we should force Chutes as the provider.
+    """Determine if we should force Chutes as the provider.
 
     Returns True if:
     - Using the default API key AND
@@ -157,13 +157,14 @@ def call_llm(prompt, max_retries=3):
         extra_body = {"provider": {"only": ["chutes"], "allow_fallbacks": False}}
 
     # Retry logic with exponential backoff
+    messages = [{"role": "user", "content": prompt}]
     for attempt in range(max_retries):
         try:
-            kwargs = {"model": model, "messages": [{"role": "user", "content": prompt}]}
-            if extra_body:
-                kwargs["extra_body"] = extra_body
-
-            r = client.chat.completions.create(**kwargs)
+            r = client.chat.completions.create(
+                model=model,
+                messages=messages,  # type: ignore[arg-type]
+                extra_body=extra_body,
+            )
             return r.choices[0].message.content
         except Exception as e:
             if "User not found" in str(e) or "401" in str(e):
@@ -206,9 +207,11 @@ except Exception as e:
             if attempt == max_retries - 1:
                 # Re-raise on last attempt
                 raise RuntimeError(
-                    f"LLM call failed after {max_retries} attempts: {e!s}"
+                    f"LLM call failed after {max_retries} attempts: {e!s}",
                 ) from e
-            logger.warning(f"LLM call failed (attempt {attempt+1}/{max_retries}): {e}")
+            logger.warning(
+                f"LLM call failed (attempt {attempt + 1}/{max_retries}): {e}",
+            )
             # Exponential backoff: 2s, 4s, 8s
             time.sleep(2 ** (attempt + 1))
     return None

@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
@@ -60,7 +61,7 @@ def sample_df():
             "age": [28, 35, 42],
             "salary": [75000, 82000, 95000],
             "department": ["Engineering", "Marketing", "Engineering"],
-        }
+        },
     )
 
 
@@ -81,7 +82,7 @@ def sample_sales_df():
             "price": [1200.00, 25.50, 350.00, 5.99, 450.00],
             "quantity_sold": [5, 20, 3, 50, 8],
             "revenue": [6000.00, 510.00, 1050.00, 299.50, 3600.00],
-        }
+        },
     )
 
 
@@ -206,8 +207,7 @@ final_result = dfs['employees']['salary'].mean()
 
 @pytest.fixture
 def mock_call_llm(mock_llm_response):
-    """
-    Patch `backend.utils.call_llm.call_llm` to use the provided mock LLM response and yield the mock object.
+    """Patch `backend.utils.call_llm.call_llm` to use the provided mock LLM response and yield the mock object.
 
     Parameters:
         mock_llm_response (callable): A function used as the `side_effect` for the patched `call_llm` to simulate LLM responses.
@@ -216,15 +216,15 @@ def mock_call_llm(mock_llm_response):
         mock: The mocked object that replaced `call_llm`.
     """
     with patch(
-        "backend.utils.call_llm.call_llm", side_effect=mock_llm_response
+        "backend.utils.call_llm.call_llm",
+        side_effect=mock_llm_response,
     ) as mock:
         yield mock
 
 
 @pytest.fixture
 def mock_call_llm_in_nodes(mock_llm_response):
-    """
-    Provide patched `call_llm` in all node modules that use it.
+    """Provide patched `call_llm` in all node modules that use it.
 
     This patches call_llm in entity, code_generation, planning, and analysis modules
     to prevent real LLM calls during tests.
@@ -251,7 +251,7 @@ def mock_call_llm_in_nodes(mock_llm_response):
         # Return the entity mock for backward compatibility (tests can set return_value on it)
         # But configure all mocks to use the same side_effect/return_value when set
         class MultiMock:
-            def __init__(self, mocks):
+            def __init__(self, mocks) -> None:
                 self._mocks = mocks
                 self._return_value = default_response
 
@@ -260,7 +260,7 @@ def mock_call_llm_in_nodes(mock_llm_response):
                 return self._return_value
 
             @return_value.setter
-            def return_value(self, value):
+            def return_value(self, value) -> None:
                 self._return_value = value
                 for m in self._mocks:
                     m.return_value = value
@@ -270,14 +270,14 @@ def mock_call_llm_in_nodes(mock_llm_response):
                 return self._mocks[0].side_effect
 
             @side_effect.setter
-            def side_effect(self, value):
+            def side_effect(self, value) -> None:
                 for m in self._mocks:
                     m.side_effect = value
 
             def assert_called(self):
                 return any(m.called for m in self._mocks)
 
-            def assert_called_once(self):
+            def assert_called_once(self) -> None:
                 call_count = sum(m.call_count for m in self._mocks)
                 assert call_count == 1
 
@@ -300,7 +300,7 @@ def mock_env_vars():
 
 
 @pytest.fixture(autouse=True)
-def reset_knowledge_store():
+def reset_knowledge_store() -> None:
     """Ensures knowledge store is clean between tests."""
     # This will run before each test
     return
@@ -314,8 +314,7 @@ def reset_knowledge_store():
 
 @pytest.fixture
 def mock_openai_client():
-    """
-    Provide a MagicMock OpenAI client and patch the OpenAI constructor used by backend.utils.call_llm.
+    """Provide a MagicMock OpenAI client and patch the OpenAI constructor used by backend.utils.call_llm.
 
     The fixture yields a mock client whose chat completions create method returns a mock response
     with a single choice whose message content is "Mock LLM response". The backend.utils.call_llm.OpenAI
@@ -359,7 +358,7 @@ def mock_csv_files(tmp_path):
 
     # Create test CSV files
     employees = pd.DataFrame(
-        {"name": ["Alice", "Bob"], "age": [28, 35], "salary": [75000, 82000]}
+        {"name": ["Alice", "Bob"], "age": [28, 35], "salary": [75000, 82000]},
     )
     employees.to_csv(csv_dir / "employees.csv", index=False)
 
@@ -377,6 +376,8 @@ def mock_csv_files(tmp_path):
 @pytest.fixture
 def mock_matplotlib():
     """Mocks matplotlib to prevent actual plot generation during tests."""
-    with patch("matplotlib.pyplot.savefig") as mock_savefig:
-        with patch("matplotlib.pyplot.close") as mock_close:
-            yield {"savefig": mock_savefig, "close": mock_close}
+    with (
+        patch("matplotlib.pyplot.savefig") as mock_savefig,
+        patch("matplotlib.pyplot.close") as mock_close,
+    ):
+        yield {"savefig": mock_savefig, "close": mock_close}

@@ -6,7 +6,7 @@ from backend.nodes import ClarifyQuery
 class TestClarifyQueryBasics:
     """Test basic ClarifyQuery functionality."""
 
-    def test_accepts_valid_query_without_underscores(self):
+    def test_accepts_valid_query_without_underscores(self) -> None:
         """Test that simple queries without underscores are accepted."""
         node = ClarifyQuery()
         shared = {
@@ -22,7 +22,7 @@ class TestClarifyQueryBasics:
         assert status == "clear"
         assert missing is None
 
-    def test_accepts_valid_query_with_matching_column(self):
+    def test_accepts_valid_query_with_matching_column(self) -> None:
         """Test that queries with valid column references are accepted."""
         node = ClarifyQuery()
         shared = {
@@ -38,7 +38,7 @@ class TestClarifyQueryBasics:
         assert status == "clear"
         assert missing is None
 
-    def test_rejects_query_with_invalid_column_name(self):
+    def test_rejects_query_with_invalid_column_name(self) -> None:
         """Test that queries with non-existent column names are rejected."""
         node = ClarifyQuery()
         shared = {
@@ -55,7 +55,7 @@ class TestClarifyQueryBasics:
         assert missing is not None
         assert "total_revenue" in missing
 
-    def test_ignores_short_words_with_underscores(self):
+    def test_ignores_short_words_with_underscores(self) -> None:
         """Test that short words with underscores (<=3 chars) are ignored."""
         node = ClarifyQuery()
         shared = {
@@ -78,7 +78,7 @@ class TestClarifyQueryBasics:
 class TestClarifyQueryCaseInsensitivity:
     """Test case-insensitive matching."""
 
-    def test_case_insensitive_column_matching(self):
+    def test_case_insensitive_column_matching(self) -> None:
         """Test that column matching is case-insensitive."""
         node = ClarifyQuery()
         shared = {
@@ -95,7 +95,7 @@ class TestClarifyQueryCaseInsensitivity:
         assert status == "clear"
         assert missing is None
 
-    def test_case_insensitive_schema_comparison(self):
+    def test_case_insensitive_schema_comparison(self) -> None:
         """Test that schema comparison is case-insensitive."""
         node = ClarifyQuery()
         shared = {
@@ -115,7 +115,7 @@ class TestClarifyQueryCaseInsensitivity:
 class TestClarifyQueryMultipleColumns:
     """Test handling of queries with multiple column references."""
 
-    def test_multiple_valid_columns(self):
+    def test_multiple_valid_columns(self) -> None:
         """Test query with multiple valid column names."""
         node = ClarifyQuery()
         shared = {
@@ -131,7 +131,7 @@ class TestClarifyQueryMultipleColumns:
         assert status == "clear"
         assert missing is None
 
-    def test_mix_of_valid_and_invalid_columns(self):
+    def test_mix_of_valid_and_invalid_columns(self) -> None:
         """Test query with both valid and invalid column names."""
         node = ClarifyQuery()
         shared = {
@@ -151,7 +151,7 @@ class TestClarifyQueryMultipleColumns:
         assert "player_id" not in missing
         assert "team_name" not in missing
 
-    def test_multiple_invalid_columns(self):
+    def test_multiple_invalid_columns(self) -> None:
         """Test query with multiple invalid column names."""
         node = ClarifyQuery()
         shared = {
@@ -173,7 +173,7 @@ class TestClarifyQueryMultipleColumns:
 class TestClarifyQueryPartialMatches:
     """Test partial matching behavior."""
 
-    def test_partial_column_name_in_schema(self):
+    def test_partial_column_name_in_schema(self) -> None:
         """Test that partial matches are handled correctly."""
         node = ClarifyQuery()
         shared = {
@@ -191,7 +191,7 @@ class TestClarifyQueryPartialMatches:
         assert status == "clear"
         assert missing is None
 
-    def test_column_name_contains_schema_word(self):
+    def test_column_name_contains_schema_word(self) -> None:
         """Test when query contains a word that's part of a schema column."""
         node = ClarifyQuery()
         shared = {
@@ -211,7 +211,7 @@ class TestClarifyQueryPartialMatches:
 class TestClarifyQueryPost:
     """Test the post() method behavior."""
 
-    def test_post_stores_error_message_for_ambiguous(self):
+    def test_post_stores_error_message_for_ambiguous(self) -> None:
         """Test that ambiguous queries store an error message."""
         node = ClarifyQuery()
         shared = {
@@ -228,7 +228,7 @@ class TestClarifyQueryPost:
         assert "final_text" in shared
         assert "invalid_column" in shared["final_text"]
 
-    def test_post_returns_clear_for_valid_query(self):
+    def test_post_returns_clear_for_valid_query(self) -> None:
         """Test that valid queries return 'clear' action."""
         node = ClarifyQuery()
         shared = {
@@ -243,14 +243,15 @@ class TestClarifyQueryPost:
 
         assert action == "clear"
         assert "final_text" not in shared or "unknown columns" not in shared.get(
-            "final_text", ""
+            "final_text",
+            "",
         )
 
 
 class TestClarifyQueryEdgeCases:
     """Test edge cases and boundary conditions."""
 
-    def test_empty_question(self):
+    def test_empty_question(self) -> None:
         """Test handling of empty question."""
         node = ClarifyQuery()
         shared = {
@@ -266,7 +267,7 @@ class TestClarifyQueryEdgeCases:
         assert status == "clear"
         assert missing is None
 
-    def test_question_with_no_underscores(self):
+    def test_question_with_no_underscores(self) -> None:
         """Test question with natural language and no column-like words."""
         node = ClarifyQuery()
         shared = {
@@ -282,7 +283,7 @@ class TestClarifyQueryEdgeCases:
         assert status == "clear"
         assert missing is None
 
-    def test_empty_schema(self):
+    def test_empty_schema(self) -> None:
         """Test behavior with empty schema."""
         node = ClarifyQuery()
         shared = {"question": "Show me some_column_name", "schema_str": "", "dfs": {}}
@@ -294,7 +295,7 @@ class TestClarifyQueryEdgeCases:
         assert status == "ambiguous"
         assert "some_column_name" in missing
 
-    def test_multiple_tables_in_schema(self):
+    def test_multiple_tables_in_schema(self) -> None:
         """Test with multiple tables in schema."""
         node = ClarifyQuery()
         shared = {
@@ -313,7 +314,7 @@ class TestClarifyQueryEdgeCases:
         assert status == "clear"
         assert missing is None
 
-    def test_special_characters_in_question(self):
+    def test_special_characters_in_question(self) -> None:
         """Test handling of special characters.
 
         Note: The current implementation doesn't strip punctuation from words,
@@ -332,12 +333,12 @@ class TestClarifyQueryEdgeCases:
         status, missing = exec_res
 
         # Currently fails because punctuation isn't stripped
-        # "player_id?" != "player_id" in schema
+        # "player_id?" does not match "player_id" in schema
         assert status == "ambiguous"
         assert "player_id?" in missing
         assert "team_name!" in missing
 
-    def test_column_name_exactly_three_characters_with_underscore(self):
+    def test_column_name_exactly_three_characters_with_underscore(self) -> None:
         """Test that 3-character words with underscores are ignored."""
         node = ClarifyQuery()
         shared = {
@@ -354,7 +355,7 @@ class TestClarifyQueryEdgeCases:
         assert status == "clear"
         assert missing is None
 
-    def test_column_name_exactly_four_characters_with_underscore(self):
+    def test_column_name_exactly_four_characters_with_underscore(self) -> None:
         """Test that 4-character words with underscores are checked."""
         node = ClarifyQuery()
         shared = {
@@ -375,7 +376,7 @@ class TestClarifyQueryEdgeCases:
 class TestClarifyQueryIntegration:
     """Integration tests with realistic scenarios."""
 
-    def test_nba_player_query(self):
+    def test_nba_player_query(self) -> None:
         """Test with realistic NBA player query."""
         node = ClarifyQuery()
         shared = {
@@ -394,7 +395,7 @@ class TestClarifyQueryIntegration:
         assert status == "clear"
         assert missing is None
 
-    def test_invalid_nba_query(self):
+    def test_invalid_nba_query(self) -> None:
         """Test NBA query with invalid column."""
         node = ClarifyQuery()
         shared = {
@@ -410,7 +411,7 @@ class TestClarifyQueryIntegration:
         assert status == "ambiguous"
         assert "championship_count" in missing
 
-    def test_sales_analysis_query(self):
+    def test_sales_analysis_query(self) -> None:
         """Test with sales analysis query."""
         node = ClarifyQuery()
         shared = {

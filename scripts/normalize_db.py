@@ -28,150 +28,149 @@ import argparse
 import logging
 import sys
 from pathlib import Path
-from typing import List, Optional
 
 import duckdb
+
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
 # Default database path
-DATABASE = 'data/nba.duckdb'
-SILVER_SUFFIX = '_silver'
+DATABASE = "data/nba.duckdb"
+SILVER_SUFFIX = "_silver"
 
 
-def get_tables(con: duckdb.DuckDBPyConnection) -> List[str]:
+def get_tables(con: duckdb.DuckDBPyConnection) -> list[str]:
     """Get actual tables (not views) that don't end with _silver or _rejects.
-    
+
     Args:
         con: DuckDB connection
-        
+
     Returns:
         List of table names to process
     """
     # Get list of views to exclude
-    views = set(
-        r[0] for r in con.sql(
-            "SELECT view_name FROM duckdb_views() WHERE internal = false"
+    views = {
+        r[0]
+        for r in con.sql(
+            "SELECT view_name FROM duckdb_views() WHERE internal = false",
         ).fetchall()
-    )
-    
+    }
+
     # Get all tables and filter out views and silver/rejects tables
     all_tables = [r[0] for r in con.sql("SHOW TABLES").fetchall()]
     return [
-        t for t in all_tables 
-        if t not in views 
-        and not t.endswith('_silver') 
-        and not t.endswith('_rejects')
+        t
+        for t in all_tables
+        if t not in views and not t.endswith("_silver") and not t.endswith("_rejects")
     ]
 
 
 def infer_column_type(con: duckdb.DuckDBPyConnection, table: str, col: str) -> str:
     """Determine the best data type for a column by testing casts.
-    
+
     Tests type casts in order of specificity:
     1. BIGINT - for integer values
-    2. DOUBLE - for floating point values  
+    2. DOUBLE - for floating point values
     3. DATE - for date values
     4. VARCHAR - fallback for text
-    
+
     Args:
         con: DuckDB connection
         table: Table name
         col: Column name
-        
+
     Returns:
         Inferred type name (BIGINT, DOUBLE, DATE, or VARCHAR)
     """
     # Quote the column name to handle reserved words and special characters
     quoted_col = f'"{col}"'
-    
+
     # Get total non-null count
     total_count = con.sql(f"SELECT count({quoted_col}) FROM {table}").fetchone()[0]
     if total_count == 0:
-        return 'VARCHAR'  # Empty column, stay safe
+        return "VARCHAR"  # Empty column, stay safe
 
     # 1. Try BIGINT
     match_count = con.sql(
-        f"SELECT count(TRY_CAST({quoted_col} AS BIGINT)) FROM {table}"
+        f"SELECT count(TRY_CAST({quoted_col} AS BIGINT)) FROM {table}",
     ).fetchone()[0]
     if match_count == total_count:
-        return 'BIGINT'
+        return "BIGINT"
 
     # 2. Try DOUBLE
     match_count = con.sql(
-        f"SELECT count(TRY_CAST({quoted_col} AS DOUBLE)) FROM {table}"
+        f"SELECT count(TRY_CAST({quoted_col} AS DOUBLE)) FROM {table}",
     ).fetchone()[0]
     if match_count == total_count:
-        return 'DOUBLE'
+        return "DOUBLE"
 
     # 3. Try DATE
     match_count = con.sql(
-        f"SELECT count(TRY_CAST({quoted_col} AS DATE)) FROM {table}"
+        f"SELECT count(TRY_CAST({quoted_col} AS DATE)) FROM {table}",
     ).fetchone()[0]
     if match_count == total_count:
-        return 'DATE'
+        return "DATE"
 
     # Default to VARCHAR
-    return 'VARCHAR'
+    return "VARCHAR"
 
 
-def transform_to_silver(db_path: Optional[str] = None, tables: Optional[List[str]] = None):
+def transform_to_silver(
+    db_path: str | None = None, tables: list[str] | None = None,
+) -> None:
     """Transform tables to silver layer with proper data types.
-    
+
     Args:
         db_path: Path to DuckDB database (default: data/nba.duckdb)
         tables: Specific tables to process (default: all)
     """
     db_path = db_path or DATABASE
-    
+
     if not Path(db_path).exists():
         logger.error(f"Database not found: {db_path}")
         sys.exit(1)
-    
+
     con = duckdb.connect(db_path)
-    
+
     # Get tables to process
-    if tables:
-        tables_to_process = tables
-    else:
-        tables_to_process = get_tables(con)
-    
+    tables_to_process = tables or get_tables(con)
+
     logger.info(f"Found {len(tables_to_process)} tables to process.")
-    
+
     processed = 0
     errors = 0
 
     for table in tables_to_process:
         try:
             logger.info(f"Analyzing table '{table}'...")
-            
+
             # Get column info
             cols = con.sql(f"DESCRIBE {table}").fetchall()
-            
+
             select_parts = []
             type_changes = []
-            
+
             for col_info in cols:
                 col_name = col_info[0]
                 current_type = col_info[1]
                 quoted_col = f'"{col_name}"'
-                
+
                 # Skip checking if it's already typed
-                if current_type != 'VARCHAR':
+                if current_type != "VARCHAR":
                     select_parts.append(quoted_col)
                     continue
-                    
+
                 new_type = infer_column_type(con, table, col_name)
-                
-                if new_type != 'VARCHAR':
+
+                if new_type != "VARCHAR":
                     type_changes.append((col_name, new_type))
                     select_parts.append(
-                        f"TRY_CAST({quoted_col} AS {new_type}) AS {quoted_col}"
+                        f"TRY_CAST({quoted_col} AS {new_type}) AS {quoted_col}",
                     )
                 else:
                     select_parts.append(quoted_col)
@@ -183,20 +182,20 @@ def transform_to_silver(db_path: Optional[str] = None, tables: Optional[List[str
             # Create Silver Table
             silver_table = f"{table}{SILVER_SUFFIX}"
             logger.info(f"  Creating '{silver_table}' with corrected types...")
-            
+
             query = f"""
-                CREATE OR REPLACE TABLE {silver_table} AS 
-                SELECT {', '.join(select_parts)} FROM {table}
+                CREATE OR REPLACE TABLE {silver_table} AS
+                SELECT {", ".join(select_parts)} FROM {table}
             """
             con.execute(query)
             processed += 1
-            
+
         except Exception as e:
-            logger.error(f"Error processing table '{table}': {e}")
+            logger.exception(f"Error processing table '{table}': {e}")
             errors += 1
 
     con.close()
-    
+
     logger.info("")
     logger.info("=" * 50)
     logger.info("NORMALIZATION COMPLETE")
@@ -206,7 +205,7 @@ def transform_to_silver(db_path: Optional[str] = None, tables: Optional[List[str
         logger.warning(f"Errors: {errors}")
 
 
-def main():
+def main() -> None:
     """Command-line entry point for database normalization."""
     parser = argparse.ArgumentParser(
         description="Normalize NBA database tables with proper data types",
@@ -221,22 +220,22 @@ Examples:
 
     # Specify custom database
     python scripts/normalize_db.py --db /path/to/nba.duckdb
-        """
+        """,
     )
-    
+
     parser.add_argument(
         "--db",
         default=DATABASE,
-        help="Path to DuckDB database (default: data/nba.duckdb)"
+        help="Path to DuckDB database (default: data/nba.duckdb)",
     )
     parser.add_argument(
         "--tables",
         nargs="+",
-        help="Specific tables to normalize"
+        help="Specific tables to normalize",
     )
-    
+
     args = parser.parse_args()
-    
+
     transform_to_silver(db_path=args.db, tables=args.tables)
 
 

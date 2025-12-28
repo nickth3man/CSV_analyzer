@@ -6,7 +6,7 @@ from backend.flow import create_analyst_flow
 class TestFullAnalysisFlow:
     """Test complete analysis flow end-to-end."""
 
-    def test_simple_query_flow(self, mock_call_llm_in_nodes, temp_csv_dir):
+    def test_simple_query_flow(self, mock_call_llm_in_nodes, temp_csv_dir) -> None:
         """Test a simple query through the full flow."""
 
         # Set up mock LLM responses for each node
@@ -65,7 +65,7 @@ insights:
         assert flow is not None
         assert flow.start is not None
 
-    def test_flow_handles_clear_query(self, mock_call_llm_in_nodes, sample_df):
+    def test_flow_handles_clear_query(self, mock_call_llm_in_nodes, sample_df) -> None:
         """Test flow with a clear, unambiguous query."""
 
         def mock_llm_response(prompt) -> str:
@@ -82,7 +82,9 @@ reason: "Query is clear and specific"
         # The flow structure should be valid
         assert flow is not None
 
-    def test_flow_handles_ambiguous_query(self, mock_call_llm_in_nodes, sample_df):
+    def test_flow_handles_ambiguous_query(
+        self, mock_call_llm_in_nodes, sample_df,
+    ) -> None:
         """Test flow with an ambiguous query."""
 
         def mock_llm_response(prompt) -> str:
@@ -106,14 +108,16 @@ suggested_questions:
 class TestFlowErrorRecovery:
     """Test error recovery in the flow."""
 
-    def test_flow_retries_on_error(self, mock_call_llm_in_nodes, sample_df):
+    def test_flow_retries_on_error(self, mock_call_llm_in_nodes, sample_df) -> None:
         """Test that flow can retry on code execution errors."""
         # This would test the ErrorFixer -> CodeGenerator loop
         # Simplified version here
         flow = create_analyst_flow()
         assert flow is not None
 
-    def test_flow_gives_up_after_max_retries(self, mock_call_llm_in_nodes, sample_df):
+    def test_flow_gives_up_after_max_retries(
+        self, mock_call_llm_in_nodes, sample_df,
+    ) -> None:
         """Test that flow gives up after max retries."""
         flow = create_analyst_flow()
         # The ErrorFixer should enforce max 3 retries
@@ -123,12 +127,12 @@ class TestFlowErrorRecovery:
 class TestFlowNodeConnections:
     """Test that flow nodes are connected correctly."""
 
-    def test_flow_has_start_node(self):
+    def test_flow_has_start_node(self) -> None:
         """Test that flow has a start node."""
         flow = create_analyst_flow()
         assert flow.start is not None
 
-    def test_flow_has_all_critical_nodes(self):
+    def test_flow_has_all_critical_nodes(self) -> None:
         """Test that all critical nodes are present in the flow."""
         flow = create_analyst_flow()
 
@@ -143,19 +147,19 @@ class TestFlowNodeConnections:
 class TestFlowBranching:
     """Test flow branching logic."""
 
-    def test_flow_branches_on_ambiguous(self):
+    def test_flow_branches_on_ambiguous(self) -> None:
         """Test that flow branches correctly on ambiguous queries."""
         flow = create_analyst_flow()
         # The ClarifyQuery node should have two outputs: "clear" and "ambiguous"
         assert flow is not None
 
-    def test_flow_branches_on_safety_check(self):
+    def test_flow_branches_on_safety_check(self) -> None:
         """Test that flow branches on SafetyCheck result."""
         flow = create_analyst_flow()
         # SafetyCheck should have "safe" and "unsafe" branches
         assert flow is not None
 
-    def test_flow_branches_on_execution(self):
+    def test_flow_branches_on_execution(self) -> None:
         """Test that flow branches on Executor result."""
         flow = create_analyst_flow()
         # Executor should have "success" and "error" branches
@@ -165,7 +169,7 @@ class TestFlowBranching:
 class TestFlowDataPropagation:
     """Test that data propagates correctly through the flow."""
 
-    def test_shared_store_updated_by_nodes(self, sample_df):
+    def test_shared_store_updated_by_nodes(self, sample_df) -> None:
         """Test that nodes update the shared store."""
         from backend.nodes import LoadData
 
@@ -175,7 +179,7 @@ class TestFlowDataPropagation:
         # This is more of a unit test, but shows data propagation concept
         assert shared is not None
 
-    def test_shared_store_maintains_state(self, sample_df):
+    def test_shared_store_maintains_state(self, sample_df) -> None:
         """Test that shared store maintains state across nodes."""
         shared = {
             "data_dir": "/test",
@@ -191,7 +195,7 @@ class TestFlowDataPropagation:
 class TestFlowValidation:
     """Test flow validation and error handling."""
 
-    def test_flow_validates_required_fields(self):
+    def test_flow_validates_required_fields(self) -> None:
         """Test that flow validates required fields in shared store."""
         flow = create_analyst_flow()
 
@@ -199,9 +203,8 @@ class TestFlowValidation:
         # This would be validated when running the flow
         assert flow is not None
 
-    def test_flow_handles_missing_data(self):
+    def test_flow_handles_missing_data(self) -> None:
         """Test flow handling when data is missing."""
-
         flow = create_analyst_flow()
         # Flow should handle missing data gracefully
         # (LoadData returns empty dict)

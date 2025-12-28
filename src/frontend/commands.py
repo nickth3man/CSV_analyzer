@@ -19,8 +19,7 @@ from src.frontend.knowledge_utils import clear_knowledge_store, get_knowledge_st
 
 
 async def handle_command(message_content: str) -> bool:
-    """
-    Handle slash commands from the user.
+    """Handle slash commands from the user.
 
     Returns True if command was handled, False otherwise.
     """

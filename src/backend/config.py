@@ -52,6 +52,7 @@ from __future__ import annotations
 import os
 import re
 
+
 DEFAULT_DATA_DIR = "data/raw/csv"
 NBA_DEFAULT_SEASON = os.environ.get("NBA_API_DEFAULT_SEASON", "2023-24")
 ENTITY_SAMPLE_SIZE = 1000
@@ -115,14 +116,14 @@ def validate_config() -> list[str]:
     if NBA_DEFAULT_SEASON and not _SEASON_PATTERN.match(NBA_DEFAULT_SEASON):
         errors.append(
             f"NBA_DEFAULT_SEASON must match format 'YYYY-YY' (e.g., '2023-24'), "
-            f"got '{NBA_DEFAULT_SEASON}'"
+            f"got '{NBA_DEFAULT_SEASON}'",
         )
 
     # Validate plan step constraints
     if MIN_PLAN_STEPS > MAX_PLAN_STEPS:
         errors.append(
             f"MIN_PLAN_STEPS ({MIN_PLAN_STEPS}) cannot be greater than "
-            f"MAX_PLAN_STEPS ({MAX_PLAN_STEPS})"
+            f"MAX_PLAN_STEPS ({MAX_PLAN_STEPS})",
         )
 
     return errors
@@ -137,5 +138,5 @@ def validate_config_or_raise() -> None:
     errors = validate_config()
     if errors:
         raise ConfigurationError(
-            "Configuration validation failed:\n  - " + "\n  - ".join(errors)
+            "Configuration validation failed:\n  - " + "\n  - ".join(errors),
         )

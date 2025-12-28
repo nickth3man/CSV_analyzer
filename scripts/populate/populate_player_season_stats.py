@@ -26,18 +26,18 @@ import argparse
 import logging
 import sys
 from datetime import datetime
-from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import Any
 
 import duckdb
 
 # Import shared modules from the populate package
 from scripts.populate.config import get_db_path
 
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -187,17 +187,17 @@ ORDER BY season DESC, pts_per_game DESC;
 # MAIN POPULATION FUNCTION
 # =============================================================================
 
+
 def populate_player_season_stats(
-    db_path: Optional[str] = None,
-    seasons: Optional[List[str]] = None
-) -> Dict[str, Any]:
-    """
-    Populate the player_season_stats table by aggregating per-game player statistics into season-level metrics.
-    
+    db_path: str | None = None,
+    seasons: list[str] | None = None,
+) -> dict[str, Any]:
+    """Populate the player_season_stats table by aggregating per-game player statistics into season-level metrics.
+
     Parameters:
         db_path (Optional[str]): Path to the DuckDB database file; when omitted the default from get_db_path() is used.
         seasons (Optional[List[str]]): Optional list of season identifiers to target; currently logged but not applied to the SQL population query.
-    
+
     Returns:
         Dict[str, Any]: Summary of the population run containing:
             - start_time (str): ISO timestamp when the run started.
@@ -219,10 +219,10 @@ def populate_player_season_stats(
     logger.info("Connecting to database...")
     conn = duckdb.connect(db_path)
 
-    stats = {
+    stats: dict[str, Any] = {
         "start_time": datetime.now().isoformat(),
         "records_created": 0,
-        "errors": []
+        "errors": [],
     }
 
     try:
@@ -233,7 +233,9 @@ def populate_player_season_stats(
         count = conn.execute("SELECT COUNT(*) FROM player_season_stats").fetchone()[0]
         stats["records_created"] = count
 
-        logger.info(f"Created player_season_stats table with {count} player-season records")
+        logger.info(
+            f"Created player_season_stats table with {count} player-season records",
+        )
 
         # Show some sample data
         logger.info("Sample player season stats (top scorers):")
@@ -255,10 +257,12 @@ def populate_player_season_stats(
         """).fetchall()
 
         for row in sample:
-            logger.info(f"  {row[0]} ({row[1]}) - {row[2]}: {row[4]} PPG, {row[5]}% TS, {row[6]}% eFG")
+            logger.info(
+                f"  {row[0]} ({row[1]}) - {row[2]}: {row[4]} PPG, {row[5]}% TS, {row[6]}% eFG",
+            )
 
     except Exception as e:
-        logger.error(f"Error creating player_season_stats: {e}")
+        logger.exception(f"Error creating player_season_stats: {e}")
         stats["errors"].append(str(e))
 
     finally:
@@ -281,14 +285,14 @@ def populate_player_season_stats(
 # CLI
 # =============================================================================
 
-def main():
-    """
-    Parse command-line arguments and run the player season stats population process.
-    
+
+def main() -> None:
+    """Parse command-line arguments and run the player season stats population process.
+
     Parses optional `--db` (database path) and `--seasons` (one or more seasons) arguments, calls populate_player_season_stats with the parsed values, and exits with status 1 if the population reports errors or an exception occurs.
     """
     parser = argparse.ArgumentParser(
-        description='Populate player season statistics',
+        description="Populate player season statistics",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -297,11 +301,11 @@ Examples:
 
   # For specific seasons only
   python scripts/populate/populate_player_season_stats.py --seasons 2022-23 2021-22
-        """
+        """,
     )
 
-    parser.add_argument('--db', default=None, help='Database path')
-    parser.add_argument('--seasons', nargs='+', help='Specific seasons to process')
+    parser.add_argument("--db", default=None, help="Database path")
+    parser.add_argument("--seasons", nargs="+", help="Specific seasons to process")
 
     args = parser.parse_args()
 
@@ -312,7 +316,7 @@ Examples:
             sys.exit(1)
 
     except Exception as e:
-        logger.error(f"Error: {e}")
+        logger.exception(f"Error: {e}")
         sys.exit(1)
 
 

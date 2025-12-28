@@ -1,5 +1,4 @@
-"""
-Chainlit frontend for the NBA Data Analyst Agent.
+"""Chainlit frontend for the NBA Data Analyst Agent.
 
 This module provides the web interface for interacting with the data analyst agent.
 It is organized into the following components:
@@ -43,6 +42,7 @@ from src.frontend.steps import (
     step_schema,
     stream_response,
 )
+
 
 __all__ = [
     "chat_profile",

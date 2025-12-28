@@ -4,6 +4,7 @@ import logging
 
 from pocketflow import Node
 
+
 logger = logging.getLogger(__name__)
 
 from backend.utils.data_source_manager import data_source_manager
@@ -13,8 +14,7 @@ class ResultValidator(Node):
     """Validate execution results against the original question and entity map."""
 
     def prep(self, shared):
-        """
-        Collect required execution context values from the shared context.
+        """Collect required execution context values from the shared context.
 
         Parameters:
             shared (dict): Shared execution context containing runtime values and metadata. Expected keys:
@@ -36,8 +36,7 @@ class ResultValidator(Node):
         }
 
     def exec(self, prep_res):
-        """
-        Builds a validation report for execution results against expected entities and an entity map.
+        """Builds a validation report for execution results against expected entities and an entity map.
 
         Parameters:
             prep_res (dict): Preparation dictionary with keys:
@@ -59,12 +58,10 @@ class ResultValidator(Node):
         entities = prep_res["entities"]
         entity_map = prep_res["entity_map"]
 
-        validation = {
-            "entities_found": [],
-            "entities_missing": [],
-            "data_completeness": {},
-            "suggestions": [],
-        }
+        entities_found: list[str] = []
+        entities_missing: list[str] = []
+        data_completeness: dict[str, dict[str, list | float]] = {}
+        suggestions: list[str] = []
 
         result_str = str(exec_result).lower() if exec_result else ""
 
@@ -73,18 +70,18 @@ class ResultValidator(Node):
             if entity_lower in result_str or any(
                 part in result_str for part in entity_lower.split()
             ):
-                validation["entities_found"].append(entity)
+                entities_found.append(entity)
 
                 tables_with_data = entity_map.get(entity, {})
                 completeness = len(tables_with_data)
-                validation["data_completeness"][entity] = {
+                data_completeness[entity] = {
                     "tables_found": list(tables_with_data.keys()),
                     "completeness_score": min(completeness / 3, 1.0),
                 }
             else:
-                validation["entities_missing"].append(entity)
-                validation["suggestions"].append(
-                    f"Re-search for {entity} with alternative name patterns"
+                entities_missing.append(entity)
+                suggestions.append(
+                    f"Re-search for {entity} with alternative name patterns",
                 )
 
         if isinstance(exec_result, dict):
@@ -94,15 +91,19 @@ class ResultValidator(Node):
                     if isinstance(entity_data, dict):
                         found_tables = entity_data.get("found_in_tables", [])
                         if len(found_tables) < 2:
-                            validation["suggestions"].append(
-                                f"Limited data for {entity} - only in {found_tables}"
+                            suggestions.append(
+                                f"Limited data for {entity} - only in {found_tables}",
                             )
 
-        return validation
+        return {
+            "entities_found": entities_found,
+            "entities_missing": entities_missing,
+            "data_completeness": data_completeness,
+            "suggestions": suggestions,
+        }
 
     def post(self, shared, prep_res, exec_res) -> str:
-        """
-        Store the validation result in the shared context and print a brief status message.
+        """Store the validation result in the shared context and print a brief status message.
 
         This function saves `exec_res` into `shared["validation_result"]`. It prints a message listing any missing entities when `exec_res["entities_missing"]` is non-empty, otherwise it prints that all found entities are present.
 
@@ -120,11 +121,11 @@ class ResultValidator(Node):
 
         if exec_res["entities_missing"]:
             logger.warning(
-                f"Validation: Missing data for {exec_res['entities_missing']}"
+                f"Validation: Missing data for {exec_res['entities_missing']}",
             )
         else:
             logger.info(
-                f"Validation: All {len(exec_res['entities_found'])} entities found in results"
+                f"Validation: All {len(exec_res['entities_found'])} entities found in results",
             )
 
         return "default"
@@ -134,8 +135,7 @@ class CrossValidator(Node):
     """Compare CSV and API execution results, flag discrepancies, and reconcile values."""
 
     def prep(self, shared):
-        """
-        Extracts CSV, API execution results and entity IDs from the shared context.
+        """Extracts CSV, API execution results and entity IDs from the shared context.
 
         Parameters:
             shared (dict): Shared execution context containing optional keys "csv_exec_result",
@@ -155,8 +155,7 @@ class CrossValidator(Node):
 
     @staticmethod
     def _compare_scalars(csv_value, api_value):
-        """
-        Compute the relative difference between two scalar values and classify its severity.
+        """Compute the relative difference between two scalar values and classify its severity.
 
         If either input is `None` or cannot be converted to a number, returns `(None, None)`. If `api_value` is zero, returns `(0.0, 0.0)` to indicate no computable relative difference.
 
@@ -178,15 +177,16 @@ class CrossValidator(Node):
             severity = (
                 "minor"
                 if diff_pct < 0.02
-                else "moderate" if diff_pct < 0.05 else "major"
+                else "moderate"
+                if diff_pct < 0.05
+                else "major"
             )
             return diff_pct, severity
         except (TypeError, ValueError):
             return None, None
 
     def exec(self, prep_res):
-        """
-        Compare CSV and API execution results, record numeric discrepancies, and produce a reconciled value map.
+        """Compare CSV and API execution results, record numeric discrepancies, and produce a reconciled value map.
 
         Parameters:
             prep_res (dict): Input preparation dictionary containing:
@@ -216,7 +216,9 @@ class CrossValidator(Node):
                 api_val = api_result.get(key)
                 diff_pct, severity = self._compare_scalars(csv_val, api_val)
                 preferred, _source = data_source_manager.reconcile_conflicts(
-                    csv_val, api_val, key
+                    csv_val,
+                    api_val,
+                    key,
                 )
                 reconciled[key] = preferred
                 if diff_pct is not None and severity:
@@ -227,7 +229,7 @@ class CrossValidator(Node):
                             "api": api_val,
                             "diff_pct": diff_pct,
                             "severity": severity,
-                        }
+                        },
                     )
         else:
             reconciled = csv_result or api_result
@@ -247,8 +249,7 @@ class CrossValidator(Node):
         }
 
     def post(self, shared, prep_res, exec_res) -> str:
-        """
-        Store cross-validation results into the shared context and update the executable result when available.
+        """Store cross-validation results into the shared context and update the executable result when available.
 
         Saves exec_res under the key "cross_validation" in shared. If exec_res contains a "reconciled" entry, sets shared["exec_result"] to that reconciled value. Prints the agreement score from exec_res.
 
@@ -264,6 +265,6 @@ class CrossValidator(Node):
         if exec_res.get("reconciled") is not None:
             shared["exec_result"] = exec_res["reconciled"]
         logger.info(
-            f"Cross validation completed. Agreement score: {exec_res.get('agreement_score')}"
+            f"Cross validation completed. Agreement score: {exec_res.get('agreement_score')}",
         )
         return "default"

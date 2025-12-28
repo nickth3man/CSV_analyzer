@@ -6,8 +6,7 @@ from backend.utils.call_llm import DEFAULT_API_KEY, should_force_chutes_provider
 
 
 def call_llm_streaming(prompt, model=None):
-    """
-    Stream response tokens from an OpenRouter-backed language model for the given prompt.
+    """Stream response tokens from an OpenRouter-backed language model for the given prompt.
 
     Parameters:
         prompt (str): Text prompt sent as the user's message to the model.

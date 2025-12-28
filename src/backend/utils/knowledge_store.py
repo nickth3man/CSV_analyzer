@@ -60,8 +60,10 @@ import json
 import logging
 import os
 import threading
+from typing import Any
 
 from backend.config import SUCCESSFUL_PATTERN_LIMIT
+
 
 logger = logging.getLogger(__name__)
 
@@ -69,8 +71,10 @@ KNOWLEDGE_FILE = "knowledge_store.json"
 
 
 class KnowledgeStore:
+    """Manages persistence and retrieval of knowledge patterns."""
+
     def __init__(self) -> None:
-        self.data = {
+        self.data: dict[str, Any] = {
             "entity_mappings": {},
             "successful_patterns": {},
             "column_hints": {},
@@ -99,11 +103,11 @@ class KnowledgeStore:
     def get_entity_hints(self, entity_name):
         with self._lock:
             entity_lower = entity_name.lower()
-            hints = {}
-            for key, value in self.data.get("entity_mappings", {}).items():
-                if entity_lower in key.lower() or key.lower() in entity_lower:
-                    hints[key] = value
-            return hints
+            return {
+                key: value
+                for key, value in self.data.get("entity_mappings", {}).items()
+                if entity_lower in key.lower() or key.lower() in entity_lower
+            }
 
     def add_entity_mapping(self, entity, table, columns) -> None:
         with self._lock:
@@ -124,8 +128,7 @@ class KnowledgeStore:
             return patterns
 
     def add_successful_pattern(self, query_type, pattern) -> None:
-        """
-        Store a successful pattern under the given query type and persist the updated list.
+        """Store a successful pattern under the given query type and persist the updated list.
 
         Adds the pattern to the in-memory list for query_type if not already present, trims the list to the most recent SUCCESSFUL_PATTERN_LIMIT entries when it exceeds that limit, and then saves the store to disk.
 
@@ -148,8 +151,7 @@ class KnowledgeStore:
         self.save()
 
     def add_column_hint(self, description, table, column) -> None:
-        """
-        Store a column hint in the knowledge store keyed by a lowercase description and persist the change.
+        """Store a column hint in the knowledge store keyed by a lowercase description and persist the change.
 
         Parameters:
             description (str): Human-readable description used as the lookup key; it is normalized to lowercase.

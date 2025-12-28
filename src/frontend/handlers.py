@@ -63,6 +63,7 @@ import shutil
 
 import chainlit as cl
 
+
 logger = logging.getLogger(__name__)
 from chainlit.input_widget import Select, TextInput
 
@@ -82,7 +83,7 @@ from src.frontend.steps import (
 )
 
 
-@cl.set_starters
+@cl.set_starters  # type: ignore[arg-type]
 async def set_starters():
     """Define starter suggestions for users."""
     return [
@@ -109,7 +110,7 @@ async def set_starters():
     ]
 
 
-@cl.set_chat_profiles
+@cl.set_chat_profiles  # type: ignore[arg-type]
 async def chat_profile():
     """Define chat profiles for different analysis modes."""
     return [
@@ -172,7 +173,7 @@ async def on_chat_start() -> None:
                 placeholder="sk-or-v1-...",
             ),
             Select(id="model", label="LLM Model", values=models, initial_index=0),
-        ]
+        ],
     ).send()
 
     cl.user_session.set("settings", settings)
@@ -195,33 +196,28 @@ async def on_chat_start() -> None:
             name="upload_csv",
             payload={"action": "upload"},
             label="📁 Upload",
-            description="Upload CSV files",
         ),
         cl.Action(
             name="list_tables",
             payload={"action": "tables"},
             label="📋 Tables",
-            description="View loaded tables",
         ),
         # Analysis Tools
         cl.Action(
             name="view_schema",
             payload={"action": "schema"},
             label="📊 Schema",
-            description="View data structure",
         ),
         cl.Action(
             name="view_profile",
             payload={"action": "profile"},
             label="📈 Profile",
-            description="View data statistics",
         ),
         # Help
         cl.Action(
             name="show_help",
             payload={"action": "help"},
             label="❓ Help",
-            description="Show usage guide",
         ),
     ]
 
@@ -289,17 +285,17 @@ async def on_settings_update(settings) -> None:
                 values=models,
                 initial_index=initial_index,
             ),
-        ]
+        ],
     ).send()
 
     # Notify user about the model filtering
     if using_default_key:
         await cl.Message(
-            content="⚙️ Settings updated! Using default API key - showing free models and MistralAI models only."
+            content="⚙️ Settings updated! Using default API key - showing free models and MistralAI models only.",
         ).send()
     else:
         await cl.Message(
-            content="⚙️ Settings updated! Using your API key - all models available."
+            content="⚙️ Settings updated! Using your API key - all models available.",
         ).send()
 
 
@@ -327,7 +323,7 @@ async def on_message(message: cl.Message) -> None:
             # Invalidate cache after upload
             invalidate_dataframe_cache()
             await cl.Message(
-                content=f"✅ Uploaded: {', '.join(uploaded)}\n\nYou can now ask questions about your data!"
+                content=f"✅ Uploaded: {', '.join(uploaded)}\n\nYou can now ask questions about your data!",
             ).send()
             return
 
@@ -356,7 +352,7 @@ Please set your OpenRouter API key to continue.
 3. Get a free API key at [openrouter.ai](https://openrouter.ai)
 
 > 💡 **Tip:** A default API key is provided for testing, but it has limited quota.
-"""
+""",
         ).send()
         return
 
@@ -371,7 +367,7 @@ OpenRouter API keys should start with `sk-or-`.
 - You're using an OpenRouter key, not an OpenAI key
 - The key was copied correctly without extra spaces
 - Get a valid key at [openrouter.ai](https://openrouter.ai)
-"""
+""",
         ).send()
         return
 
@@ -382,7 +378,6 @@ OpenRouter API keys should start with `sk-or-`.
             name="upload_csv",
             payload={"action": "upload"},
             label="📁 Upload CSV Now",
-            description="Upload your data files",
         )
         await cl.Message(
             content="""## 📂 No Data Loaded
@@ -436,5 +431,5 @@ An unexpected error occurred during analysis:
 - Simplifying your question
 - Checking if the required data columns exist
 - Uploading additional data if needed
-"""
+""",
         ).send()

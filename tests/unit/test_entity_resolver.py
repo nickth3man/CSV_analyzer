@@ -8,7 +8,9 @@ from backend.nodes import EntityResolver
 class TestEntityResolverEntityExtraction:
     """Test entity extraction from questions."""
 
-    def test_extracts_single_entity(self, mock_call_llm_in_nodes, sample_shared_store):
+    def test_extracts_single_entity(
+        self, mock_call_llm_in_nodes, sample_shared_store,
+    ) -> None:
         """Test extracting a single entity from a question."""
         # Mock LLM to return a single entity
         mock_call_llm_in_nodes.return_value = '["Alice"]'
@@ -27,8 +29,10 @@ class TestEntityResolverEntityExtraction:
         assert "Alice" in exec_res["entities"]
 
     def test_extracts_multiple_entities(
-        self, mock_call_llm_in_nodes, sample_shared_store
-    ):
+        self,
+        mock_call_llm_in_nodes,
+        sample_shared_store,
+    ) -> None:
         """Test extracting multiple entities."""
         mock_call_llm_in_nodes.return_value = '["Alice", "Bob", "Charlie"]'
 
@@ -47,7 +51,9 @@ class TestEntityResolverEntityExtraction:
         assert "Bob" in exec_res["entities"]
         assert "Charlie" in exec_res["entities"]
 
-    def test_handles_json_code_fence(self, mock_call_llm_in_nodes, sample_shared_store):
+    def test_handles_json_code_fence(
+        self, mock_call_llm_in_nodes, sample_shared_store,
+    ) -> None:
         """Test handling of JSON wrapped in code fences."""
         mock_call_llm_in_nodes.return_value = '```json\n["Alice", "Bob"]\n```'
 
@@ -64,7 +70,9 @@ class TestEntityResolverEntityExtraction:
         assert len(exec_res["entities"]) == 2
         assert "Alice" in exec_res["entities"]
 
-    def test_handles_malformed_json(self, mock_call_llm_in_nodes, sample_shared_store):
+    def test_handles_malformed_json(
+        self, mock_call_llm_in_nodes, sample_shared_store,
+    ) -> None:
         """Test handling of malformed JSON response."""
         mock_call_llm_in_nodes.return_value = "This is not valid JSON"
 
@@ -81,7 +89,9 @@ class TestEntityResolverEntityExtraction:
         # Should return empty entities list on parse error
         assert exec_res["entities"] == []
 
-    def test_handles_empty_response(self, mock_call_llm_in_nodes, sample_shared_store):
+    def test_handles_empty_response(
+        self, mock_call_llm_in_nodes, sample_shared_store,
+    ) -> None:
         """Test handling of empty LLM response."""
         mock_call_llm_in_nodes.return_value = ""
 
@@ -101,7 +111,9 @@ class TestEntityResolverEntityExtraction:
 class TestEntityResolverTableMatching:
     """Test entity matching in tables."""
 
-    def test_finds_entity_in_single_table(self, mock_call_llm_in_nodes, sample_df):
+    def test_finds_entity_in_single_table(
+        self, mock_call_llm_in_nodes, sample_df,
+    ) -> None:
         """Test finding entity in a single table."""
         mock_call_llm_in_nodes.return_value = '["Alice"]'
 
@@ -118,7 +130,9 @@ class TestEntityResolverTableMatching:
         assert "Alice" in exec_res["entity_map"]
         assert "employees" in exec_res["entity_map"]["Alice"]
 
-    def test_finds_entity_in_multiple_tables(self, mock_call_llm_in_nodes, sample_df):
+    def test_finds_entity_in_multiple_tables(
+        self, mock_call_llm_in_nodes, sample_df,
+    ) -> None:
         """Test finding entity in multiple tables."""
         mock_call_llm_in_nodes.return_value = '["Alice"]'
 
@@ -142,7 +156,7 @@ class TestEntityResolverTableMatching:
         # Should find Alice in both tables
         assert len(exec_res["entity_map"]["Alice"]) >= 1
 
-    def test_entity_not_found(self, mock_call_llm_in_nodes, sample_df):
+    def test_entity_not_found(self, mock_call_llm_in_nodes, sample_df) -> None:
         """Test when entity is not found in any table."""
         mock_call_llm_in_nodes.return_value = '["Zorro"]'
 
@@ -159,7 +173,7 @@ class TestEntityResolverTableMatching:
         assert "Zorro" in exec_res["entity_map"]
         assert exec_res["entity_map"]["Zorro"] == {}
 
-    def test_case_insensitive_matching(self, mock_call_llm_in_nodes, sample_df):
+    def test_case_insensitive_matching(self, mock_call_llm_in_nodes, sample_df) -> None:
         """Test that entity matching is case-insensitive."""
         mock_call_llm_in_nodes.return_value = '["alice"]'  # lowercase
 
@@ -181,7 +195,7 @@ class TestEntityResolverTableMatching:
 class TestEntityResolverMultiPartNames:
     """Test handling of multi-part names (first name + last name)."""
 
-    def test_matches_full_name(self, mock_call_llm_in_nodes):
+    def test_matches_full_name(self, mock_call_llm_in_nodes) -> None:
         """Test matching full names across first_name and last_name columns."""
         mock_call_llm_in_nodes.return_value = '["Alice Johnson"]'
 
@@ -190,7 +204,7 @@ class TestEntityResolverMultiPartNames:
                 "first_name": ["Alice", "Bob"],
                 "last_name": ["Johnson", "Smith"],
                 "salary": [75000, 82000],
-            }
+            },
         )
 
         node = EntityResolver()
@@ -210,12 +224,12 @@ class TestEntityResolverMultiPartNames:
         assert "first_name" in cols
         assert "last_name" in cols
 
-    def test_handles_player_name_columns(self, mock_call_llm_in_nodes):
+    def test_handles_player_name_columns(self, mock_call_llm_in_nodes) -> None:
         """Test matching with player_name style columns."""
         mock_call_llm_in_nodes.return_value = '["LeBron James"]'
 
         df = pd.DataFrame(
-            {"player_name": ["LeBron James", "Kevin Durant"], "points": [2500, 2300]}
+            {"player_name": ["LeBron James", "Kevin Durant"], "points": [2500, 2300]},
         )
 
         node = EntityResolver()
@@ -235,7 +249,7 @@ class TestEntityResolverMultiPartNames:
 class TestEntityResolverColumnDetection:
     """Test detection of different column types."""
 
-    def test_identifies_name_columns(self, mock_call_llm_in_nodes):
+    def test_identifies_name_columns(self, mock_call_llm_in_nodes) -> None:
         """Test identification of name-related columns."""
         mock_call_llm_in_nodes.return_value = '["Alice"]'
 
@@ -244,7 +258,7 @@ class TestEntityResolverColumnDetection:
                 "full_name": ["Alice Smith", "Bob Jones"],
                 "display_name": ["Alice S.", "Bob J."],
                 "salary": [75000, 82000],
-            }
+            },
         )
 
         node = EntityResolver()
@@ -263,7 +277,7 @@ class TestEntityResolverColumnDetection:
             cols = exec_res["entity_map"]["Alice"]["employees"]
             assert len(cols) > 0
 
-    def test_searches_object_columns(self, mock_call_llm_in_nodes):
+    def test_searches_object_columns(self, mock_call_llm_in_nodes) -> None:
         """Test that string/object columns are searched."""
         mock_call_llm_in_nodes.return_value = '["Engineering"]'
 
@@ -272,7 +286,7 @@ class TestEntityResolverColumnDetection:
                 "name": ["Alice", "Bob"],
                 "department": ["Engineering", "Marketing"],
                 "salary": [75000, 82000],
-            }
+            },
         )
 
         node = EntityResolver()
@@ -289,7 +303,7 @@ class TestEntityResolverColumnDetection:
         assert "employees" in exec_res["entity_map"]["Engineering"]
         assert "department" in exec_res["entity_map"]["Engineering"]["employees"]
 
-    def test_skips_numeric_columns(self, mock_call_llm_in_nodes):
+    def test_skips_numeric_columns(self, mock_call_llm_in_nodes) -> None:
         """Test that numeric columns are handled appropriately."""
         mock_call_llm_in_nodes.return_value = '["75000"]'
 
@@ -313,7 +327,7 @@ class TestEntityResolverColumnDetection:
 class TestEntityResolverPostMethod:
     """Test the post() method behavior."""
 
-    def test_stores_entities_in_shared(self, mock_call_llm_in_nodes, sample_df):
+    def test_stores_entities_in_shared(self, mock_call_llm_in_nodes, sample_df) -> None:
         """Test that entities are stored in shared store."""
         mock_call_llm_in_nodes.return_value = '["Alice", "Bob"]'
 
@@ -332,7 +346,7 @@ class TestEntityResolverPostMethod:
         assert "entity_map" in shared
         assert "knowledge_hints" in shared
 
-    def test_returns_default_action(self, mock_call_llm_in_nodes, sample_df):
+    def test_returns_default_action(self, mock_call_llm_in_nodes, sample_df) -> None:
         """Test that post() returns 'default' action."""
         mock_call_llm_in_nodes.return_value = '["Alice"]'
 
@@ -353,7 +367,7 @@ class TestEntityResolverPostMethod:
 class TestEntityResolverErrorHandling:
     """Test error handling in entity resolution."""
 
-    def test_handles_missing_columns(self, mock_call_llm_in_nodes):
+    def test_handles_missing_columns(self, mock_call_llm_in_nodes) -> None:
         """Test handling when expected columns don't exist."""
         mock_call_llm_in_nodes.return_value = '["Alice"]'
 
@@ -373,7 +387,7 @@ class TestEntityResolverErrorHandling:
         # Should not crash, even if entity not found
         assert "Alice" in exec_res["entity_map"]
 
-    def test_handles_empty_dataframe(self, mock_call_llm_in_nodes):
+    def test_handles_empty_dataframe(self, mock_call_llm_in_nodes) -> None:
         """Test handling of empty DataFrames."""
         mock_call_llm_in_nodes.return_value = '["Alice"]'
 
@@ -392,12 +406,12 @@ class TestEntityResolverErrorHandling:
         # Should not crash on empty DataFrame
         assert "Alice" in exec_res["entity_map"]
 
-    def test_handles_null_values(self, mock_call_llm_in_nodes):
+    def test_handles_null_values(self, mock_call_llm_in_nodes) -> None:
         """Test handling of null values in data."""
         mock_call_llm_in_nodes.return_value = '["Alice"]'
 
         df = pd.DataFrame(
-            {"name": ["Alice", None, "Bob"], "salary": [75000, 82000, 95000]}
+            {"name": ["Alice", None, "Bob"], "salary": [75000, 82000, 95000]},
         )
 
         node = EntityResolver()
@@ -417,7 +431,7 @@ class TestEntityResolverErrorHandling:
 class TestEntityResolverPrepMethod:
     """Test the prep() method."""
 
-    def test_prep_returns_dict(self, sample_shared_store):
+    def test_prep_returns_dict(self, sample_shared_store) -> None:
         """Test that prep() returns required fields."""
         node = EntityResolver()
         shared = {

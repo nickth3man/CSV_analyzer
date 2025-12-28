@@ -4,8 +4,7 @@ from backend.utils.knowledge_store import knowledge_store
 
 
 def get_knowledge_store_data():
-    """
-    Produce a human-readable, formatted summary of the current knowledge store.
+    """Produce a human-readable, formatted summary of the current knowledge store.
 
     The resulting text contains three sections:
     - Entity Mappings: each entity with its tables and columns.

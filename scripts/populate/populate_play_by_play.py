@@ -32,25 +32,25 @@ import logging
 import sys
 import traceback
 from datetime import datetime
-from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import Any
 
 import duckdb
 import pandas as pd
+
+from scripts.populate.api_client import NBAClient, get_client
 
 # Import shared modules from the populate package
 from scripts.populate.config import (
     CACHE_DIR,
     ensure_cache_dir,
     get_db_path,
-    PLAY_BY_PLAY_FIELDS,
 )
-from scripts.populate.api_client import NBAClient, get_client
+
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -63,30 +63,30 @@ PROGRESS_FILE = CACHE_DIR / "play_by_play_progress.json"
 
 # Column mapping from NBA API (v2) to our schema
 COLUMN_MAPPING = {
-    'GAME_ID': 'game_id',
-    'EVENTNUM': 'event_num',
-    'EVENTMSGTYPE': 'event_msg_type',
-    'EVENTMSGACTIONTYPE': 'event_msg_action_type',
-    'PERIOD': 'period',
-    'WCTIMESTRING': 'wctimestring',
-    'PCTIMESTRING': 'pctimestring',
-    'HOMEDESCRIPTION': 'home_description',
-    'NEUTRALDESCRIPTION': 'neutral_description',
-    'VISITORDESCRIPTION': 'visitor_description',
-    'SCORE': 'score',
-    'SCOREMARGIN': 'score_margin',
-    'PERSON1TYPE': 'person1type',
-    'PLAYER1_ID': 'player1_id',
-    'PLAYER1_NAME': 'player1_name',
-    'PLAYER1_TEAM_ID': 'player1_team_id',
-    'PERSON2TYPE': 'person2type',
-    'PLAYER2_ID': 'player2_id',
-    'PLAYER2_NAME': 'player2_name',
-    'PLAYER2_TEAM_ID': 'player2_team_id',
-    'PERSON3TYPE': 'person3type',
-    'PLAYER3_ID': 'player3_id',
-    'PLAYER3_NAME': 'player3_name',
-    'PLAYER3_TEAM_ID': 'player3_team_id',
+    "GAME_ID": "game_id",
+    "EVENTNUM": "event_num",
+    "EVENTMSGTYPE": "event_msg_type",
+    "EVENTMSGACTIONTYPE": "event_msg_action_type",
+    "PERIOD": "period",
+    "WCTIMESTRING": "wctimestring",
+    "PCTIMESTRING": "pctimestring",
+    "HOMEDESCRIPTION": "home_description",
+    "NEUTRALDESCRIPTION": "neutral_description",
+    "VISITORDESCRIPTION": "visitor_description",
+    "SCORE": "score",
+    "SCOREMARGIN": "score_margin",
+    "PERSON1TYPE": "person1type",
+    "PLAYER1_ID": "player1_id",
+    "PLAYER1_NAME": "player1_name",
+    "PLAYER1_TEAM_ID": "player1_team_id",
+    "PERSON2TYPE": "person2type",
+    "PLAYER2_ID": "player2_id",
+    "PLAYER2_NAME": "player2_name",
+    "PLAYER2_TEAM_ID": "player2_team_id",
+    "PERSON3TYPE": "person3type",
+    "PLAYER3_ID": "player3_id",
+    "PLAYER3_NAME": "player3_name",
+    "PLAYER3_TEAM_ID": "player3_team_id",
 }
 
 
@@ -94,12 +94,12 @@ COLUMN_MAPPING = {
 # HELPER FUNCTIONS
 # =============================================================================
 
-def load_progress() -> Dict[str, Any]:
-    """
-    Load the persistent progress state for play-by-play population.
-    
+
+def load_progress() -> dict[str, Any]:
+    """Load the persistent progress state for play-by-play population.
+
     Reads the JSON progress file and returns its contents. If the progress file does not exist, returns a default structure.
-    
+
     Returns:
         progress (dict): Progress dictionary with keys:
             - completed_games (List[str]): game IDs that have been completed.
@@ -107,15 +107,14 @@ def load_progress() -> Dict[str, Any]:
             - errors (List[Any]): recorded errors encountered during processing.
     """
     if PROGRESS_FILE.exists():
-        with open(PROGRESS_FILE, 'r') as f:
+        with open(PROGRESS_FILE) as f:
             return json.load(f)
     return {"completed_games": [], "last_game_id": None, "errors": []}
 
 
-def save_progress(progress: Dict[str, Any]):
-    """
-    Persist the progress dictionary to the progress file in the cache directory.
-    
+def save_progress(progress: dict[str, Any]) -> None:
+    """Persist the progress dictionary to the progress file in the cache directory.
+
     Parameters:
         progress (dict): Progress state to save. Expected keys include:
             - "completed_games" (list): game IDs already processed.
@@ -123,20 +122,19 @@ def save_progress(progress: Dict[str, Any]):
             - "errors" (list): recorded error entries.
     """
     ensure_cache_dir()
-    with open(PROGRESS_FILE, 'w') as f:
+    with open(PROGRESS_FILE, "w") as f:
         json.dump(progress, f, indent=2)
 
 
 def process_play_by_play_data(df: pd.DataFrame, game_id: str) -> pd.DataFrame:
-    """
-    Normalize a raw NBA play-by-play DataFrame to the play_by_play table schema.
-    
+    """Normalize a raw NBA play-by-play DataFrame to the play_by_play table schema.
+
     Ensures all expected NBA API columns are present (filling missing columns with None), renames columns according to the internal COLUMN_MAPPING, injects the provided game_id, and returns the DataFrame with columns ordered for insertion.
-    
+
     Parameters:
         df (pd.DataFrame): Raw play-by-play DataFrame returned by the NBA API.
         game_id (str): Game identifier to assign to every row in the processed DataFrame.
-    
+
     Returns:
         pd.DataFrame: Processed DataFrame with 'game_id' as the first column followed by the mapped play_by_play fields, ready for database insertion.
     """
@@ -155,10 +153,12 @@ def process_play_by_play_data(df: pd.DataFrame, game_id: str) -> pd.DataFrame:
 
     # Rename columns to lowercase schema names
     processed_df = processed_df.rename(columns=COLUMN_MAPPING)
-    processed_df['game_id'] = game_id
+    processed_df["game_id"] = game_id
 
     # Select only the columns we need in the right order
-    output_columns = ['game_id'] + [COLUMN_MAPPING[col] for col in required_columns if col != 'GAME_ID']
+    output_columns = ["game_id"] + [
+        COLUMN_MAPPING[col] for col in required_columns if col != "GAME_ID"
+    ]
 
     # Ensure all output columns exist
     for col in output_columns:
@@ -169,13 +169,12 @@ def process_play_by_play_data(df: pd.DataFrame, game_id: str) -> pd.DataFrame:
 
 
 def insert_play_by_play(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame) -> int:
-    """
-    Insert processed play-by-play rows from a DataFrame into the play_by_play table.
-    
+    """Insert processed play-by-play rows from a DataFrame into the play_by_play table.
+
     Parameters:
         conn (duckdb.DuckDBPyConnection): Active DuckDB connection used for the insert.
         df (pd.DataFrame): DataFrame whose columns match the play_by_play table schema.
-    
+
     Returns:
         int: Number of rows inserted; returns 0 if `df` is empty or if an error occurs during insertion.
     """
@@ -201,7 +200,7 @@ def insert_play_by_play(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame) -> in
         return len(df)
 
     except Exception as e:
-        logger.error(f"Insert error: {e}")
+        logger.exception(f"Insert error: {e}")
         return 0
 
 
@@ -209,18 +208,18 @@ def insert_play_by_play(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame) -> in
 # MAIN POPULATION FUNCTION
 # =============================================================================
 
+
 def populate_play_by_play(
-    db_path: Optional[str] = None,
-    games: Optional[List[str]] = None,
-    seasons: Optional[List[str]] = None,
-    limit: Optional[int] = None,
+    db_path: str | None = None,
+    games: list[str] | None = None,
+    seasons: list[str] | None = None,
+    limit: int | None = None,
     delay: float = 0.6,
-    resume_from: Optional[str] = None,
-    client: Optional[NBAClient] = None,
-) -> Dict[str, Any]:
-    """
-    Populate the play_by_play table in the DuckDB database with play-by-play data fetched from the NBA API.
-    
+    resume_from: str | None = None,
+    client: NBAClient | None = None,
+) -> dict[str, Any]:
+    """Populate the play_by_play table in the DuckDB database with play-by-play data fetched from the NBA API.
+
     Parameters:
         db_path (Optional[str]): Path to the DuckDB database file; uses the configured default when omitted.
         games (Optional[List[str]]): Explicit list of game IDs to process; when provided, overrides reading game IDs from the database.
@@ -229,7 +228,7 @@ def populate_play_by_play(
         delay (float): Per-request delay in seconds applied to the NBAClient to avoid rate limits.
         resume_from (Optional[str]): If provided, processing will start from this game ID within the remaining (uncompleted) games.
         client (Optional[NBAClient]): NBAClient instance to use for API calls; a default client is created if not supplied.
-    
+
     Returns:
         dict: Statistics and metadata about the run, including at least:
             - start_time: ISO timestamp when processing started.
@@ -271,9 +270,9 @@ def populate_play_by_play(
         query = "SELECT DISTINCT game_id FROM game_gold ORDER BY game_id"
         if seasons:
             # Filter by season - need to extract season from game_id
-            season_conditions = " OR ".join([
-                f"game_id LIKE '{season.replace('-', '')}%'" for season in seasons
-            ])
+            season_conditions = " OR ".join(
+                [f"game_id LIKE '{season.replace('-', '')}%'" for season in seasons],
+            )
             query = f"""
                 SELECT DISTINCT game_id FROM game_gold
                 WHERE {season_conditions}
@@ -302,7 +301,7 @@ def populate_play_by_play(
     if resume_from:
         # Resume from specific game
         try:
-            resume_index = [g for g in remaining_games].index(resume_from)
+            resume_index = list(remaining_games).index(resume_from)
             remaining_games = remaining_games[resume_index:]
         except ValueError:
             logger.warning(f"Game {resume_from} not found in remaining games")
@@ -314,11 +313,11 @@ def populate_play_by_play(
         return {"games_processed": 0, "events_added": 0, "errors": []}
 
     # Statistics
-    stats = {
+    stats: dict[str, Any] = {
         "start_time": datetime.now().isoformat(),
         "games_processed": 0,
         "events_added": 0,
-        "errors": []
+        "errors": [],
     }
 
     logger.info("=" * 70)
@@ -341,7 +340,9 @@ def populate_play_by_play(
                 processed_df = process_play_by_play_data(df, game_id)
 
                 if processed_df.empty:
-                    logger.info(f"      No valid data after processing for game {game_id}")
+                    logger.info(
+                        f"      No valid data after processing for game {game_id}",
+                    )
                     continue
 
                 # Insert into database
@@ -364,26 +365,30 @@ def populate_play_by_play(
                     logger.info(f"  [Progress: {i}/{len(remaining_games)} games]")
 
             except Exception as e:
-                error_msg = f"Error processing game {game_id}: {str(e)}"
-                logger.error(f"      ERROR: {error_msg}")
+                error_msg = f"Error processing game {game_id}: {e!s}"
+                logger.exception(f"      ERROR: {error_msg}")
                 stats["errors"].append(error_msg)
 
                 # Save error to progress
                 if "errors" not in progress:
                     progress["errors"] = []
-                progress["errors"].append({
-                    "game_id": game_id,
-                    "error": str(e),
-                    "timestamp": datetime.now().isoformat()
-                })
+                progress["errors"].append(
+                    {
+                        "game_id": game_id,
+                        "error": str(e),
+                        "timestamp": datetime.now().isoformat(),
+                    },
+                )
                 continue
 
     except KeyboardInterrupt:
         logger.info("*** INTERRUPTED BY USER ***")
-        logger.info(f"Progress saved. Resume with: --resume-from {progress.get('last_game_id')}")
+        logger.info(
+            f"Progress saved. Resume with: --resume-from {progress.get('last_game_id')}",
+        )
 
     except Exception as e:
-        logger.error(f"*** ERROR: {e} ***")
+        logger.exception(f"*** ERROR: {e} ***")
         traceback.print_exc()
         stats["errors"].append(str(e))
 
@@ -394,7 +399,9 @@ def populate_play_by_play(
 
         # Get final count
         try:
-            final_count = conn.execute("SELECT COUNT(*) FROM play_by_play").fetchone()[0]
+            final_count = conn.execute("SELECT COUNT(*) FROM play_by_play").fetchone()[
+                0
+            ]
         except Exception:
             final_count = initial_count + stats["events_added"]
 
@@ -426,14 +433,14 @@ def populate_play_by_play(
 # CLI
 # =============================================================================
 
-def main():
-    """
-    Entry point for the play-by-play population CLI.
-    
+
+def main() -> None:
+    """Entry point for the play-by-play population CLI.
+
     Parses command-line arguments for database path, game IDs, seasons, processing limit, API call delay, and resume point; invokes populate_play_by_play with those options and exits with a non-zero status when the operation is cancelled, returns errors, or a fatal exception occurs.
     """
     parser = argparse.ArgumentParser(
-        description='Populate play-by-play data from NBA API',
+        description="Populate play-by-play data from NBA API",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -445,15 +452,19 @@ Examples:
 
   # With custom delay for rate limiting
   python scripts/populate/populate_play_by_play.py --delay 1.0 --limit 5
-        """
+        """,
     )
 
-    parser.add_argument('--db', default=None, help='Database path')
-    parser.add_argument('--games', nargs='+', help='Specific game IDs to process')
-    parser.add_argument('--seasons', nargs='+', help='Seasons to process (e.g., 2022-23)')
-    parser.add_argument('--limit', type=int, help='Limit number of games to process')
-    parser.add_argument('--delay', type=float, default=0.6, help='Delay between API calls')
-    parser.add_argument('--resume-from', help='Resume from specific game ID')
+    parser.add_argument("--db", default=None, help="Database path")
+    parser.add_argument("--games", nargs="+", help="Specific game IDs to process")
+    parser.add_argument(
+        "--seasons", nargs="+", help="Seasons to process (e.g., 2022-23)",
+    )
+    parser.add_argument("--limit", type=int, help="Limit number of games to process")
+    parser.add_argument(
+        "--delay", type=float, default=0.6, help="Delay between API calls",
+    )
+    parser.add_argument("--resume-from", help="Resume from specific game ID")
 
     args = parser.parse_args()
 
@@ -464,7 +475,7 @@ Examples:
             seasons=args.seasons,
             limit=args.limit,
             delay=args.delay,
-            resume_from=args.resume_from
+            resume_from=args.resume_from,
         )
 
         if result["errors"]:
@@ -475,7 +486,7 @@ Examples:
         logger.info("Operation cancelled by user")
         sys.exit(1)
     except Exception as e:
-        logger.error(f"Fatal error: {e}")
+        logger.exception(f"Fatal error: {e}")
         traceback.print_exc()
         sys.exit(1)
 

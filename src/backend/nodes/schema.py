@@ -5,6 +5,7 @@ import logging
 import pandas as pd
 from pocketflow import Node
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -12,8 +13,7 @@ class SchemaInference(Node):
     """Infer schema details from loaded DataFrames and expose summaries."""
 
     def prep(self, shared):
-        """
-        Provide the pipeline's loaded DataFrame mapping from the shared context.
+        """Provide the pipeline's loaded DataFrame mapping from the shared context.
 
         Returns:
             dict: Mapping from table name (str) to pandas.DataFrame stored under shared["dfs"].
@@ -21,8 +21,7 @@ class SchemaInference(Node):
         return shared["dfs"]
 
     def exec(self, prep_res):
-        """
-        Infer column lists and split schemas by observed source.
+        """Infer column lists and split schemas by observed source.
 
         Parameters:
             prep_res (dict): Mapping of table name to pandas DataFrame.
@@ -51,8 +50,7 @@ class SchemaInference(Node):
         return schemas, csv_schema, api_schema
 
     def post(self, shared, prep_res, exec_res) -> str:
-        """
-        Store inferred schema information in the shared state and produce human-readable schema strings.
+        """Store inferred schema information in the shared state and produce human-readable schema strings.
 
         This writes the following keys into the shared dictionary:
         - "schemas": mapping of table name to list of column names.
@@ -71,19 +69,19 @@ class SchemaInference(Node):
             [
                 f"Table '{name}' [CSV]: [{', '.join(cols)}]"
                 for name, cols in csv_schema.items()
-            ]
+            ],
         )
         shared["api_schema_str"] = "\n".join(
             [
                 f"Table '{name}' [API]: [{', '.join(cols)}]"
                 for name, cols in api_schema.items()
-            ]
+            ],
         )
         schema_lines = []
         for name, cols in schemas.items():
             source = shared.get("data_sources", {}).get(name, "merged")
             schema_lines.append(
-                f"Table '{name}' [{source.upper()}]: [{', '.join(cols)}]"
+                f"Table '{name}' [{source.upper()}]: [{', '.join(cols)}]",
             )
         shared["schema_str"] = "\n".join(schema_lines)
         logger.info(f"Schema inferred:\n{shared['schema_str']}")
@@ -94,8 +92,7 @@ class DataProfiler(Node):
     """Analyze data quality, column types, and identify key columns for each table."""
 
     def prep(self, shared):
-        """
-        Provide the pipeline's loaded DataFrame mapping from the shared context.
+        """Provide the pipeline's loaded DataFrame mapping from the shared context.
 
         Returns:
             dict: Mapping from table name (str) to pandas.DataFrame stored under shared["dfs"].
@@ -103,8 +100,7 @@ class DataProfiler(Node):
         return shared["dfs"]
 
     def exec(self, prep_res):
-        """
-        Builds a profiling summary for each DataFrame in the provided mapping.
+        """Builds a profiling summary for each DataFrame in the provided mapping.
 
         Parameters:
             prep_res (dict): Mapping from table name (str) to pandas DataFrame to be profiled.
@@ -123,52 +119,59 @@ class DataProfiler(Node):
                 - date_columns / date_cols (list[str]): Columns whose names suggest date or year fields.
         """
         dfs = prep_res
-        profile = {}
+        profile: dict[str, dict] = {}
         for table_name, df in dfs.items():
-            table_profile = {
-                "row_count": len(df),
-                "column_count": len(df.columns),
-                "columns": {},
-                "name_columns": [],
-                "name_cols": [],
-                "id_columns": [],
-                "id_cols": [],
-                "numeric_columns": [],
-                "numeric_cols": [],
-                "date_columns": [],
-                "date_cols": [],
-            }
+            columns_info: dict[str, dict] = {}
+            name_columns: list[str] = []
+            name_cols: list[str] = []
+            id_columns: list[str] = []
+            id_cols: list[str] = []
+            numeric_columns: list[str] = []
+            numeric_cols: list[str] = []
+            date_columns: list[str] = []
+            date_cols: list[str] = []
 
             for col in df.columns:
                 col_lower = col.lower()
                 col_info = {
                     "dtype": str(df[col].dtype),
-                    "null_count": int(df[col].isnull().sum()),
+                    "null_count": int(df[col].isna().sum()),
                     "unique_count": int(df[col].nunique()),
                 }
 
                 if "name" in col_lower or "first" in col_lower or "last" in col_lower:
-                    table_profile["name_columns"].append(col)
-                    table_profile["name_cols"].append(col)
+                    name_columns.append(col)
+                    name_cols.append(col)
                 if "id" in col_lower:
-                    table_profile["id_columns"].append(col)
-                    table_profile["id_cols"].append(col)
+                    id_columns.append(col)
+                    id_cols.append(col)
                 if pd.api.types.is_numeric_dtype(df[col]):
-                    table_profile["numeric_columns"].append(col)
-                    table_profile["numeric_cols"].append(col)
+                    numeric_columns.append(col)
+                    numeric_cols.append(col)
                 if "date" in col_lower or "year" in col_lower:
-                    table_profile["date_columns"].append(col)
-                    table_profile["date_cols"].append(col)
+                    date_columns.append(col)
+                    date_cols.append(col)
 
-                table_profile["columns"][col] = col_info
+                columns_info[col] = col_info
 
-            profile[table_name] = table_profile
+            profile[table_name] = {
+                "row_count": len(df),
+                "column_count": len(df.columns),
+                "columns": columns_info,
+                "name_columns": name_columns,
+                "name_cols": name_cols,
+                "id_columns": id_columns,
+                "id_cols": id_cols,
+                "numeric_columns": numeric_columns,
+                "numeric_cols": numeric_cols,
+                "date_columns": date_columns,
+                "date_cols": date_cols,
+            }
 
         return profile
 
     def post(self, shared, prep_res, exec_res) -> str:
-        """
-        Store the profiling results in the shared state and print a brief summary.
+        """Store the profiling results in the shared state and print a brief summary.
 
         Stores the provided profiling dictionary into shared["data_profile"] and shared["profiles"], counts how many tables include detected name columns, and prints a one-line summary of total profiled tables and how many contain name columns.
 
@@ -179,6 +182,6 @@ class DataProfiler(Node):
         shared["profiles"] = exec_res
         tables_with_names = [t for t, p in exec_res.items() if p["name_columns"]]
         logger.info(
-            f"Data profiled: {len(exec_res)} tables, {len(tables_with_names)} with name columns"
+            f"Data profiled: {len(exec_res)} tables, {len(tables_with_names)} with name columns",
         )
         return "default"

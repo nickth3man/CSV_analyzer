@@ -102,7 +102,7 @@ default_theme = "dark"
 layout = "wide"
 
 # Keep sidebar closed by default for more screen space
-default_sidebar_state = "collapsed"
+default_sidebar_state = "closed"
 
 # Chain of Thought (CoT) display mode. Can be "hidden", "tool_call" or "full".
 # Using "tool_call" to show progress without overwhelming details
@@ -154,12 +154,14 @@ name = "GitHub"
 display_name = "Source Code"
 url = "https://github.com/nickth3man/nba_expert"
 target = "_blank"
+icon_url = "/public/icons/github.svg"
 
 [[UI.header_links]]
 name = "Help"
 display_name = "Documentation"
 url = "https://github.com/nickth3man/nba_expert#readme"
 target = "_blank"
+icon_url = "/public/icons/help.svg"
 
 [meta]
 generated_by = "2.9.3"

@@ -5,6 +5,7 @@ import os
 
 import requests
 
+
 logger = logging.getLogger(__name__)
 
 # Default API key for testing (limited access, short expiration)
@@ -121,8 +122,8 @@ def is_free_model(model):
 
 
 def is_chutes_model(model_id):
-    """
-    Check if a model is hosted by the Chutes provider.
+    """Check if a model is hosted by the Chutes provider.
+
     Handles both base model IDs and variant suffixes (e.g., :free, :nitro).
     """
     # Get base model ID (without variant suffix like :free, :nitro)
@@ -131,8 +132,8 @@ def is_chutes_model(model_id):
 
 
 def is_allowed_model(model) -> bool:
-    """
-    Check if a model should be included in the filtered list.
+    """Check if a model should be included in the filtered list.
+
     Returns True if:
     - Model is free (pricing.prompt == 0 and pricing.completion == 0)
     - Model is from MistralAI (id starts with 'mistralai/')
@@ -153,8 +154,7 @@ def is_allowed_model(model) -> bool:
 
 
 def fetch_openrouter_models(api_key=None, filter_models=True):
-    """
-    Fetch available models from OpenRouter API.
+    """Fetch available models from OpenRouter API.
 
     Args:
         api_key: OpenRouter API key. If None, uses environment variable or default.

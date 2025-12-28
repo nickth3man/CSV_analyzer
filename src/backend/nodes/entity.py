@@ -6,6 +6,7 @@ import logging
 import pandas as pd
 from pocketflow import Node
 
+
 logger = logging.getLogger(__name__)
 
 from backend.config import ENTITY_SAMPLE_SIZE, SEARCH_SAMPLE_SIZE
@@ -18,8 +19,7 @@ class EntityResolver(Node):
     """Discover which tables contain entities mentioned in the query using configurable sampling."""
 
     def prep(self, shared):
-        """
-        Prepare execution inputs for the EntityResolver by extracting required values from the shared context.
+        """Prepare execution inputs for the EntityResolver by extracting required values from the shared context.
 
         Parameters:
             shared (dict): Shared pipeline state. Expected keys:
@@ -42,15 +42,15 @@ class EntityResolver(Node):
             "schema": shared["schema_str"],
             "dfs": shared["dfs"],
             "sample_size": shared.get("config", {}).get(
-                "entity_sample_size", ENTITY_SAMPLE_SIZE
+                "entity_sample_size",
+                ENTITY_SAMPLE_SIZE,
             ),
             "entity_ids": shared.get("entity_ids", {}),
         }
 
     @staticmethod
     def _get_sample(df, col, sample_size):
-        """
-        Return a non-null sample from a DataFrame column for entity scanning.
+        """Return a non-null sample from a DataFrame column for entity scanning.
 
         Attempts to extract non-missing values from `df[col]`. If the column's non-missing count is less than or equal to `sample_size`, returns the full non-missing Series; otherwise returns the first `sample_size` entries. If the column is missing or `df` does not support column access, returns an empty object-typed Series.
 
@@ -71,8 +71,7 @@ class EntityResolver(Node):
             return pd.Series(dtype="object")
 
     def exec(self, prep_res):
-        """
-        Resolve entities mentioned in the prepared request, locate columns containing those entities across provided DataFrames, enrich with known IDs, and record mappings in the knowledge store.
+        """Resolve entities mentioned in the prepared request, locate columns containing those entities across provided DataFrames, enrich with known IDs, and record mappings in the knowledge store.
 
         Parameters:
             prep_res (dict): Preparation result containing:
@@ -118,7 +117,7 @@ Return ONLY the JSON array, nothing else."""
             logger.exception(f"Unexpected error extracting entities: {exc}")
             entities = []
 
-        entity_map = {}
+        entity_map: dict[str, dict[str, list[str]]] = {}
         for entity in entities:
             entity_map[entity] = {}
             entity_lower = entity.lower()
@@ -154,10 +153,14 @@ Return ONLY the JSON array, nothing else."""
                     if first_name_cols and last_name_cols:
                         try:
                             first_sample = self._get_sample(
-                                df, first_name_cols[0], sample_size
+                                df,
+                                first_name_cols[0],
+                                sample_size,
                             )
                             last_sample = self._get_sample(
-                                df, last_name_cols[0], sample_size
+                                df,
+                                last_name_cols[0],
+                                sample_size,
                             )
                             first_match = (
                                 first_sample.astype(str)
@@ -171,7 +174,7 @@ Return ONLY the JSON array, nothing else."""
                             )
                             if first_match.any() and last_match.any():
                                 matching_cols.extend(
-                                    [first_name_cols[0], last_name_cols[0]]
+                                    [first_name_cols[0], last_name_cols[0]],
                                 )
                         except (KeyError, AttributeError, TypeError):
                             continue
@@ -195,7 +198,9 @@ Return ONLY the JSON array, nothing else."""
                 if matching_cols:
                     entity_map[entity][table_name] = list(set(matching_cols))
                     knowledge_store.add_entity_mapping(
-                        entity, table_name, matching_cols
+                        entity,
+                        table_name,
+                        matching_cols,
                     )
 
         return {
@@ -206,8 +211,7 @@ Return ONLY the JSON array, nothing else."""
         }
 
     def exec_fallback(self, prep_res, exc):
-        """
-        Handle failures during EntityResolver.exec by returning a safe default execution result.
+        """Handle failures during EntityResolver.exec by returning a safe default execution result.
 
         Parameters:
             prep_res: The preparation result passed to exec; included for signature compatibility but not used.
@@ -227,8 +231,7 @@ Return ONLY the JSON array, nothing else."""
         }
 
     def post(self, shared, prep_res, exec_res) -> str:
-        """
-        Merge execution results into the shared context, log a short summary of resolved entities, and return the next node token.
+        """Merge execution results into the shared context, log a short summary of resolved entities, and return the next node token.
 
         Parameters:
             shared (dict): Shared pipeline state to be updated. This function sets the keys "entities", "entity_map", "knowledge_hints", and "entity_ids" from exec_res.
@@ -256,8 +259,7 @@ class SearchExpander(Node):
     """Expand entity search to find aliases and cross-references using data profiles."""
 
     def prep(self, shared):
-        """
-        Prepare inputs for the SearchExpander node by extracting required values from the shared pipeline state.
+        """Prepare inputs for the SearchExpander node by extracting required values from the shared pipeline state.
 
         Parameters:
             shared (dict): Shared pipeline state containing execution context (expected keys: "dfs", "question", optional "entity_map", "entities", "data_profile", and "config").
@@ -278,14 +280,14 @@ class SearchExpander(Node):
             "data_profile": shared.get("data_profile", {}),
             "question": shared["question"],
             "sample_size": shared.get("config", {}).get(
-                "search_sample_size", SEARCH_SAMPLE_SIZE
+                "search_sample_size",
+                SEARCH_SAMPLE_SIZE,
             ),
         }
 
     @staticmethod
     def _get_sample(df, col, sample_size):
-        """
-        Return a DataFrame sample that preserves the input rows' context based on non-null values in a specified column.
+        """Return a DataFrame sample that preserves the input rows' context based on non-null values in a specified column.
 
         Parameters:
             df (pandas.DataFrame): The DataFrame to sample.
@@ -304,8 +306,7 @@ class SearchExpander(Node):
             return df.head(0)
 
     def exec(self, prep_res):
-        """
-        Expand the entity-to-table mapping and collect cross-table identifier references for resolved entities.
+        """Expand the entity-to-table mapping and collect cross-table identifier references for resolved entities.
 
         Parameters:
             prep_res (dict): Preparation results containing:
@@ -334,8 +335,8 @@ class SearchExpander(Node):
         sample_size = prep_res["sample_size"]
 
         expanded_map = dict(entity_map)
-        related_entities = {}
-        cross_references = {}
+        related_entities: dict[str, list[str]] = {}
+        cross_references: dict[str, dict[str, str]] = {}
 
         for entity in entities:
             entity_lower = entity.lower()
@@ -362,7 +363,8 @@ class SearchExpander(Node):
                             .str.contains(entity_lower, na=False)
                         ]
                         if not matches.empty and table_name not in expanded_map.get(
-                            entity, {}
+                            entity,
+                            {},
                         ):
                             expanded_map.setdefault(entity, {})[table_name] = [col]
                     except (KeyError, AttributeError, TypeError):
@@ -378,7 +380,8 @@ class SearchExpander(Node):
                                     .astype(str)
                                     .str.lower()
                                     .str.contains(
-                                        parts[0] if parts else entity_lower, na=False
+                                        parts[0] if parts else entity_lower,
+                                        na=False,
                                     )
                                 )
                                 matches = sampled_df[mask]
@@ -398,8 +401,7 @@ class SearchExpander(Node):
         }
 
     def post(self, shared, prep_res, exec_res) -> str:
-        """
-        Merge expanded entity mappings and cross-references into the shared context and log a brief summary.
+        """Merge expanded entity mappings and cross-references into the shared context and log a brief summary.
 
         Updates shared["entity_map"] with exec_res["expanded_map"] and shared["cross_references"] with exec_res["cross_references"], then prints a count of entities and table matches and any cross-references found.
 
@@ -416,7 +418,7 @@ class SearchExpander(Node):
 
         total_tables = sum(len(tables) for tables in exec_res["expanded_map"].values())
         logger.info(
-            f"Search expanded: {len(exec_res['expanded_map'])} entities across {total_tables} table matches"
+            f"Search expanded: {len(exec_res['expanded_map'])} entities across {total_tables} table matches",
         )
         if exec_res["cross_references"]:
             logger.info(f"Cross-references found: {exec_res['cross_references']}")

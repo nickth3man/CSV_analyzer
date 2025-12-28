@@ -23,7 +23,9 @@ class DataSourceManager:
         return seen
 
     def determine_api_endpoints(
-        self, entities: list[str], question: str
+        self,
+        entities: list[str],
+        question: str,
     ) -> list[dict[str, Any]]:
         """Map entities + intent to candidate endpoints."""
         endpoints: list[dict[str, Any]] = []
@@ -55,7 +57,9 @@ class DataSourceManager:
         return endpoints
 
     def merge_data_sources(
-        self, csv_data: dict[str, pd.DataFrame], api_data: dict[str, pd.DataFrame]
+        self,
+        csv_data: dict[str, pd.DataFrame],
+        api_data: dict[str, pd.DataFrame],
     ) -> tuple[dict[str, pd.DataFrame], list[dict[str, Any]], dict[str, str]]:
         """Merge CSV + API dataframes with source tracking and discrepancies."""
         merged: dict[str, pd.DataFrame] = {}
@@ -73,7 +77,9 @@ class DataSourceManager:
         for name, df in api_data.items():
             if name in merged:
                 merged_df, table_discrepancies = self._merge_table(
-                    merged[name], df, name
+                    merged[name],
+                    df,
+                    name,
                 )
                 merged[name] = merged_df
                 discrepancies.extend(table_discrepancies)
@@ -86,7 +92,10 @@ class DataSourceManager:
         return merged, discrepancies, sources
 
     def _merge_table(
-        self, csv_df: pd.DataFrame, api_df: pd.DataFrame, table_name: str
+        self,
+        csv_df: pd.DataFrame,
+        api_df: pd.DataFrame,
+        table_name: str,
     ) -> tuple[pd.DataFrame, list[dict[str, Any]]]:
         """Merge a single table and record discrepancies."""
         discrepancies: list[dict[str, Any]] = []
@@ -106,7 +115,10 @@ class DataSourceManager:
         if common_keys:
             key = common_keys[0]
             merged = working_csv_df.merge(
-                working_api_df, on=key, how="outer", suffixes=("_csv", "_api")
+                working_api_df,
+                on=key,
+                how="outer",
+                suffixes=("_csv", "_api"),
             )
             numeric_cols = [
                 c for c in merged.columns if pd.api.types.is_numeric_dtype(merged[c])
@@ -132,20 +144,23 @@ class DataSourceManager:
                                         "diff_pct": (
                                             float(
                                                 abs(row[col] - row[api_col])
-                                                / row[api_col]
+                                                / row[api_col],
                                             )
                                             if row[api_col] not in (0, None, pd.NA)
                                             else 0.0
                                         ),
-                                    }
+                                    },
                                 )
         else:
             merged = pd.concat(
-                [working_api_df, working_csv_df], ignore_index=True, sort=False
+                [working_api_df, working_csv_df],
+                ignore_index=True,
+                sort=False,
             )
 
         merged["_source"] = merged.get(
-            "_source_api", merged.get("_source_csv", "merged")
+            "_source_api",
+            merged.get("_source_csv", "merged"),
         )
         merged = merged.drop(
             columns=[c for c in merged.columns if c.startswith("_source_")],
@@ -154,7 +169,10 @@ class DataSourceManager:
         return merged, discrepancies
 
     def reconcile_conflicts(
-        self, csv_value: Any, api_value: Any, field: str
+        self,
+        csv_value: Any,
+        api_value: Any,
+        field: str,
     ) -> tuple[Any, str]:
         """Resolve conflicts according to priority rules."""
         if api_value is None and csv_value is None:

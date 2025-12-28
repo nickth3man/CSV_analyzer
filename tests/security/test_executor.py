@@ -8,7 +8,7 @@ from backend.nodes import Executor
 class TestExecutorSandboxing:
     """Test that code execution is properly sandboxed."""
 
-    def test_only_dfs_and_pd_available(self, sample_df):
+    def test_only_dfs_and_pd_available(self, sample_df) -> None:
         """Test that only 'dfs' and 'pd' are available in execution scope."""
         node = Executor()
         code = """
@@ -26,7 +26,7 @@ final_result = sorted([v for v in available_vars if not v.startswith('_')])
         # Should only have 'dfs', 'pd', and 'final_result' (created by the code)
         assert set(result) == {"dfs", "pd", "final_result"}
 
-    def test_cannot_access_globals(self, sample_df):
+    def test_cannot_access_globals(self, sample_df) -> None:
         """Test that code cannot access global scope."""
         node = Executor()
         # This code will fail because globals() is not available
@@ -47,7 +47,7 @@ except NameError:
         # Should fail because globals() is not in scope
         assert status == "error"
 
-    def test_can_access_dfs(self, sample_df):
+    def test_can_access_dfs(self, sample_df) -> None:
         """Test that code can access the 'dfs' variable."""
         node = Executor()
         code = "final_result = list(dfs.keys())"
@@ -64,7 +64,7 @@ except NameError:
         assert status == "success"
         assert set(result) == {"employees", "sales"}
 
-    def test_can_use_pandas(self, sample_df):
+    def test_can_use_pandas(self, sample_df) -> None:
         """Test that code can use pandas (pd)."""
         node = Executor()
         code = """
@@ -84,7 +84,7 @@ final_result = df['salary'].mean()
 class TestExecutorResultExtraction:
     """Test that results are properly extracted."""
 
-    def test_extracts_final_result(self, sample_df):
+    def test_extracts_final_result(self, sample_df) -> None:
         """Test that final_result is extracted correctly."""
         node = Executor()
         code = "final_result = 42"
@@ -98,7 +98,7 @@ class TestExecutorResultExtraction:
         assert status == "success"
         assert result == 42
 
-    def test_requires_final_result(self, sample_df):
+    def test_requires_final_result(self, sample_df) -> None:
         """Test that code must define 'final_result'."""
         node = Executor()
         code = "x = 42"  # No final_result defined
@@ -112,7 +112,7 @@ class TestExecutorResultExtraction:
         assert status == "error"
         assert "final_result" in result
 
-    def test_returns_dataframe(self, sample_df):
+    def test_returns_dataframe(self, sample_df) -> None:
         """Test that final_result can be a DataFrame."""
         node = Executor()
         code = """
@@ -129,7 +129,7 @@ final_result = df[df['age'] > 30]
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 2  # Bob (35) and Charlie (42)
 
-    def test_returns_scalar(self, sample_df):
+    def test_returns_scalar(self, sample_df) -> None:
         """Test that final_result can be a scalar value."""
         node = Executor()
         code = "final_result = dfs['employees']['salary'].max()"
@@ -143,7 +143,7 @@ final_result = df[df['age'] > 30]
         assert status == "success"
         assert result == 95000
 
-    def test_returns_list(self, sample_df):
+    def test_returns_list(self, sample_df) -> None:
         """Test that final_result can be a list."""
         node = Executor()
         code = "final_result = dfs['employees']['name'].tolist()"
@@ -157,7 +157,7 @@ final_result = df[df['age'] > 30]
         assert status == "success"
         assert result == ["Alice", "Bob", "Charlie"]
 
-    def test_returns_dict(self, sample_df):
+    def test_returns_dict(self, sample_df) -> None:
         """Test that final_result can be a dictionary."""
         node = Executor()
         code = """
@@ -181,7 +181,7 @@ final_result = {
 class TestExecutorErrorHandling:
     """Test error handling in code execution."""
 
-    def test_handles_attribute_error(self, sample_df):
+    def test_handles_attribute_error(self, sample_df) -> None:
         """Test handling of AttributeError."""
         node = Executor()
         code = "final_result = dfs['employees'].nonexistent_column"
@@ -195,7 +195,7 @@ class TestExecutorErrorHandling:
         assert status == "error"
         assert "nonexistent_column" in result.lower() or "attribute" in result.lower()
 
-    def test_handles_key_error(self, sample_df):
+    def test_handles_key_error(self, sample_df) -> None:
         """Test handling of KeyError."""
         node = Executor()
         code = "final_result = dfs['nonexistent_table']"
@@ -209,7 +209,7 @@ class TestExecutorErrorHandling:
         assert status == "error"
         assert "nonexistent_table" in result or "KeyError" in result
 
-    def test_handles_type_error(self, sample_df):
+    def test_handles_type_error(self, sample_df) -> None:
         """Test handling of TypeError."""
         node = Executor()
         code = "final_result = 'string' + 123"
@@ -223,7 +223,7 @@ class TestExecutorErrorHandling:
         assert status == "error"
         assert "type" in result.lower() or "str" in result.lower()
 
-    def test_handles_zero_division(self, sample_df):
+    def test_handles_zero_division(self, sample_df) -> None:
         """Test handling of ZeroDivisionError."""
         node = Executor()
         code = "final_result = 1 / 0"
@@ -237,7 +237,7 @@ class TestExecutorErrorHandling:
         assert status == "error"
         assert "division" in result.lower() or "zero" in result.lower()
 
-    def test_handles_index_error(self, sample_df):
+    def test_handles_index_error(self, sample_df) -> None:
         """Test handling of IndexError."""
         node = Executor()
         code = "final_result = dfs['employees']['name'].iloc[999]"
@@ -255,7 +255,7 @@ class TestExecutorErrorHandling:
 class TestExecutorPostMethod:
     """Test the post() method behavior."""
 
-    def test_post_on_success(self, sample_df):
+    def test_post_on_success(self, sample_df) -> None:
         """Test post() method when execution succeeds."""
         node = Executor()
         code = "final_result = 42"
@@ -270,7 +270,7 @@ class TestExecutorPostMethod:
         assert shared["csv_exec_result"] == 42
         assert "exec_error" not in shared
 
-    def test_post_on_error(self, sample_df):
+    def test_post_on_error(self, sample_df) -> None:
         """Test post() method when execution fails."""
         node = Executor()
         code = "x = 1 / 0"  # Will cause error
@@ -289,7 +289,7 @@ class TestExecutorPostMethod:
 class TestExecutorDataOperations:
     """Test common data operations."""
 
-    def test_filtering_operation(self, sample_df):
+    def test_filtering_operation(self, sample_df) -> None:
         """Test filtering a DataFrame."""
         node = Executor()
         code = """
@@ -306,7 +306,7 @@ final_result = len(filtered)
         assert status == "success"
         assert result == 2  # Alice and Charlie
 
-    def test_groupby_operation(self, sample_df):
+    def test_groupby_operation(self, sample_df) -> None:
         """Test groupby operation."""
         node = Executor()
         code = """
@@ -324,7 +324,7 @@ final_result = grouped.to_dict()
         assert "Engineering" in result
         assert result["Engineering"] == (75000 + 95000) / 2
 
-    def test_aggregation_operation(self, sample_df):
+    def test_aggregation_operation(self, sample_df) -> None:
         """Test aggregation operations."""
         node = Executor()
         code = """
@@ -346,7 +346,7 @@ final_result = {
         assert result["median"] == 82000
         assert result["sum"] == 252000
 
-    def test_merge_operation(self, sample_df, sample_sales_df):
+    def test_merge_operation(self, sample_df, sample_sales_df) -> None:
         """Test merging DataFrames."""
         node = Executor()
         code = """
@@ -369,7 +369,7 @@ final_result = len(merged)
 class TestExecutorIsolation:
     """Test that executions are isolated from each other."""
 
-    def test_execution_isolation(self, sample_df):
+    def test_execution_isolation(self, sample_df) -> None:
         """Test that multiple executions don't interfere with each other."""
         node = Executor()
 

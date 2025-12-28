@@ -12,6 +12,7 @@ import pandas as pd
 
 from src.frontend.cache import get_dataframe_cache
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -46,7 +47,7 @@ def get_schema_info():
         if len(df.columns) > 10:
             cols += f"... (+{len(df.columns) - 10} more)"
         schema_lines.append(
-            f"**{name}** ({len(df)} rows, {len(df.columns)} columns)\n  Columns: {cols}"
+            f"**{name}** ({len(df)} rows, {len(df.columns)} columns)\n  Columns: {cols}",
         )
     return "\n\n".join(schema_lines)
 
@@ -84,10 +85,10 @@ def get_data_profile():
             f"""### {name}
 - Rows: {len(df):,}
 - Columns: {len(df.columns)}
-- Key columns: {', '.join(name_cols[:5]) if name_cols else 'None identified'}
-- ID columns: {', '.join(id_cols[:5]) if id_cols else 'None identified'}
+- Key columns: {", ".join(name_cols[:5]) if name_cols else "None identified"}
+- ID columns: {", ".join(id_cols[:5]) if id_cols else "None identified"}
 - Numeric columns: {len(numeric_cols)}
-"""
+""",
         )
     return "\n".join(profile_text)
 
@@ -102,8 +103,7 @@ def preview_table(table_name):
 
 
 def get_table_preview_data(table_name: str, max_rows: int = 10) -> dict | None:
-    """
-    Get table preview data for display.
+    """Get table preview data for display.
 
     This is a UI-agnostic function that returns data structures
     suitable for rendering by any UI layer.
@@ -125,7 +125,7 @@ def get_table_preview_data(table_name: str, max_rows: int = 10) -> dict | None:
         }
     """
     logger.info(
-        f"Getting preview data for table '{table_name}' with max_rows={max_rows}"
+        f"Getting preview data for table '{table_name}' with max_rows={max_rows}",
     )
     dfs = load_dataframes()
 
@@ -141,7 +141,7 @@ def get_table_preview_data(table_name: str, max_rows: int = 10) -> dict | None:
     str_cols = len([c for c in df.columns if pd.api.types.is_string_dtype(df[c])])
 
     logger.debug(
-        f"Table '{table_name}': {len(df)} rows, {len(df.columns)} cols ({num_cols} numeric, {str_cols} text)"
+        f"Table '{table_name}': {len(df)} rows, {len(df.columns)} cols ({num_cols} numeric, {str_cols} text)",
     )
 
     return {
@@ -156,8 +156,7 @@ def get_table_preview_data(table_name: str, max_rows: int = 10) -> dict | None:
 
 
 def get_schema_summary_data() -> dict | None:
-    """
-    Get schema summary data for all loaded tables.
+    """Get schema summary data for all loaded tables.
 
     This is a UI-agnostic function that returns data structures
     suitable for rendering by any UI layer.
@@ -198,7 +197,7 @@ def get_schema_summary_data() -> dict | None:
                 "Sample": [
                     str(df[c].iloc[0])[:30] if len(df) > 0 else "" for c in df.columns
                 ],
-            }
+            },
         )
 
         tables.append(
@@ -208,7 +207,7 @@ def get_schema_summary_data() -> dict | None:
                 "cols": len(df.columns),
                 "num_cols": num_cols,
                 "col_info": col_info,
-            }
+            },
         )
 
     logger.info(f"Retrieved schema summary data for {len(tables)} tables")
