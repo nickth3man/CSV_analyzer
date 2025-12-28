@@ -1,0 +1,159 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit Configuration for Data Analyst Agent
+# Documentation: https://docs.coderabbit.ai/getting-started/yaml-configuration
+
+language: "en-US"
+early_access: false
+
+# Tone and style instructions for code reviews
+tone_instructions: |
+  You are an expert code reviewer specializing in Python, data engineering, and LLM applications.
+  This project is a data analyst agent built with PocketFlow (a minimalist LLM framework).
+  Focus on:
+  - Python best practices and type safety
+  - Data processing patterns with pandas and DuckDB
+  - LLM integration patterns and prompt engineering
+  - Security considerations for code execution
+  - Performance implications for data operations
+  Provide concise, actionable feedback. Elaborate only when explaining complex concepts.
+
+reviews:
+  # Review profile: "chill" is less strict, "assertive" is more thorough
+  profile: "chill"
+  
+  # Don't automatically request changes (let maintainers decide)
+  request_changes_workflow: false
+  
+  # Generate high-level summary of changes
+  high_level_summary: true
+  
+  # Add a fun poem about the changes (optional, adds personality)
+  poem: false
+  
+  # Show review status
+  review_status: true
+  
+  # Keep walkthrough expanded for better visibility
+  collapse_walkthrough: false
+  
+  # Auto-review configuration
+  auto_review:
+    enabled: true
+    # Don't review draft PRs until they're ready
+    drafts: false
+    # Only auto-review PRs targeting these branches
+    base_branches:
+      - "main"
+      - "develop"
+      - "genspark_ai_developer"
+    # Ignore titles matching these patterns (e.g., dependency updates)
+    ignore_title_keywords:
+      - "WIP"
+      - "DO NOT MERGE"
+  
+  # Path-specific review instructions
+  path_instructions:
+    # Python source code - focus on code quality
+    - path: "src/**/*.py"
+      instructions: |
+        Review Python code for:
+        - Type hints and annotations (project uses mypy)
+        - Google-style docstrings (per pyproject.toml pydocstyle convention)
+        - Ruff/Black formatting compliance (88 char line length)
+        - Proper error handling with specific exception types
+        - Security considerations for LLM code execution
+        - Efficient pandas operations (avoid iterrows, prefer vectorized ops)
+        
+    # Backend nodes - focus on flow patterns
+    - path: "src/backend/nodes/**/*.py"
+      instructions: |
+        Review PocketFlow nodes for:
+        - Proper prep() and exec() method implementation
+        - Clear node responsibilities (single-purpose nodes)
+        - Appropriate shared state usage
+        - Error handling and graceful degradation
+        - Consistent logging and status updates
+        
+    # Frontend handlers - focus on Chainlit patterns
+    - path: "src/frontend/**/*.py"
+      instructions: |
+        Review Chainlit frontend code for:
+        - Proper async/await patterns
+        - User experience and error messaging
+        - Session state management
+        - Action and command handling consistency
+        
+    # Test files - ensure comprehensive coverage
+    - path: "tests/**/*.py"
+      instructions: |
+        Review test code for:
+        - Adherence to pytest best practices
+        - Use of appropriate fixtures from conftest.py
+        - Proper test isolation and setup/teardown
+        - Descriptive test names that explain intent
+        - Coverage of edge cases and error conditions
+        - Proper use of markers (@pytest.mark.unit, @pytest.mark.integration, @pytest.mark.slow)
+        - Avoid mocking internal implementation details
+        
+    # Scripts - focus on data processing
+    - path: "scripts/**/*.py"
+      instructions: |
+        Review data processing scripts for:
+        - Proper error handling for API calls
+        - Rate limiting and retry logic
+        - Efficient batch processing
+        - Clear logging and progress reporting
+        - Database transaction handling
+        
+    # Configuration files
+    - path: "pyproject.toml"
+      instructions: |
+        Review pyproject.toml changes for:
+        - Dependency version compatibility
+        - Tool configuration consistency
+        - No duplicate or conflicting dependencies
+        
+    - path: ".github/workflows/**/*.yml"
+      instructions: |
+        Review GitHub Actions workflows for:
+        - Security best practices (pinned action versions)
+        - Efficient job ordering and caching
+        - Proper secret handling
+        - Matrix testing for Python versions if applicable
+        
+    # Documentation
+    - path: "**/*.md"
+      instructions: |
+        Review documentation for:
+        - Clarity and completeness
+        - Accurate code examples
+        - Consistent formatting
+        - Up-to-date information matching the codebase
+
+  # Tools configuration
+  tools:
+    # Enable ast-grep for advanced pattern matching
+    ast-grep:
+      essential_rules: true
+    
+    # Ruff linting (matches pyproject.toml configuration)
+    ruff:
+      enabled: true
+    
+    # GitHub checks integration
+    github-checks:
+      enabled: true
+      timeout_ms: 90000
+
+# Chat configuration for interactive reviews
+chat:
+  auto_reply: true
+
+# Knowledge Base - auto-detect guideline files
+# CodeRabbit will automatically detect and use:
+# - CLAUDE.md
+# - .cursorrules
+# - .clinerules
+# - .windsurfrules
+# - .goosehints
+# These files contain project-specific coding guidelines
