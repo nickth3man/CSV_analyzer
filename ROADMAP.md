@@ -1,72 +1,221 @@
-### Current DuckDB Snapshot
+# NBA Data Analyst Agent - Database Roadmap
 
-- **Breadth vs. depth** – The `data/nba.duckdb` catalog exposes 43 tables, but many are empty (`salaries`, `arenas`, `transactions`, `play_by_play`, `seasons`, etc.) and several core tables are duplicated as raw text (`game`, `player`, `team`) versus typed “silver/gold” versions.  
-- **Data-type drift** – Key numeric fields were coerced to `BIGINT`, so shooting percentages end up as 0/1 flags (`fg_pct`, `fg3_pct`, `ft_pct`, `plus_minus`, etc.), wiping out real precision.  
-- **Season semantics** – `season_id` encodes both season type and year (e.g., `42022` for 2021-22 playoffs) but lacks a shared dimension table, making analytics brittle.  
-- **Coverage focus** – The database is richest at the team-game grain (`team_game_stats`, `game_gold`) and limited at player-season, player-game, and transactional layers.
+> **Last Updated**: 2024-12-28  
+> **Current Database**: `data/nba.duckdb` (52 tables, ~46MB)
 
-### What richer NBA schemas provide
+---
 
-| Source | Notable structures / content |
-| --- | --- |
+## Executive Summary
+
+This roadmap outlines the path to transform our NBA DuckDB database from a team-game focused dataset into a comprehensive, analytics-ready platform supporting player comparisons, advanced metrics, play-by-play analysis, and economic insights.
+
+### Quick Status Dashboard
+
+| Phase | Status | Progress | Blocking Issues |
+|-------|--------|----------|-----------------|
+| Phase 1 (Schema Hygiene) | 🟡 In Progress | 70% | `plus_minus` type fix needed |
+| Phase 2 (Player & Metrics) | 🔴 Critical | 10% | `player_game_stats` empty (0 rows) |
+| Phase 3 (Events & Economics) | ⚪ Not Started | 0% | Depends on Phase 2 |
+| Phase 4 (Enrichment & Docs) | ⚪ Not Started | 0% | Depends on Phase 3 |
+
+---
+
+## Current DuckDB Snapshot (As of 2024-12-28)
+
+### Database Statistics
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| Total Tables | 52 | Mix of raw, silver, gold, dimension, fact |
+| Empty Tables | 12 (23%) | Critical gaps in player and event data |
+| Total Rows (est.) | ~400K | Primarily team-game data |
+| File Size | 46 MB | Room for growth |
+
+### Table Categories
+
+#### ✅ Well-Populated Tables (Ready for Analytics)
+| Table | Rows | Quality | Use Case |
+|-------|------|---------|----------|
+| `team_game_stats` | 131,284 | Good | Team performance per game |
+| `game_gold` | 65,642 | Good | Game-level facts (deduped) |
+| `player_silver` | 4,831 | Good | Player dimension |
+| `team_silver` | 30 | Good | Team dimension |
+| `season_dim` | 225 | Good | Season decoding |
+| `common_player_info` | 4,831 | Good | Player biographical data |
+| `draft_history` | 5,294 | Good | Draft picks |
+
+#### 🔴 Empty Tables (Critical Gaps)
+| Table | Status | Priority | Impact |
+|-------|--------|----------|--------|
+| `player_game_stats` | 0 rows | 🔴 CRITICAL | Blocks ALL player-level analytics |
+| `play_by_play` | 0 rows | 🟡 HIGH | Blocks clutch/lineup analysis |
+| `salaries` | 0 rows | 🟡 MEDIUM | Blocks value analysis |
+| `transactions` | 0 rows | 🟠 LOW | Blocks roster movement tracking |
+| `arenas` | 0 rows | 🟠 LOW | Blocks venue analytics |
+| `awards` | 0 rows | 🟠 LOW | Blocks accolade analysis |
+
+### Data Type Issues
+
+| Column | Current Type | Should Be | Tables Affected | Status |
+|--------|--------------|-----------|-----------------|--------|
+| `fg_pct` | DOUBLE | DOUBLE | fact_*, player_game_stats | ✅ Fixed |
+| `fg3_pct` | DOUBLE | DOUBLE | fact_*, player_game_stats | ✅ Fixed |
+| `ft_pct` | DOUBLE | DOUBLE | fact_*, player_game_stats | ✅ Fixed |
+| `plus_minus` | BIGINT | DOUBLE | team_game_stats, player_game_stats | 🔴 Needs Fix |
+
+---
+
+## What Richer NBA Schemas Provide
+
+| Source | Notable Structures / Content |
+|--------|------------------------------|
 | **mpope9/nba-sql** | Full relational model with `player_game_log`, `player_season`, `team_game_log`, `play_by_play`, `play_by_playv3`, `shot_chart_detail`, and `player_general_traditional_total` tables, plus an ER diagram showing consistent primary/foreign keys across games, teams, players, events, and advanced totals.[1] |
 | **GanyLJR/nba_stats_database** | Seven-entity design explicitly covering `season`, `team`, `player`, `coach`, `player stats`, `team stats`, and `contract`, aimed at end-user comparisons (rosters, radar charts) – highlights the importance of contracts and coaching metadata that our DuckDB lacks.[2] |
 | **Paradime dbt NBA challenge** | Snowflake source layer ships `player_game_logs`, `team_stats_by_season`, `team_spend_by_season`, `player_salaries_by_season`, etc., underscoring the value of salary, spend, and season aggregates for downstream modeling.[3] |
 | **SportsDataIO NBA dictionary** | Commercial feeds append injuries, lineup confirmation, daily fantasy salaries, and advanced box-score rates (TS%, ORB%, Usage, PER, BPM derivatives, etc.) at the player-game grain.[4] |
 | **Basketball-Reference glossary** | Defines widely used derived metrics (AST%, ORtg/DRtg, WS / WS48, BPM, VORP, Pace, SOS, Four Factors) that analysts expect from a canonical NBA dataset.[5] |
 
-### Gaps & improvement opportunities
+---
 
-1. **Canonical typing & table deduplication**
-   - Declare `game_gold`, `player_silver`, `team_silver`, `team_game_stats` as the authoritative fact tables; drop or quarantine the string-based copies to avoid divergent ETL logic.
-   - Recast percentage columns as `DOUBLE` (or store made/attempted pairs only) to restore analytic fidelity.
-   - Create `season_dim (season_id, season_type, season_year_start, season_year_end)` so season decoding is explicit.
+## Detailed Phase Breakdown
 
-2. **Player-centric grains that match industry practice**
-   - Materialize `player_game_log` and `player_season` tables (either sourced or derived from existing data) to align with nba-sql and Paradime patterns.[1][3]
-   - Enforce surrogate keys (`player_id`, `game_id`, `team_id`) and add bridging tables (e.g., `player_team_season`) for roster movement and tenure tracking.
+### Phase 1: Schema Hygiene (High Impact, Medium Effort)
 
-3. **Advanced metrics & possessions**
-   - Populate derived metrics such as TS%, eFG%, Usage, ORtg/DRtg, PER, BPM/VORP, Win Shares, Four Factors—either computed from existing box-score data or sourced from APIs. (These are standard per Basketball-Reference and SportsDataIO.)[4][5]
-   - Store possessions and pace to support per-100/per-possession reporting.
+**Goal**: Establish clean, typed, canonical tables with proper relationships.
 
-4. **Events, spatial data, and officiating**
-   - Ingest play-by-play feeds into the empty `play_by_play` table and align with event message types à la nba-sql, enabling clutch analysis, lineup impacts, and whistle tracking.[1]
-   - Add shot-location detail (`shot_chart_detail`) for modern spatial analytics (shot quality, spacing, defensive impact).[1]
+| Task ID | Task | Status | Owner | Notes |
+|---------|------|--------|-------|-------|
+| 1.1 | Fix `plus_minus` → DOUBLE | 🔴 TODO | - | In `team_game_stats`, `player_game_stats` |
+| 1.2 | Document canonical tables | 🟡 Partial | - | silver/gold vs raw text |
+| 1.3 | Create `season_dim` | ✅ DONE | - | 225 rows, proper columns |
+| 1.4 | Add FK constraints/tests | 🔴 TODO | - | dbt or DuckDB constraints |
+| 1.5 | Quarantine raw text tables | 🔴 TODO | - | `game`, `player`, `team` |
 
-5. **Contracts, salaries, and economics**
-   - Revive the empty `salaries` table or add `player_contracts`, `team_payroll` structures similar to the NBA stats database and Paradime sources to answer “value for spend” questions.[2][3]
-   - Tie salary data to seasons and teams, accounting for trades and guarantees.
-
-6. **Injuries, availability, and transactions**
-   - Mirror SportsDataIO’s injury schema (status, start date, body part, notes, lineup status) and transactions feed to model availability, load management, and roster churn.[4]
-   - Populate existing `transactions` table with waiver, signing, trade events, linking to players and teams.
-
-7. **Arena, franchise, and schedule enrichment**
-   - Populate `arenas`, `franchises`, `officials_directory`, `team_history` to capture venue, franchise lineage, officiating crews, and to support travel/rest analysis.
-   - Build a `schedule` dimension (date, tip-off time, home/away flags, national TV, attendance) using `game_info` and `game_summary`.
-
-8. **Data quality guardrails**
-   - Add not-null and foreign-key constraints in DuckDB (or enforce via dbt/tests) to prevent orphan records.
-   - Document ETL provenance, refresh cadence, and table semantics in a central data dictionary.
-
-### Suggested roadmap
-
-| Horizon | Impact | Effort | Actions |
-| --- | --- | --- | --- |
-| **Phase 1 (Schema hygiene)** | High | Medium | Type corrections, select canonical tables, add season dimension, enforce keys. |
-| **Phase 2 (Player & advanced metrics)** | High | High | Build `player_game_log` + `player_season`, compute/per ingest advanced statistics, create views for per-possession conditioning. |
-| **Phase 3 (Events & economics)** | Medium | High | Load play-by-play & shot charts, populate salaries/contracts, add injury & transaction feeds. |
-| **Phase 4 (Enrichment & docs)** | Medium | Medium | Fill arenas/franchise/officials, publish data dictionary, add automated data-quality tests. |
-
-Implementing these steps will bring the DuckDB closer to feature parity with the strongest open-source and commercial NBA datasets while preserving our existing Chainlit/agent workflows.
+**Canonical Table Selection**:
+- ✅ `player_silver` (not `player`) - typed player dimension
+- ✅ `team_silver` (not `team`) - typed team dimension  
+- ✅ `game_gold` (not `game`) - typed game facts
+- ✅ `team_game_stats` - team performance per game
+- ✅ `season_dim` - season decoding
 
 ---
 
-**References**
+### Phase 2: Player & Advanced Metrics (High Impact, High Effort)
 
-[1] mpop9/nba-sql – supported tables & ER diagram (Postgres/SQLite NBA schema).  
+**Goal**: Enable player-level analytics with industry-standard metrics.
+
+| Task ID | Task | Status | Priority | Rows Expected |
+|---------|------|--------|----------|---------------|
+| 2.1 | Populate `player_game_stats` | 🔴 CRITICAL | P0 | 500K-1M+ |
+| 2.2 | Create `player_season` aggregation | 🔴 TODO | P1 | ~50K |
+| 2.3 | Create advanced metrics views | 🔴 TODO | P1 | Computed |
+| 2.4 | Add possessions/pace data | 🔴 TODO | P2 | Per game |
+| 2.5 | Verify `bridge_player_team_season` | 🟡 Partial | P2 | Exists |
+
+**Advanced Metrics to Implement**:
+
+| Metric | Formula | Category |
+|--------|---------|----------|
+| **TS%** (True Shooting) | `PTS / (2 * (FGA + 0.475 * FTA))` | Efficiency |
+| **eFG%** (Effective FG) | `(FGM + 0.5 * FG3M) / FGA` | Efficiency |
+| **AST%** | `AST / (((MP / (Tm_MP / 5)) * Tm_FGM) - FGM)` | Playmaking |
+| **TOV%** | `TOV / (FGA + 0.44 * FTA + TOV)` | Ball Security |
+| **USG%** | `((FGA + 0.44 * FTA + TOV) * (Tm_MP / 5)) / (MP * Tm_Poss)` | Volume |
+| **ORtg** | Points produced per 100 possessions | Offense |
+| **DRtg** | Points allowed per 100 possessions | Defense |
+| **PER** | Player Efficiency Rating (complex) | Overall |
+| **BPM** | Box Plus/Minus | Impact |
+| **VORP** | Value Over Replacement | Impact |
+
+---
+
+### Phase 3: Events & Economics (Medium Impact, High Effort)
+
+**Goal**: Enable play-by-play analysis and economic insights.
+
+| Task ID | Task | Status | Priority | Data Source |
+|---------|------|--------|----------|-------------|
+| 3.1 | Populate `play_by_play` | ⚪ TODO | P1 | NBA API |
+| 3.2 | Add `shot_chart_detail` | ⚪ TODO | P2 | NBA API |
+| 3.3 | Populate `salaries` | ⚪ TODO | P2 | External |
+| 3.4 | Populate `transactions` | ⚪ TODO | P3 | NBA API |
+| 3.5 | Add injury data | ⚪ TODO | P3 | External |
+
+---
+
+### Phase 4: Enrichment & Documentation (Medium Impact, Medium Effort)
+
+**Goal**: Complete the dataset and document for users.
+
+| Task ID | Task | Status | Priority |
+|---------|------|--------|----------|
+| 4.1 | Populate `arenas` | ⚪ TODO | P3 |
+| 4.2 | Populate `franchises` | ⚪ TODO | P3 |
+| 4.3 | Populate `officials_directory` | ⚪ TODO | P3 |
+| 4.4 | Create data dictionary | ⚪ TODO | P2 |
+| 4.5 | Add automated quality tests | ⚪ TODO | P2 |
+
+---
+
+## Implementation Scripts
+
+### Available Scripts (in `/scripts/`)
+
+| Script | Purpose | Status |
+|--------|---------|--------|
+| `convert_csvs.py` | CSV to DuckDB ingestion | ✅ Working |
+| `normalize_db.py` | Data type normalization | ✅ Working |
+| `check_integrity.py` | Database integrity checks | ✅ Working |
+| `expand_schema.py` | Schema expansion utilities | ✅ Working |
+| `create_advanced_shells.py` | Advanced metric shells | ✅ Working |
+| `populate_player_game_stats.py` | Player game data population | 🔴 TODO |
+| `create_advanced_views.py` | Advanced metrics views | 🔴 TODO |
+
+---
+
+## Success Metrics
+
+| Milestone | Metric | Target | Current |
+|-----------|--------|--------|---------|
+| Phase 1 Complete | Data type issues | 0 | 1 |
+| Phase 2 Complete | `player_game_stats` rows | > 500,000 | 0 |
+| Phase 2 Complete | Advanced metrics available | 10+ | 0 |
+| Phase 3 Complete | `play_by_play` events | > 1,000,000 | 0 |
+| Phase 4 Complete | Documentation coverage | 100% | ~30% |
+
+---
+
+## Risk Register
+
+| Risk | Impact | Likelihood | Mitigation |
+|------|--------|------------|------------|
+| NBA API rate limiting | High | High | Implement caching, 0.6s delays |
+| API endpoint changes | Medium | Low | Version lock nba_api package |
+| Large data volumes | Medium | Medium | Batch processing, chunked inserts |
+| Historical data gaps | Low | Medium | Document known gaps |
+
+---
+
+## Changelog
+
+### 2024-12-28
+- Updated table counts (43 → 52 tables discovered)
+- Confirmed `season_dim` exists and is populated (225 rows)
+- Identified `player_game_stats` as critical blocker (0 rows)
+- Verified percentage columns fixed to DOUBLE (except `plus_minus`)
+- Added detailed task tracking and success metrics
+
+### Previous
+- Initial roadmap created
+- Identified schema hygiene issues
+- Documented external reference schemas
+
+---
+
+## References
+
+[1] mpope9/nba-sql – supported tables & ER diagram (Postgres/SQLite NBA schema).  
 [2] GanyLJR/nba_stats_database – README outlining season, coach, contract entities.  
-[3] Paradime dbt NBA challenge – README describing source tables (`player_game_logs`, `team_stats_by_season`, `player_salaries_by_season`, etc.).  
+[3] Paradime dbt NBA challenge – README describing source tables.  
 [4] SportsDataIO NBA data dictionary – player-game feed with injuries, fantasy salaries, advanced rates.  
 [5] Basketball-Reference glossary – definitions for AST%, ORtg, TS%, BPM, VORP, WS, etc.
