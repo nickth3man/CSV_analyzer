@@ -63,15 +63,13 @@ logger = logging.getLogger(__name__)
 
 
 def populate_transactions(*args, **kwargs):
-    """Populate transactions table (NOT YET IMPLEMENTED).
-
-    TODO: ROADMAP Phase 3.4 - Implement this function
-    - Identify data source (NBA API or scraping)
-    - Implement transaction type parsing
-    - Handle multi-player trades properly
-    - Store with proper player/team links
-    - Track draft picks involved in trades
-    Reference: ROADMAP.md Phase 3.4
+    """
+    Populate the transactions table with NBA player transaction records.
+    
+    This placeholder outlines planned behavior — ingest transaction data, parse transaction types (including multi-player trades), associate players and teams, and record draft picks — but is not implemented. See ROADMAP.md Phase 3.4 for requirements.
+    
+    Raises:
+        NotImplementedError: always raised until the function is implemented.
     """
     logger.error("Transactions population not yet implemented")
     logger.info("TODO: See ROADMAP.md Phase 3.4 for implementation requirements")
@@ -82,7 +80,11 @@ def populate_transactions(*args, **kwargs):
 
 
 def main():
-    """CLI entry point (placeholder)."""
+    """
+    CLI entry point that reports the transactions-population feature is not implemented and terminates.
+    
+    Parses command-line options (`--seasons`, `--teams`, `--player-id`, `--all-seasons`), logs informational warnings about required design decisions and ROADMAP Phase 3.4, and exits the process with status code 1.
+    """
     parser = argparse.ArgumentParser(
         description="Populate transactions data (NOT YET IMPLEMENTED)",
     )

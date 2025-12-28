@@ -27,6 +27,11 @@ DATABASE = "data/nba.duckdb"
 
 
 def check_integrity() -> None:
+    """
+    Validate and enforce primary key and foreign key integrity for a predefined set of tables in the DuckDB database.
+    
+    Checks a set of primary-key candidates and, when every row has a unique, non-null key, attempts to set the column NOT NULL, create a unique index, and add a PRIMARY KEY constraint. Checks a set of foreign-key relationships by counting orphaned child keys; when no orphans are found, attempts to add a FOREIGN KEY constraint, otherwise it fetches up to three sample orphan keys. Operations that modify schema are attempted but errors are suppressed. The function opens a DuckDB connection to DATABASE and closes it before returning.
+    """
     con = duckdb.connect(DATABASE)
 
     # 1. Check Primary Keys

@@ -55,14 +55,13 @@ logger = logging.getLogger(__name__)
 
 
 def populate_shot_chart(*args, **kwargs):
-    """Populate shot_chart_detail table (NOT YET IMPLEMENTED).
-
-    TODO: ROADMAP Phase 3.2 - Implement this function
-    - Fetch shot chart data from NBA API
-    - Transform to match shot_chart_detail schema
-    - Insert into database with deduplication
-    - Track progress for resumability
-    Reference: ROADMAP.md Phase 3.2
+    """
+    Populate the shot_chart_detail table from NBA API data.
+    
+    This function is a placeholder and is not yet implemented; it will, when implemented, fetch shot chart data from the NBA API, transform it to the shot_chart_detail schema, insert records with deduplication, and support resumable progress tracking per ROADMAP.md Phase 3.2.
+    
+    Raises:
+        NotImplementedError: Always raised; implementation planned per ROADMAP.md Phase 3.2.
     """
     logger.error("Shot chart population not yet implemented")
     logger.info("TODO: See ROADMAP.md Phase 3.2 for implementation requirements")
@@ -73,7 +72,11 @@ def populate_shot_chart(*args, **kwargs):
 
 
 def main():
-    """CLI entry point (placeholder)."""
+    """
+    Provide a CLI entry point for shot chart population.
+    
+    Parses command-line options (--player-id, --games, --seasons, --all-players), logs warning messages that the feature is not yet implemented and refers to ROADMAP.md Phase 3.2, then exits the process with status code 1.
+    """
     parser = argparse.ArgumentParser(
         description="Populate shot chart data from NBA API (NOT YET IMPLEMENTED)",
     )

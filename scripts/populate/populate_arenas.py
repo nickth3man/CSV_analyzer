@@ -67,15 +67,13 @@ logger = logging.getLogger(__name__)
 
 
 def populate_arenas(*args, **kwargs):
-    """Populate arenas table (NOT YET IMPLEMENTED).
-
-    TODO: ROADMAP Phase 4.1 - Implement this function
-    - Collect arena data (manual or scraping)
-    - Store comprehensive venue information
-    - Link to teams with proper date ranges
-    - Handle arena name changes
-    - Add geographical coordinates
-    Reference: ROADMAP.md Phase 4.1
+    """
+    Populate the arenas table with comprehensive NBA venue data (placeholder — not implemented).
+    
+    Intended to collect arena metadata, associate arenas with teams and date ranges, track arena name changes, and add geographic coordinates as specified in ROADMAP.md Phase 4.1.
+    
+    Raises:
+        NotImplementedError: Function is a placeholder and not yet implemented; see ROADMAP.md Phase 4.1 for requirements.
     """
     logger.error("Arenas population not yet implemented")
     logger.info("TODO: See ROADMAP.md Phase 4.1 for implementation requirements")
@@ -86,7 +84,11 @@ def populate_arenas(*args, **kwargs):
 
 
 def main():
-    """CLI entry point (placeholder)."""
+    """
+    CLI entry point that parses command-line options and exits indicating the feature is not implemented.
+    
+    Parses the optional `--teams` and `--include-historical` arguments, emits warning logs describing that arena population is a placeholder and listing key design decisions, and then exits the process with status code 1.
+    """
     parser = argparse.ArgumentParser(
         description="Populate arenas data (NOT YET IMPLEMENTED)",
     )

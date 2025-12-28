@@ -67,15 +67,15 @@ logger = logging.getLogger(__name__)
 
 
 def populate_franchises(*args, **kwargs):
-    """Populate franchises table (NOT YET IMPLEMENTED).
-
-    TODO: ROADMAP Phase 4.2 - Implement this function
-    - Research franchise history data source
-    - Map franchise lineage (relocations, name changes)
-    - Store complete franchise timeline
-    - Link championships to correct franchise/era
-    - Handle complex cases (Charlotte Hornets history)
-    Reference: ROADMAP.md Phase 4.2
+    """
+    Populate the franchises table with complete franchise history and lineage data.
+    
+    This function is intended to ingest franchise history (relocations, name changes, eras),
+    store canonical franchise timelines, and associate championships with the correct franchise eras.
+    Currently unimplemented.
+    
+    Raises:
+        NotImplementedError: Always raised until the population logic required by ROADMAP.md Phase 4.2 is implemented.
     """
     logger.error("Franchises population not yet implemented")
     logger.info("TODO: See ROADMAP.md Phase 4.2 for implementation requirements")
@@ -86,7 +86,11 @@ def populate_franchises(*args, **kwargs):
 
 
 def main():
-    """CLI entry point (placeholder)."""
+    """
+    CLI entry point that announces the franchises-population feature is unimplemented and exits.
+    
+    Logs multiple warning messages describing the placeholder status and roadmap decisions required, then terminates the process with exit status 1.
+    """
     parser = argparse.ArgumentParser(
         description="Populate franchises data (NOT YET IMPLEMENTED)",
     )
