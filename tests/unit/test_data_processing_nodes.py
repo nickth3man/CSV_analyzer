@@ -257,7 +257,10 @@ class TestVisualizer:
         assert exec_res is None
 
     def test_creates_output_directory(
-        self, sample_df, mock_matplotlib, tmp_path,
+        self,
+        sample_df,
+        mock_matplotlib,
+        tmp_path,
     ) -> None:
         """Test that output directory is created if it doesn't exist."""
         node = Visualizer()
@@ -271,7 +274,10 @@ class TestVisualizer:
             mock_makedirs.assert_called_once()
 
     def test_limits_chart_files_to_ten(
-        self, sample_df, mock_matplotlib, tmp_path,
+        self,
+        sample_df,
+        mock_matplotlib,
+        tmp_path,
     ) -> None:
         """Test that old chart files are cleaned up (keep last 10)."""
         # Create the assets directory with mock files
@@ -348,13 +354,13 @@ class TestVisualizer:
             patch("matplotlib.pyplot.figure"),
             patch("matplotlib.pyplot.title") as mock_title,
         ):
-                node.exec(prep_res)
+            node.exec(prep_res)
 
-                # Should use the first numeric column (score)
-                # The title should mention the column name
-                if mock_title.called:
-                    title_arg = str(mock_title.call_args)
-                    assert "score" in title_arg or "Top 10" in title_arg
+            # Should use the first numeric column (score)
+            # The title should mention the column name
+            if mock_title.called:
+                title_arg = str(mock_title.call_args)
+                assert "score" in title_arg or "Top 10" in title_arg
 
     def test_limits_to_top_10_rows(self, mock_matplotlib) -> None:
         """Test that only top 10 rows are plotted."""

@@ -441,12 +441,14 @@ def get_database_info(db_path: str | None = None) -> dict[str, Any]:
     conn = duckdb.connect(db_path, read_only=True)
 
     # Get all tables
-    tables = conn.execute("""
+    tables = conn.execute(
+        """
         SELECT table_name
         FROM information_schema.tables
         WHERE table_schema = 'main'
         ORDER BY table_name
-    """).fetchall()
+    """
+    ).fetchall()
 
     table_info = {}
     for (table_name,) in tables:
@@ -527,19 +529,24 @@ Examples:
     args = parser.parse_args()
 
     if args.list_tables:
-        for _table_name in sorted(SCHEMA_DEFINITIONS.keys()):
-            pass
+        print("Available tables:")
+        for table_name in sorted(SCHEMA_DEFINITIONS.keys()):
+            print(f"  - {table_name}")
         return
 
     if args.info:
         info = get_database_info(args.db)
         if info["exists"]:
+            print(f"Database: {args.db}")
+            print(f"Tables: {info.get('table_count', 0)}")
             tables_dict: dict[str, Any] = info.get("tables", {})
-            for _table, data in sorted(tables_dict.items()):
+            for table, data in sorted(tables_dict.items()):
                 if "rows" in data:
-                    pass
+                    print(f"  {table}: {data['rows']:,} rows")
                 else:
-                    pass
+                    print(f"  {table}: (no data)")
+        else:
+            print(f"Database does not exist: {args.db}")
         return
 
     try:

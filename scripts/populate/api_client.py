@@ -21,7 +21,7 @@ from typing import Any
 
 import pandas as pd
 
-from populate.config import NBAAPIConfig, get_api_config
+from scripts.populate.config import NBAAPIConfig, get_api_config
 
 
 # Configure logging
