@@ -51,6 +51,20 @@ class PopulationMetrics:
     """Collects and reports metrics for a population run."""
 
     def __init__(self):
+        """
+        Initialize a PopulationMetrics instance and reset all counters and collections used to track a population run.
+        
+        Attributes:
+            start_time (Optional[datetime]): Timestamp when the run started, or None if not started.
+            end_time (Optional[datetime]): Timestamp when the run ended, or None if not stopped.
+            records_fetched (int): Number of records fetched from the source.
+            records_inserted (int): Number of records inserted into the database.
+            records_updated (int): Number of records updated in the database.
+            records_skipped (int): Number of records skipped (e.g., deduplicated or unsupported).
+            api_calls (int): Count of API requests made during the run.
+            errors (List[Dict[str, Any]]): Collected error entries; each entry includes details and a timestamp.
+            warnings (List[str]): Collected warning messages.
+        """
         self.start_time: Optional[datetime] = None
         self.end_time: Optional[datetime] = None
         self.records_fetched: int = 0
@@ -62,22 +76,41 @@ class PopulationMetrics:
         self.warnings: List[str] = []
 
     def start(self):
-        """Mark the start of a population run."""
+        """
+        Record the start time of the population run.
+        
+        Sets the instance's `start_time` to the current date and time.
+        """
         self.start_time = datetime.now()
 
     def stop(self):
-        """Mark the end of a population run."""
+        """
+        Record the end time of the population run.
+        
+        Sets the object's `end_time` to the current datetime.
+        """
         self.end_time = datetime.now()
 
     @property
     def duration_seconds(self) -> float:
-        """Get the duration of the run in seconds."""
+        """
+        Compute the elapsed time between recorded start and end timestamps.
+        
+        Returns:
+            duration_seconds (float): Elapsed time in seconds; returns 0.0 if either start_time or end_time is not set.
+        """
         if not self.start_time or not self.end_time:
             return 0.0
         return (self.end_time - self.start_time).total_seconds()
 
     def add_error(self, error: str, context: Optional[Dict] = None):
-        """Record an error."""
+        """
+        Append an error entry with timestamp and optional context to the instance's errors list.
+        
+        Parameters:
+            error (str): Error message or identifier to record.
+            context (Optional[Dict]): Additional structured context for the error; stored as an empty dict if omitted.
+        """
         self.errors.append({
             "error": error,
             "context": context or {},
@@ -85,7 +118,26 @@ class PopulationMetrics:
         })
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert metrics to dictionary."""
+        """
+        Serialize collected population metrics into a JSON-serializable dictionary.
+        
+        The returned dictionary contains ISO 8601 strings for `start_time` and `end_time` or `None` if absent, numeric counts for duration and record/API metrics, the total `error_count`, and up to the first 10 `errors` and `warnings`.
+        
+        Returns:
+            dict: {
+                "start_time": str | None,
+                "end_time": str | None,
+                "duration_seconds": float,
+                "records_fetched": int,
+                "records_inserted": int,
+                "records_updated": int,
+                "records_skipped": int,
+                "api_calls": int,
+                "error_count": int,
+                "errors": List[Dict[str, Any]],   # first 10 error entries
+                "warnings": List[str]             # first 10 warnings
+            }
+        """
         return {
             "start_time": self.start_time.isoformat() if self.start_time else None,
             "end_time": self.end_time.isoformat() if self.end_time else None,
@@ -101,7 +153,9 @@ class PopulationMetrics:
         }
 
     def log_summary(self):
-        """Log a summary of the metrics."""
+        """
+        Log a formatted summary of collected population metrics including duration, API calls, record counts, and counts of errors and warnings.
+        """
         logger.info("=" * 60)
         logger.info("POPULATION SUMMARY")
         logger.info("=" * 60)
@@ -122,17 +176,26 @@ class ProgressTracker:
 
     def __init__(self, name: str):
         """
-        Initialize progress tracker.
-
-        Args:
-            name: Unique name for this population task
+        Create a ProgressTracker for a named population task and load its persisted progress.
+        
+        Parameters:
+            name (str): Unique identifier for the population task; used to name the progress JSON file.
         """
         self.name = name
         self.progress_file = CACHE_DIR / f"{name}_progress.json"
         self._progress: Dict[str, Any] = self._load()
 
     def _load(self) -> Dict[str, Any]:
-        """Load progress from file."""
+        """
+        Load the persisted progress for this tracker from its progress file, or return a default empty progress structure if loading fails.
+        
+        Returns:
+            dict: A progress dictionary with keys:
+                - "completed_items" (list): Completed item identifiers.
+                - "last_item" (str | None): The most recently processed item, or `None`.
+                - "last_run" (str | None): Timestamp of the last save/run (ISO string) or `None`.
+                - "errors" (list): Recorded error entries.
+        """
         if self.progress_file.exists():
             try:
                 with open(self.progress_file, 'r') as f:
@@ -154,21 +217,43 @@ class ProgressTracker:
             json.dump(self._progress, f, indent=2)
 
     def mark_completed(self, item: str):
-        """Mark an item as completed."""
+        """
+        Mark the given item as completed and record it as the last processed item.
+        
+        Parameters:
+            item (str): Identifier of the completed item; appended to the progress's completed_items list and set as last_item.
+        """
         if item not in self._progress["completed_items"]:
             self._progress["completed_items"].append(item)
         self._progress["last_item"] = item
 
     def is_completed(self, item: str) -> bool:
-        """Check if an item is completed."""
+        """
+        Return whether a progress item has been marked completed.
+        
+        Parameters:
+            item (str): Identifier of the progress item.
+        
+        Returns:
+            bool: `true` if the item has been recorded as completed, `false` otherwise.
+        """
         return item in self._progress["completed_items"]
 
     def get_completed(self) -> Set[str]:
-        """Get set of completed items."""
+        """
+        Get the set of item identifiers marked as completed.
+        
+        Returns:
+            completed (Set[str]): A set of completed item identifiers from the in-memory progress.
+        """
         return set(self._progress["completed_items"])
 
     def reset(self):
-        """Reset all progress."""
+        """
+        Reset the tracked progress to its initial empty state and persist the change.
+        
+        This clears in-memory progress (completed_items, last_item, last_run, errors) and saves the reset progress to disk.
+        """
         self._progress = {
             "completed_items": [],
             "last_item": None,
@@ -178,7 +263,15 @@ class ProgressTracker:
         self.save()
 
     def add_error(self, item: str, error: str):
-        """Record an error for an item."""
+        """
+        Record an error occurrence associated with a progress item.
+        
+        Appends an entry to the tracker's errors list containing the item identifier, the error message, and an ISO 8601 timestamp.
+        
+        Parameters:
+            item (str): Identifier of the progress item that encountered the error.
+            error (str): Human-readable error message or context.
+        """
         self._progress["errors"].append({
             "item": item,
             "error": error,
@@ -208,12 +301,19 @@ class BasePopulator(ABC):
         batch_size: int = 1000,
     ):
         """
-        Initialize the populator.
-
-        Args:
-            db_path: Path to DuckDB database
-            client: NBAClient instance
-            batch_size: Number of records to insert per batch
+        Initialize the populator and configure its runtime components.
+        
+        Parameters:
+            db_path (Optional[str]): Path to the DuckDB database; when None the path is resolved via get_db_path().
+            client (Optional[NBAClient]): NBA API client to use; when None a default client is provided by get_client().
+            batch_size (int): Number of records to process per batch for upserts.
+        
+        This sets up:
+        - self.db_path, self.client, and self.batch_size.
+        - a PopulationMetrics instance at self.metrics.
+        - a DataValidator instance at self.validator.
+        - self._conn initialized to None.
+        - a ProgressTracker named after the class (lowercased) at self.progress.
         """
         self.db_path = db_path or str(get_db_path())
         self.client = client or get_client()
@@ -227,45 +327,67 @@ class BasePopulator(ABC):
 
     @abstractmethod
     def get_table_name(self) -> str:
-        """Return the target table name."""
+        """
+        Provide the target database table name for this populator.
+        
+        Returns:
+            table_name (str): The name of the target table in the database.
+        """
         pass
 
     @abstractmethod
     def get_key_columns(self) -> List[str]:
-        """Return the primary key column(s)."""
+        """
+        Primary key column name(s) for the target table.
+        
+        Returns:
+            key_columns (List[str]): List of column names that uniquely identify a row in the target table.
+        """
         pass
 
     @abstractmethod
     def fetch_data(self, **kwargs) -> Optional[pd.DataFrame]:
-        """Fetch data from the API.
-
-        Args:
-            **kwargs: Population parameters (seasons, etc.)
-
+        """
+        Retrieve raw data from the external API according to population parameters.
+        
+        Parameters:
+            **kwargs: Population parameters such as seasons, date ranges, player or team filters, or other provider-specific options that control which data is fetched.
+        
         Returns:
-            DataFrame with raw API data or None if no data
+            A pandas DataFrame containing the raw API response records, or `None` if no data was returned.
         """
         pass
 
     @abstractmethod
     def transform_data(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        """Transform API data to match the database schema.
-
-        Args:
-            df: Raw DataFrame from API
-            **kwargs: Additional context
-
+        """
+        Convert a raw API DataFrame into a DataFrame that conforms to the target table schema.
+        
+        Parameters:
+            df (pd.DataFrame): Raw DataFrame returned by the data fetcher.
+            **kwargs: Optional context or parameters used to guide transformation (e.g., season, team_id).
+        
         Returns:
-            Transformed DataFrame matching table schema
+            pd.DataFrame: Transformed DataFrame with columns and types matching the target table schema, ready for validation and insertion.
         """
         pass
 
     def get_expected_columns(self) -> Optional[List[str]]:
-        """Return expected columns for validation. Override in subclass."""
+        """
+        Return the list of expected column names for validation, or None to skip column-level checks.
+        
+        Returns:
+            expected_columns (Optional[List[str]]): List of column names that transformed data is expected to contain, or `None` if the populator does not enforce expected columns.
+        """
         return None
 
     def pre_run_hook(self, **kwargs):
-        """Called before population starts. Override for setup logic."""
+        """
+        Hook executed immediately before a population run begins; override to perform setup or initialization.
+        
+        Parameters:
+            **kwargs: Optional runtime parameters forwarded from `run()` that subclasses may use for setup.
+        """
         pass
 
     def post_run_hook(self, **kwargs):
@@ -273,7 +395,12 @@ class BasePopulator(ABC):
         pass
 
     def connect(self) -> duckdb.DuckDBPyConnection:
-        """Get or create database connection."""
+        """
+        Lazily initialize and return the DuckDB connection used by this populator.
+        
+        Returns:
+            duckdb.DuckDBPyConnection: The active DuckDB connection instance.
+        """
         if self._conn is None:
             self._conn = duckdb.connect(self.db_path)
             logger.info(f"Connected to database: {self.db_path}")
@@ -286,7 +413,14 @@ class BasePopulator(ABC):
             self._conn = None
 
     def get_existing_keys(self) -> Set[Tuple]:
-        """Get existing primary key values from the table."""
+        """
+        Return the set of existing primary key tuples for the populator's target table.
+        
+        Keys in each tuple follow the order returned by get_key_columns(). If the target table does not exist, an empty set is returned.
+        
+        Returns:
+            existing_keys (Set[Tuple]): A set of tuples where each tuple contains the primary key values of an existing row.
+        """
         conn = self.connect()
         table = self.get_table_name()
         keys = self.get_key_columns()
@@ -300,13 +434,14 @@ class BasePopulator(ABC):
             return set()
 
     def upsert_batch(self, df: pd.DataFrame) -> Tuple[int, int]:
-        """Insert or update a batch of records.
-
-        Args:
-            df: DataFrame to upsert
-
+        """
+        Insert new rows from the provided DataFrame into the target table and mark rows that match existing primary keys as updates.
+        
+        Parameters:
+            df: DataFrame containing rows to upsert; must include the columns returned by get_key_columns().
+        
         Returns:
-            Tuple of (inserted_count, updated_count)
+            (inserted_count, updated_count): `inserted_count` is the number of rows inserted into the table. `updated_count` is the number of rows updated; updates are currently not applied (updates are counted as skipped), so this value will be 0 in the current implementation.
         """
         if df.empty:
             return 0, 0
@@ -320,6 +455,15 @@ class BasePopulator(ABC):
 
         # Split into inserts and updates
         def get_key(row):
+            """
+            Builds a tuple of values from `row` corresponding to the outer-scope sequence `keys`.
+            
+            Parameters:
+                row: An object supporting keyed access (e.g., a dict or pandas Series).
+            
+            Returns:
+                A tuple of values from `row` for each key in `keys`, in the same order as `keys`.
+            """
             return tuple(row[k] for k in keys)
 
         df['_is_update'] = df.apply(lambda r: get_key(r) in existing_keys, axis=1)
@@ -349,13 +493,14 @@ class BasePopulator(ABC):
         return inserted, updated
 
     def validate_data(self, df: pd.DataFrame, **kwargs) -> bool:
-        """Validate data before insertion.
-
-        Args:
-            df: DataFrame to validate
-
+        """
+        Validate that the DataFrame contains the expected columns and record any issues in metrics.
+        
+        Parameters:
+            df (pd.DataFrame): Data to validate against the expected column set returned by get_expected_columns().
+        
         Returns:
-            True if valid, False otherwise
+            True if the DataFrame meets expected column completeness, `False` otherwise.
         """
         expected_cols = self.get_expected_columns()
         if expected_cols:

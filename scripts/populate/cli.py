@@ -40,7 +40,12 @@ logger = logging.getLogger(__name__)
 
 
 def cmd_init(args):
-    """Initialize database schema."""
+    """
+    Initialize the database schema at the configured database path.
+    
+    Returns:
+        dict: Result of the initialization operation; may include an `error_count` key indicating the number of errors encountered.
+    """
     from scripts.populate.init_db import init_database
 
     return init_database(
@@ -51,7 +56,12 @@ def cmd_init(args):
 
 
 def cmd_info(args):
-    """Show database information."""
+    """
+    Prints information about the database at the path specified in `args.db`.
+    
+    Parameters:
+        args: An object (typically argparse.Namespace) with attribute `db` giving the path to the database. The function prints the database path, whether it exists, the number of tables (if present), and per-table row counts or error messages.
+    """
     from scripts.populate.init_db import get_database_info
 
     info = get_database_info(args.db)
@@ -70,7 +80,11 @@ def cmd_info(args):
 
 
 def cmd_load_csv(args):
-    """Load data from CSV files."""
+    """
+    Load data from CSV files into the configured database.
+    
+    Runs the scripts/convert_csvs.py helper and prints its stdout. If the helper exits with a non-zero status, prints the helper's stderr and exits the process with status 1.
+    """
     import subprocess
 
     logger.info("Loading CSV files into database...")
@@ -86,7 +100,11 @@ def cmd_load_csv(args):
 
 
 def cmd_normalize(args):
-    """Normalize database (create silver tables)."""
+    """
+    Run the database normalization step to create the "silver" tables.
+    
+    Invokes the external scripts/normalize_db.py script, prints its standard output, and on non-zero exit prints the script's standard error and terminates the process with status 1.
+    """
     import subprocess
 
     logger.info("Normalizing database tables...")
@@ -102,7 +120,11 @@ def cmd_normalize(args):
 
 
 def cmd_player_games(args):
-    """Fetch player game stats using bulk endpoint."""
+    """
+    Run the bulk player game stats population step for the specified seasons and season types.
+    
+    @returns The value returned by populate_player_game_stats_v2 — typically a dict containing status information (may include an `error_count` key).
+    """
     from scripts.populate.populate_player_game_stats_v2 import populate_player_game_stats_v2
 
     season_types = DEFAULT_SEASON_TYPES
@@ -122,7 +144,12 @@ def cmd_player_games(args):
 
 
 def cmd_player_games_legacy(args):
-    """Fetch player game stats using per-player endpoint (legacy)."""
+    """
+    Populate player game statistics using the legacy per-player endpoint according to the provided CLI arguments.
+    
+    Returns:
+        The value returned by `populate_player_game_stats` — typically a dictionary containing status information (for example progress or `error_count`).
+    """
     from scripts.populate.populate_player_game_stats import populate_player_game_stats
 
     season_types = DEFAULT_SEASON_TYPES
@@ -143,7 +170,21 @@ def cmd_player_games_legacy(args):
 
 
 def cmd_play_by_play(args):
-    """Fetch play-by-play data."""
+    """
+    Fetch play-by-play data for the specified games or seasons.
+    
+    Parameters:
+        args (argparse.Namespace): Parsed CLI arguments containing:
+            - db: path to the DuckDB database
+            - games: iterable or list of game IDs to fetch
+            - seasons: iterable or list of seasons to fetch
+            - limit: maximum number of games to fetch (optional)
+            - delay: delay in seconds between API requests
+            - resume_from: game ID or cursor to resume fetching from (optional)
+    
+    Returns:
+        result (dict): Summary of the operation. May include keys such as `error_count` (int) and other status details.
+    """
     from scripts.populate.populate_play_by_play import populate_play_by_play
 
     return populate_play_by_play(
@@ -167,7 +208,15 @@ def cmd_season_stats(args):
 
 
 def cmd_all(args):
-    """Run full population pipeline."""
+    """
+    Run the complete database population pipeline using the provided CLI arguments.
+    
+    Parameters:
+        args (argparse.Namespace): Parsed CLI arguments. Recognized attributes:
+            - skip_api (bool): If true, skip API fetching steps.
+            - continue_on_error (bool): If true, continue executing remaining steps when a step raises an exception.
+            - Any other flags (seasons, delay, force, tables, reset, dry_run, etc.) are forwarded to the individual step handlers.
+    """
     logger.info("=" * 70)
     logger.info("FULL NBA DATABASE POPULATION PIPELINE")
     logger.info("=" * 70)
@@ -202,6 +251,14 @@ def cmd_all(args):
 
 
 def main():
+    """
+    Parse CLI arguments for NBA population tasks and invoke the chosen command handler.
+    
+    Supports global options (database path, verbose), multiple subcommands (init, info, load-csv, normalize,
+    player-games, player-games-legacy, play-by-play, season-stats, all), and dispatches to the corresponding
+    cmd_* handler. Sets logging to DEBUG when verbose is enabled, prints help and exits when no command is given,
+    and exits with status 1 when a handler reports errors or an exception occurs (prints a traceback when verbose).
+    """
     parser = argparse.ArgumentParser(
         description="NBA Database Population CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
