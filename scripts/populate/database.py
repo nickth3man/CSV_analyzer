@@ -23,7 +23,7 @@ class DatabaseManager:
         Args:
             db_path: Path to DuckDB database file
         """
-        from scripts.populate_db.config import get_db_path
+        from scripts.populate.config import get_db_path
         self.db_path = db_path or get_db_path()
         self.connection = None
         
