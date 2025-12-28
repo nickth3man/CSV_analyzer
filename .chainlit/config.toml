@@ -154,14 +154,12 @@ name = "GitHub"
 display_name = "Source Code"
 url = "https://github.com/nickth3man/nba_expert"
 target = "_blank"
-icon_url = "/public/icons/github.svg"
 
 [[UI.header_links]]
 name = "Help"
 display_name = "Documentation"
 url = "https://github.com/nickth3man/nba_expert#readme"
 target = "_blank"
-icon_url = "/public/icons/help.svg"
 
 [meta]
 generated_by = "2.9.3"

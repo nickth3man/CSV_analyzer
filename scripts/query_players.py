@@ -19,27 +19,32 @@ def query_players() -> None:
             # but I saw the report.
             # actually, let's just select * for the matching row to see everything available.
 
-            result = con.sql(
-                f"SELECT * FROM common_player_info WHERE display_first_last ILIKE '%{player_name}%'",
+            # Use parameterized query to prevent SQL injection
+            search_pattern = f"%{player_name}%"
+            result = con.execute(
+                "SELECT * FROM common_player_info WHERE display_first_last ILIKE ?",
+                [search_pattern],
             )
 
             if len(result.fetchall()) > 0:
                 # showing the result
-                con.sql(
-                    f"SELECT person_id, display_first_last, birthdate, school, country, height, weight, season_exp, jersey, position, team_name, from_year, to_year FROM common_player_info WHERE display_first_last ILIKE '%{player_name}%'",
+                con.execute(
+                    "SELECT person_id, display_first_last, birthdate, school, country, height, weight, season_exp, jersey, position, team_name, from_year, to_year FROM common_player_info WHERE display_first_last ILIKE ?",
+                    [search_pattern],
                 ).show()
             else:
                 # Fallback: Search in 'player' table
-                player_res = con.sql(
-                    f"SELECT * FROM player WHERE full_name ILIKE '%{player_name}%'",
+                player_res = con.execute(
+                    "SELECT * FROM player WHERE full_name ILIKE ?",
+                    [search_pattern],
                 )
                 if len(player_res.fetchall()) > 0:
                     player_res.show()
                 else:
-                    pass
+                    print(f"No results found for: {player_name}")
 
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Error querying player '{player_name}': {e}")
 
     con.close()
 
