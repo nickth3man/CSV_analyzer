@@ -403,7 +403,7 @@ class BasePopulator(ABC):
             # Fetch data
             logger.info("Fetching data from API...")
             df = self.fetch_data(**kwargs)
-            self.metrics.api_calls += 1
+            # API calls are counted within fetch_data for bulk operations
 
             if df is None or df.empty:
                 logger.info("No data returned from API")
