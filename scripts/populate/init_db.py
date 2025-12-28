@@ -390,7 +390,19 @@ def init_database(
 
 
 def get_database_info(db_path: Optional[str] = None) -> Dict[str, any]:
-    """Get information about the database."""
+    """
+    Retrieve metadata and row counts for tables in the specified DuckDB database.
+    
+    Parameters:
+        db_path (str | None): Path to the DuckDB database file. If omitted, the default path from get_db_path() is used.
+    
+    Returns:
+        info (dict): Dictionary with database information.
+            - exists (bool): `True` if the database file exists and was opened, `False` otherwise.
+            - path (str): The resolved database path.
+            - tables (dict): Mapping of table name -> `{"rows": <int>}` when the row count was obtained, or `{"error": "<message>"}` if counting failed. Present only when `exists` is `True`.
+            - table_count (int): Number of tables discovered in the main schema. Present only when `exists` is `True`.
+    """
     db_path = db_path or str(get_db_path())
 
     if not Path(db_path).exists():
@@ -425,6 +437,19 @@ def get_database_info(db_path: Optional[str] = None) -> Dict[str, any]:
 
 
 def main():
+    """
+    Command-line entry point to initialize or inspect the NBA DuckDB database.
+    
+    Parses CLI arguments, supports listing available table definitions, printing database info, or creating the schema. Recognized options:
+      --db       Path to the DuckDB database (optional).
+      --force    Drop and recreate existing tables (deletes data).
+      --tables   One or more specific table names to create.
+      --info     Print database path, existence, table count, and per-table row counts or errors.
+      --list-tables
+                 Print names of available table definitions.
+    
+    On normal completion the function returns to the caller; if initialization fails it logs the error and exits the process with status code 1.
+    """
     parser = argparse.ArgumentParser(
         description="Initialize NBA DuckDB database",
         formatter_class=argparse.RawDescriptionHelpFormatter,

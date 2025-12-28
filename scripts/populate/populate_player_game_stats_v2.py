@@ -70,24 +70,52 @@ class PlayerGameStatsPopulator(BasePopulator):
     """Populator for player_game_stats table using bulk endpoint."""
 
     def __init__(self, **kwargs):
+        """
+        Initialize the PlayerGameStatsPopulator.
+        
+        Forwards keyword arguments to the BasePopulator constructor, sets `seasons` to an empty list and `season_types` to `DEFAULT_SEASON_TYPES`.
+        """
         super().__init__(**kwargs)
         self.seasons: List[str] = []
         self.season_types: List[str] = DEFAULT_SEASON_TYPES
 
     def get_table_name(self) -> str:
+        """
+        Target table name for player game statistics.
+        
+        Returns:
+            The table name "player_game_stats".
+        """
         return "player_game_stats"
 
     def get_key_columns(self) -> List[str]:
+        """
+        Return the composite primary key columns for the player_game_stats table.
+        
+        Returns:
+            A list containing the key column names: "game_id" and "player_id".
+        """
         return ["game_id", "player_id"]
 
     def get_expected_columns(self) -> List[str]:
+        """
+        Return the expected column names for the player_game_stats table schema.
+        
+        Returns:
+            List[str]: Column names defining the canonical player_game_stats schema in the expected order.
+        """
         return PLAYER_GAME_STATS_COLUMNS
 
     def fetch_data(self, **kwargs) -> Optional[pd.DataFrame]:
-        """Fetch player game logs using bulk PlayerGameLogs endpoint.
-
-        This method fetches ALL player game logs for specified seasons
-        in bulk, rather than making individual API calls per player.
+        """
+        Fetches player game logs in bulk for the given seasons and season types.
+        
+        Parameters:
+            seasons (List[str], optional): Seasons to fetch (defaults to the last five seasons).
+            season_types (List[str], optional): Season types to fetch (defaults to configured DEFAULT_SEASON_TYPES).
+        
+        Returns:
+            Optional[pd.DataFrame]: A single DataFrame concatenating fetched records with two added columns `_season` and `_season_type`, or `None` if no data was fetched.
         """
         seasons = kwargs.get("seasons", ALL_SEASONS[-5:])  # Default: last 5 seasons
         season_types = kwargs.get("season_types", DEFAULT_SEASON_TYPES)
@@ -135,7 +163,20 @@ class PlayerGameStatsPopulator(BasePopulator):
         return pd.concat(all_data, ignore_index=True)
 
     def _fetch_season_data(self, season: str, season_type: str) -> Optional[pd.DataFrame]:
-        """Fetch all player game logs for a season using PlayerGameLogs endpoint."""
+        """
+        Retrieve player game logs for a given season and season type.
+        
+        Maps the provided season_type to the API's expected value and requests the full set
+        of player game logs for that season. Returns `None` when the `nba_api` package is
+        not installed (mock/testing mode).
+        
+        Returns:
+            pd.DataFrame or None: A DataFrame containing player game log rows for the
+            specified season and season type, or `None` if `nba_api` is unavailable.
+        
+        Raises:
+            Exception: Propagates errors from the underlying API call.
+        """
         try:
             from nba_api.stats.endpoints import PlayerGameLogs
 
@@ -159,7 +200,23 @@ class PlayerGameStatsPopulator(BasePopulator):
             raise
 
     def transform_data(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
-        """Transform PlayerGameLogs data to match player_game_stats schema."""
+        """
+        Transform a PlayerGameLogs DataFrame into the player_game_stats table schema.
+        
+        Converts and maps source columns from the PlayerGameLogs payload into the expected
+        PLAYER_GAME_STATS_COLUMNS order. Numeric counting and percentage fields are
+        coerced to numeric types (integer columns use pandas' Int64 nullable dtype where
+        possible); the `min` field is normalized via _parse_minutes. Any missing source
+        columns are represented as None in the output.
+        
+        Parameters:
+            df (pd.DataFrame): DataFrame returned by the PlayerGameLogs endpoint.
+            **kwargs: Ignored; present for interface compatibility.
+        
+        Returns:
+            pd.DataFrame: A DataFrame with columns ordered as PLAYER_GAME_STATS_COLUMNS,
+            containing transformed and type-normalized player game statistics.
+        """
         if df.empty:
             return df
 
@@ -224,7 +281,15 @@ class PlayerGameStatsPopulator(BasePopulator):
         return output[PLAYER_GAME_STATS_COLUMNS]
 
     def _parse_minutes(self, min_val) -> Optional[str]:
-        """Parse minutes value to string."""
+        """
+        Convert a minutes value to a normalized string or return None for missing values.
+        
+        Parameters:
+            min_val: The minutes value from source data (may be int, float, str, or NA).
+        
+        Returns:
+            A string representation of the minutes, with numeric values converted to integers before stringification (e.g., 35.0 -> "35"), or `None` if `min_val` is NA or `None`.
+        """
         if pd.isna(min_val) or min_val is None:
             return None
         if isinstance(min_val, (int, float)):
@@ -232,7 +297,11 @@ class PlayerGameStatsPopulator(BasePopulator):
         return str(min_val)
 
     def pre_run_hook(self, **kwargs):
-        """Ensure the table exists before population."""
+        """
+        Ensure the target table exists, creating it if missing.
+        
+        Checks for the presence of the table named by get_table_name(); if the table does not exist, creates it by calling _create_table.
+        """
         conn = self.connect()
 
         # Check if table exists
@@ -332,6 +401,11 @@ def populate_player_game_stats_v2(
 
 
 def main():
+    """
+    Parse command-line arguments and run the player_game_stats population process.
+    
+    This function is the CLI entry point for populating the player_game_stats table via the bulk PlayerGameLogs endpoint. It accepts command-line options to specify the DuckDB path (--db), one or more seasons to fetch (--seasons), per-request delay in seconds (--delay), filters to fetch only regular season or only playoffs (--regular-season-only, --playoffs-only), a flag to reset progress tracking (--reset-progress), and a dry-run mode that avoids database writes (--dry-run). On completion the process exits with status 0 on success and 1 if any errors occurred, if interrupted by the user, or on a fatal error.
+    """
     parser = argparse.ArgumentParser(
         description="Populate player_game_stats using bulk PlayerGameLogs endpoint",
         formatter_class=argparse.RawDescriptionHelpFormatter,
