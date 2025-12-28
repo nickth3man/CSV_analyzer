@@ -71,15 +71,13 @@ logger = logging.getLogger(__name__)
 
 
 def populate_injury_data(*args, **kwargs):
-    """Populate injury data (NOT YET IMPLEMENTED).
-
-    TODO: ROADMAP Phase 3.5 - Implement this function
-    - Choose data source (NBA official, ESPN, etc.)
-    - Implement injury report parsing
-    - Track injury timeline (injury -> return)
-    - Calculate games missed
-    - Link to player_game_stats (DNP entries)
-    Reference: ROADMAP.md Phase 3.5
+    """
+    Placeholder for populating NBA player injury and availability data.
+    
+    This function is not yet implemented and serves as a stub for the planned Phase 3.5 feature to ingest and track player injuries, timelines, and games missed. Calling this function will raise a NotImplementedError directing to ROADMAP.md Phase 3.5.
+    
+    Raises:
+        NotImplementedError: Indicates the injury data population feature is not implemented; see ROADMAP.md Phase 3.5 for requirements.
     """
     logger.error("Injury data population not yet implemented")
     logger.info("TODO: See ROADMAP.md Phase 3.5 for implementation requirements")
@@ -90,7 +88,11 @@ def populate_injury_data(*args, **kwargs):
 
 
 def main():
-    """CLI entry point (placeholder)."""
+    """
+    CLI entry point that prints placeholder warnings about unimplemented injury data population and then exits.
+    
+    Logs a series of warning messages describing that the feature is not yet implemented and lists key decisions required (see ROADMAP.md Phase 3.5), then terminates the process with exit code 1.
+    """
     parser = argparse.ArgumentParser(
         description="Populate injury data (NOT YET IMPLEMENTED)",
     )

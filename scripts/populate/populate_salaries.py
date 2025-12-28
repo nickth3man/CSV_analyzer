@@ -63,15 +63,13 @@ logger = logging.getLogger(__name__)
 
 
 def populate_salaries(*args, **kwargs):
-    """Populate salaries table (NOT YET IMPLEMENTED).
-
-    TODO: ROADMAP Phase 3.3 - Implement this function
-    - Choose and implement data source connector
-    - Transform salary data to match schema
-    - Handle contract details (years, options, etc.)
-    - Insert into database with deduplication
-    - Validate totals against team caps
-    Reference: ROADMAP.md Phase 3.3
+    """
+    Placeholder for populating the NBA salaries table.
+    
+    This function is not implemented and will raise NotImplementedError directing implementers to ROADMAP.md Phase 3.3 for requirements, data source options, and implementation notes.
+    
+    Raises:
+        NotImplementedError: Always raised with a message pointing to ROADMAP.md Phase 3.3.
     """
     logger.error("Salary population not yet implemented")
     logger.info("TODO: See ROADMAP.md Phase 3.3 for implementation requirements")
@@ -82,7 +80,11 @@ def populate_salaries(*args, **kwargs):
 
 
 def main():
-    """CLI entry point (placeholder)."""
+    """
+    Command-line entry point that outlines salary population options and deliberately exits because the feature is unimplemented.
+    
+    Parses CLI arguments for seasons, team abbreviations, an all-seasons flag, and a data source choice (choices: "basketball-reference", "hoopshype", "spotrac"); logs warning messages describing required decisions and roadmap references for implementing salary population, then terminates the process with exit status 1.
+    """
     parser = argparse.ArgumentParser(
         description="Populate salary data (NOT YET IMPLEMENTED)",
     )

@@ -76,15 +76,15 @@ logger = logging.getLogger(__name__)
 
 
 def populate_officials(*args, **kwargs):
-    """Populate officials_directory table (NOT YET IMPLEMENTED).
-
-    TODO: ROADMAP Phase 4.3 - Implement this function
-    - Fetch current NBA referee roster
-    - Store referee biographical info
-    - Create game-official linkage
-    - Track officiating statistics
-    - Support historical officials
-    Reference: ROADMAP.md Phase 4.3
+    """
+    Populate the officials_directory table with referee records and game linkages.
+    
+    Intended to fetch current (and optionally historical) NBA referee data, store biographical
+    and officiating statistics, and create links between officials and games. See
+    ROADMAP.md Phase 4.3 for detailed requirements and data sources.
+    
+    Raises:
+        NotImplementedError: Function is a placeholder; implementation planned per ROADMAP.md Phase 4.3.
     """
     logger.error("Officials population not yet implemented")
     logger.info("TODO: See ROADMAP.md Phase 4.3 for implementation requirements")
@@ -95,7 +95,11 @@ def populate_officials(*args, **kwargs):
 
 
 def main():
-    """CLI entry point (placeholder)."""
+    """
+    Command-line entry point that reports the placeholder status for officials population.
+    
+    Parses the command-line options --include-historical, --seasons, and --with-games, emits a series of warning messages describing that officials population is not yet implemented and listing required decisions, references ROADMAP.md Phase 4.3, and exits the process with status code 1.
+    """
     parser = argparse.ArgumentParser(
         description="Populate officials data (NOT YET IMPLEMENTED)",
     )
