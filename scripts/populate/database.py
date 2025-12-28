@@ -18,10 +18,11 @@ class DatabaseManager:
     """Manages DuckDB database operations for NBA data."""
     
     def __init__(self, db_path: Optional[Path] = None):
-        """Initialize database manager.
+        """
+        Initialize the DatabaseManager and set the DuckDB database path.
         
-        Args:
-            db_path: Path to DuckDB database file
+        Parameters:
+            db_path (Optional[Path]): Path to the DuckDB database file. If omitted, the path is obtained from the application's configuration.
         """
         from scripts.populate.config import get_db_path
         self.db_path = db_path or get_db_path()
