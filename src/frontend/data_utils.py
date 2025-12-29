@@ -10,7 +10,7 @@ import os
 
 import pandas as pd
 
-from src.frontend.cache import get_dataframe_cache
+from .cache import get_dataframe_cache
 
 
 logger = logging.getLogger(__name__)

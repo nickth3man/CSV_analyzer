@@ -1,203 +1,199 @@
-<h1 align="center">Data Analyst Agent</h1>
+<h1 align="center">NBA Expert - Data Analyst Agent</h1>
 
 <p align="center">
   <a href="https://github.com/The-Pocket/PocketFlow" target="_blank">
-    <img 
-      src="./assets/banner.png" width="800"
+    <img
+      src="./assets/banner.png"
+      alt="NBA Expert - Data Analyst Agent powered by PocketFlow"
+      width="800"
     />
   </a>
 </p>
 
-An LLM-powered data analyst that answers natural language questions about your CSV data. Built with [Pocket Flow](https://github.com/The-Pocket/PocketFlow), a minimalist 100-line LLM framework.
+An LLM-powered data analyst that answers natural language questions about NBA data. Built with [Pocket Flow](https://github.com/The-Pocket/PocketFlow), a minimalist 100-line LLM framework.
 
 ## Features
 
-- **Natural Language Queries**: Ask questions about your data in plain English
-- **Multi-Table Analysis**: Automatically discovers relationships across CSV files
-- **Entity Resolution**: Finds and matches entities (people, teams, etc.) across tables
+- **Natural Language Queries**: Ask questions about NBA data in plain English
+- **Multi-Table Analysis**: Automatically discovers relationships across CSV files and DuckDB tables
+- **Entity Resolution**: Finds and matches players, teams, and other entities across tables
 - **Deep Analysis**: Statistical comparisons and insights, not just simple lookups
 - **Safe Code Execution**: Sandboxed Python execution with safety checks
 - **Learning System**: Remembers successful patterns for future queries
 - **Honest Reporting**: Clearly reports when data is missing or incomplete
+- **DuckDB Integration**: High-performance analytical database for complex queries
 
+## Prerequisites
 
-## Quick Start
+- **Python 3.11+** (required)
+- **uv** - Fast Python package manager ([installation guide](https://docs.astral.sh/uv/getting-started/installation/))
+- **OpenRouter API Key** - For LLM access ([get one here](https://openrouter.ai/))
 
-1. **Add your API key**: Set the `OPENROUTER_API_KEY` environment variable, or enter it in the Settings panel
-2. **Upload data**: Click "📁 Upload CSV" or type `/upload` to add CSV files (or use the pre-loaded NBA data)
-3. **Ask questions**: Type a question like "Compare LeBron James and Tracy McGrady"
-4. **Get insights**: The agent analyzes your data and provides detailed responses
+## Installation
 
-## Web Interface
+### Option 1: Quick Install with uv (Recommended)
 
-The Chainlit web interface provides:
+```bash
+# Clone the repository
+git clone https://github.com/nickth3man/nba_expert.git
+cd nba_expert
 
-### Features
+# Install uv if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Create virtual environment and install all dependencies
+uv sync
+
+# Verify installation
+uv run python -c "from frontend import on_chat_start; print('Installation successful!')"
+```
+
+### Option 2: Manual venv Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/nickth3man/nba_expert.git
+cd nba_expert
+
+# Create and activate virtual environment using uv
+uv venv --python 3.11
+source .venv/bin/activate  # Linux/macOS
+# or: .venv\Scripts\activate  # Windows
+
+# Install dependencies
+uv sync
+
+# Verify installation
+python -c "import sys; sys.path.insert(0, 'src'); from frontend import on_chat_start; print('Installation successful!')"
+```
+
+### Option 3: Development Installation
+
+```bash
+# Clone and install with dev dependencies
+git clone https://github.com/nickth3man/nba_expert.git
+cd nba_expert
+
+# Install with development dependencies
+uv sync
+
+# Install pre-commit hooks
+uv run pre-commit install
+
+# Verify with tests
+uv run pytest tests/unit/ -v --no-cov
+```
+
+## Running the Application
+
+### Web Interface (Chainlit)
+
+The web interface provides a chat-based UI for interacting with the agent.
+
+```bash
+# Start the web server
+uv run chainlit run app.py
+
+# Or specify a port
+uv run chainlit run app.py --port 8080
+
+# Or use Make
+make run
+```
+
+Then open [http://localhost:8000](http://localhost:8000) in your browser.
+
+#### Web Interface Features
+
 - **Chat Interface**: Ask questions and view responses with real-time status updates
 - **Quick Actions**: Buttons for common tasks (Upload CSV, List Tables, View Schema, Help)
-- **Commands**: Type commands like `/upload`, `/tables`, `/schema`, `/knowledge`, `/help`
+- **Commands**: Type `/upload`, `/tables`, `/schema`, `/knowledge`, `/help`
 - **File Management**: Upload and preview CSV files
-- **Knowledge Store**: View learned patterns and entity mappings with `/knowledge`
+- **Knowledge Store**: View learned patterns with `/knowledge`
+- **Settings**: Configure API key and model selection
 
-### Settings
-- **API Key**: Enter your OpenRouter API key
-- **Model Selection**: Choose from available LLM models (fetched live from OpenRouter)
+### Command Line Interface (CLI)
 
-## Example Questions
-
-- "Compare the careers of LeBron James and Tracy McGrady"
-- "Which team has the most draft picks?"
-- "Show me the top 10 players by games played"
-- "What are the statistics for Chicago Bulls?"
-- "Find all players drafted in 2003"
-
-## Architecture
-
-The agent uses a 17-node pipeline:
-
-```
-LoadData → SchemaInference → DataProfiler → ClarifyQuery
-                                                ↓
-EntityResolver → SearchExpander → ContextAggregator → Planner
-                                                        ↓
-                            CodeGenerator ←→ SafetyCheck → Executor
-                                   ↑                         ↓
-                              ErrorFixer ←─────────── ResultValidator
-                                                          ↓
-                                    DeepAnalyzer → Visualizer → ResponseSynthesizer
-```
-
-## CLI Usage
-
-The CLI provides an interactive interface for data analysis with support for ambiguous query resolution.
-
-### Running the CLI
+The CLI provides direct access to the analyst flow.
 
 ```bash
 # Run with default question
-python main.py
+uv run python src/backend/main.py
 
 # Run with a custom question
-python main.py "What are the top 10 teams by wins?"
+uv run python src/backend/main.py "What are the top 10 players by points per game?"
 
-# Run with a question requiring clarification
-python main.py "Show me the stats for that player"
+# Or use Make
+make run-cli
 ```
 
-### CLI Session Example
+## Configuration
 
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `OPENROUTER_API_KEY` | OpenRouter API key for LLM access | None (required) |
+| `NBA_DB_PATH` | Path to DuckDB database | `data/nba.duckdb` |
+| `NBA_API_DEFAULT_SEASON` | Default NBA season | `2023-24` |
+| `NBA_API_TIMEOUT` | API request timeout (seconds) | `30` |
+| `NBA_API_DELAY` | Delay between API requests (seconds) | `0.6` |
+| `NBA_API_PROXY` | Proxy URL for API requests | None |
+
+### Setting the API Key
+
+**Option 1**: Environment variable
+```bash
+export OPENROUTER_API_KEY="your-api-key-here"
+uv run chainlit run app.py
 ```
-$ python main.py "Show me stats for the player_score column"
---- Starting Analyst Agent ---
-User Question: Show me stats for the player_score column
 
-Loaded 3 dataframes.
-Schema inferred:
-Table 'players': [id, first_name, last_name, team_id]
-Table 'teams': [id, name, city]
-Table 'stats': [player_id, games, points, rebounds]
-
-⚠️  Your query references unknown columns or tables: ['player_score']. Please clarify or check available schema.
-
-Please provide a clarified question (or type 'quit' to exit):
-> Show me the points column from the stats table
-
-🔄 Re-analyzing with clarified question: Show me the points column from the stats table
-[... analysis continues ...]
-```
-
-### Ambiguity Resolution Flow
-
-When the CLI detects an ambiguous query:
-
-1. **Detection**: The system checks if referenced columns/tables exist in the schema
-2. **Prompt**: If ambiguous, you'll see a warning and be prompted to clarify
-3. **Options**:
-   - Enter a clarified question to re-run the analysis
-   - Type `quit`, `exit`, or `q` to end the session
-4. **Re-entry**: Clarified questions re-enter the flow at the EntityResolver node
-
-## File Structure
-
-```
-├── app.py                      # Chainlit web interface (adds src/ to PYTHONPATH)
-├── src/
-│   ├── backend/                # Backend logic and utilities
-│   │   ├── flow.py             # Flow creation and connections
-│   │   ├── main.py             # CLI entry point
-│   │   ├── config.py           # Shared configuration constants
-│   │   ├── nodes/              # Modular node definitions
-│   │   └── utils/              # Backend utilities (LLM wrappers, knowledge store, etc.)
-│   └── frontend/               # Chainlit frontend components
-│       ├── __init__.py         # Module initialization
-│       ├── config.py           # Configuration and constants
-│       ├── cache.py            # Dataframe caching
-│       ├── data_utils.py       # Data loading and schema utilities
-│       ├── knowledge_utils.py  # Knowledge store utilities
-│       ├── commands.py         # Command handling
-│       ├── actions.py          # Action callbacks
-│       ├── steps.py            # Analysis pipeline steps
-│       └── handlers.py         # Main event handlers
-├── data/
-│   ├── raw/
-│   │   └── csv/                # Raw CSV data files
-│   └── nba.duckdb              # DuckDB database (generated)
-├── scripts/                    # Database and data processing scripts
-│   ├── convert_csvs.py         # CSV to DuckDB ingestion
-│   ├── normalize_db.py         # Data type normalization
-│   ├── check_integrity.py      # Database integrity checks
-│   ├── populate/               # NBA API data population package
-│   │   ├── cli.py              # Unified CLI for all population commands
-│   │   ├── api_client.py       # Enhanced NBA API client with rate limiting
-│   │   ├── base.py             # Base populator class with common functionality
-│   │   ├── populate_player_game_stats_v2.py  # Bulk player game stats
-│   │   ├── populate_player_season_stats.py   # Aggregated season stats
-│   │   └── populate_play_by_play.py          # Play-by-play data
-│   └── ...                     # Other utility scripts
-├── docs/
-│   └── design.md               # High-level design documentation
-└── requirements.txt            # Project dependencies
-```
+**Option 2**: In the web interface
+- Open the Settings panel (gear icon)
+- Enter your OpenRouter API key
 
 ## Database Population
 
-The project includes a comprehensive NBA data population system that fetches data from the NBA API and stores it in a DuckDB database.
+The project includes a DuckDB database with NBA data. You can populate it with CSV files and/or fetch live data from the NBA API.
 
-### Quick Population
+### Quick Setup (CSV Only - No API Required)
 
 ```bash
-# Run the full population pipeline (init + CSV load + normalize + API fetch + aggregation)
-python -m scripts.populate.cli all --skip-api  # Skip API fetching for faster setup
-
-# Or run individual steps:
-python -m scripts.populate.cli init            # Initialize database schema
-python -m scripts.populate.cli load-csv        # Load CSV files into database
-python -m scripts.populate.cli normalize       # Normalize data types
-python -m scripts.populate.cli player-games --seasons 2025-26 2024-25  # Fetch from NBA API
-python -m scripts.populate.cli season-stats    # Create aggregated stats
+# Initialize database and load CSV files
+uv run python -m scripts.populate.cli all --skip-api
 ```
 
-### Population CLI Commands
+### Full Population (Including NBA API Data)
+
+```bash
+# Run full pipeline (may take a while due to API rate limits)
+uv run python -m scripts.populate.cli all
+
+# Or run individual steps:
+uv run python -m scripts.populate.cli init            # Initialize schema
+uv run python -m scripts.populate.cli load-csv        # Load CSV files
+uv run python -m scripts.populate.cli normalize       # Normalize data types
+uv run python -m scripts.populate.cli player-games --seasons 2024-25  # Fetch from API
+uv run python -m scripts.populate.cli season-stats    # Create aggregated stats
+```
+
+### Population Commands
 
 | Command | Description |
 |---------|-------------|
-| `init` | Initialize database schema (creates tables) |
+| `init` | Initialize database schema |
 | `info` | Show database information and table row counts |
 | `load-csv` | Load data from CSV files in `data/raw/csv/` |
 | `normalize` | Normalize data types and create silver tables |
-| `player-games` | Fetch player game stats from NBA API (bulk endpoint) |
-| `player-games-legacy` | Fetch player game stats (per-player endpoint, slower) |
+| `player-games` | Fetch player game stats from NBA API (bulk) |
+| `player-games-legacy` | Fetch player game stats (per-player, slower) |
 | `play-by-play` | Fetch play-by-play data for games |
 | `season-stats` | Create aggregated player season statistics |
 | `all` | Run full population pipeline |
 
 ### Database Contents
 
-The database is **generated** (not tracked in git) and populated from:
-1. **CSV files** in `data/raw/csv/` - historical data included in the repo
-2. **NBA API** - live game stats fetched on demand
-
-After running `load-csv`, the database contains static reference data:
+After running `load-csv`, the database contains:
 
 | Table | Source | Description |
 |-------|--------|-------------|
@@ -207,206 +203,238 @@ After running `load-csv`, the database contains static reference data:
 | `common_player_info` | CSV | Detailed player biographical info |
 | `draft_history` | CSV | NBA draft history |
 
-After running `player-games`, additional data is fetched from NBA API:
+After running `player-games`:
 
 | Table | Source | Description |
 |-------|--------|-------------|
-| `player_game_stats` | API | Player box scores per game (~27,000/season) |
-| `player_season_stats` | Aggregated | Season averages (generated from player_game_stats) |
+| `player_game_stats` | API | Player box scores per game |
+| `player_season_stats` | Aggregated | Season averages |
 
-Use `python -m scripts.populate.cli info` to see current database contents.
+## Example Questions
 
-### Supported Seasons
+- "Compare the careers of LeBron James and Tracy McGrady"
+- "Which team has the most draft picks?"
+- "Show me the top 10 players by games played"
+- "What are the statistics for Chicago Bulls?"
+- "Find all players drafted in 2003"
+- "Who has the highest points per game average?"
 
-The system supports NBA seasons from 1996-97 to present (2025-26). Each season typically contains:
-- ~1,230 regular season games (~26,000 player game records)
-- ~80-90 playoff games (~1,700 player game records)
+## Architecture
 
-### Incremental Updates
+The agent uses a 17-node pipeline built with PocketFlow:
 
-The population system supports incremental updates:
-- Progress is tracked per season/season-type combination in `.nba_cache/`
-- Already completed seasons are automatically skipped
-- Use `--reset` flag to force re-population
-
-```bash
-# Fetch only new seasons (skips already completed)
-python -m scripts.populate.cli player-games --seasons 2025-26
-
-# Force re-fetch all specified seasons
-python -m scripts.populate.cli player-games --seasons 2025-26 --reset
-
-# Fetch specific season types only
-python -m scripts.populate.cli player-games --seasons 2024-25 --regular-only
-python -m scripts.populate.cli player-games --seasons 2024-25 --playoffs-only
-
-# Fetch multiple seasons at once
-python -m scripts.populate.cli player-games --seasons 2025-26 2024-25 2023-24
+```mermaid
+flowchart TD
+    A[LoadData] --> B[NBAApiDataLoader]
+    B --> C[DataMerger]
+    C --> D[SchemaInference]
+    D --> E[DataProfiler]
+    E --> F[ClarifyQuery]
+    F -->|ambiguous| G[AskUser]
+    F -->|clear| H[EntityResolver]
+    G -->|clarified| H
+    H --> I[SearchExpander]
+    I --> J[ContextAggregator]
+    J --> K[Planner]
+    K --> L[CodeGenerator]
+    L --> M[NBAApiCodeGenerator]
+    M --> N[SafetyCheck]
+    N -->|unsafe| L
+    N -->|safe| O[Executor]
+    O -->|error| P[ErrorFixer]
+    P -->|fix| L
+    P -->|give_up| U[ResponseSynthesizer]
+    O -->|success| Q[ResultValidator]
+    Q --> R[CrossValidator]
+    R --> S[DeepAnalyzer]
+    S --> T[Visualizer]
+    T --> U
 ```
 
-### Environment Variables
+## Project Structure
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `NBA_DB_PATH` | Path to DuckDB database | `data/nba.duckdb` |
-| `NBA_API_TIMEOUT` | API request timeout (seconds) | `30` |
-| `NBA_API_DELAY` | Delay between API requests (seconds) | `0.6` |
-| `NBA_API_PROXY` | Proxy URL for API requests | None |
-
-## Dependencies
-
-- `pocketflow` - Core LLM framework
-- `openai` - OpenAI-compatible API client
-- `chainlit` - Web interface
-- `pandas` - Data manipulation
-- `matplotlib` - Visualizations
-- `requests` - HTTP requests for model fetching
-- `duckdb` - High-performance analytical database
-- `nba_api` - NBA Stats API client
+```
+nba_expert/
+├── app.py                      # Chainlit web interface entry point
+├── pyproject.toml              # Project configuration and dependencies
+├── Makefile                    # Development commands
+├── src/
+│   ├── backend/                # Backend logic
+│   │   ├── flow.py             # Flow creation and node connections
+│   │   ├── main.py             # CLI entry point
+│   │   ├── config.py           # Configuration constants
+│   │   ├── nodes/              # PocketFlow node definitions
+│   │   │   ├── analysis.py     # DeepAnalyzer, Visualizer, ResponseSynthesizer
+│   │   │   ├── code_generation.py  # CodeGenerator, NBAApiCodeGenerator
+│   │   │   ├── data_ingestion.py   # LoadData, NBAApiDataLoader, DataMerger
+│   │   │   ├── entity.py       # EntityResolver, SearchExpander
+│   │   │   ├── execution.py    # Executor, ErrorFixer, SafetyCheck
+│   │   │   ├── planning.py     # Planner, ContextAggregator
+│   │   │   ├── query.py        # ClarifyQuery, AskUser
+│   │   │   ├── schema.py       # SchemaInference, DataProfiler
+│   │   │   └── validation.py   # ResultValidator, CrossValidator
+│   │   └── utils/              # Utilities
+│   │       ├── call_llm.py     # LLM wrapper for OpenRouter
+│   │       ├── knowledge_store.py  # Pattern learning storage
+│   │       ├── nba_api_client.py   # NBA API wrapper
+│   │       └── data_source_manager.py  # Data source management
+│   └── frontend/               # Chainlit frontend
+│       ├── handlers.py         # Main event handlers
+│       ├── commands.py         # Slash command handling
+│       ├── actions.py          # Button action callbacks
+│       ├── steps.py            # Analysis pipeline steps
+│       ├── config.py           # Frontend configuration
+│       ├── cache.py            # DataFrame caching
+│       ├── data_utils.py       # Data loading utilities
+│       └── display.py          # Display utilities
+├── data/
+│   ├── raw/csv/                # Source CSV files
+│   └── nba.duckdb              # DuckDB database (generated)
+├── scripts/
+│   └── populate/               # Database population scripts
+├── tests/                      # Test suite
+│   ├── unit/                   # Unit tests
+│   ├── integration/            # Integration tests
+│   └── security/               # Security tests
+└── docs/                       # Documentation
+```
 
 ## Development
 
-### Quick Start for Developers
-
-This project uses [uv](https://docs.astral.sh/uv/) for fast, reliable Python package management.
+### Running Tests
 
 ```bash
-# Install uv (if not already installed)
-curl -LsSf https://astral.sh/uv/install.sh | sh
+# Run all tests
+uv run pytest tests/ -v
 
-# Install all dependencies (creates .venv automatically)
-uv sync
+# Run unit tests only
+uv run pytest tests/unit/ -v --no-cov
 
-# Run the application
-uv run chainlit run app.py
+# Run with coverage
+uv run pytest tests/ --cov=src --cov-report=html
 
-# Run tests
-uv run pytest tests/
+# Or use Make
+make test
+make test-cov
+```
 
-# Run linting
+### Code Quality
+
+```bash
+# Linting
 uv run ruff check .
+uv run ruff check --fix .      # Auto-fix
+
+# Formatting
+uv run ruff format .
+
+# Type checking
 uv run mypy src/
 
-# Auto-fix linting issues
-uv run ruff check --fix .
-uv run ruff format .
+# Security audit
+uv run pip-audit
+
+# Or use Make
+make lint
+make lint-fix
+make type-check
+make security
 ```
 
-### Alternative: Using Make
+### Make Commands
 
 ```bash
-# Install development dependencies
-make install-dev
-
-# Run all quality checks
-make ci
-
-# See all available commands
-make help
-```
-
-### Development Tools
-
-This project uses a comprehensive set of modern development tools:
-
-- **Package Management**: [uv](https://docs.astral.sh/uv/) - Fast Python package installer and resolver
-- **Code Quality**: Ruff, mypy
-- **Testing**: pytest with coverage
-- **Security**: Bandit, pip-audit
-- **Documentation**: MkDocs, interrogate
-- **Workflow**: pre-commit, commitizen, Makefile
-- **CI/CD**: GitHub Actions, Dependabot
-
-See [DEVELOPMENT_TOOLS.md](DEVELOPMENT_TOOLS.md) for comprehensive documentation on all development tools and workflows.
-
-### Common Commands with uv
-
-```bash
-uv run pytest tests/           # Run tests
-uv run ruff check .            # Check code quality
-uv run ruff check --fix .      # Auto-fix linting issues
-uv run ruff format .           # Format code
-uv run mypy src/               # Type checking
-uv run pip-audit               # Security audit
-uv run mkdocs serve            # View documentation locally
-```
-
-### Common Commands with Make
-
-```bash
+make help          # Show all available commands
+make install       # Install production dependencies
+make install-dev   # Install development dependencies
 make test          # Run tests
 make lint          # Check code quality
 make lint-fix      # Auto-fix linting issues
+make type-check    # Run type checking
 make security      # Run security scans
-make docs-serve    # View documentation locally
-make commit        # Make a conventional commit
+make run           # Run web application
+make run-cli       # Run CLI version
+make clean         # Clean build artifacts
+make ci            # Run all CI checks
 ```
 
-## Agentic Coding
+## Dependencies
 
-This project demonstrates [Agentic Coding](https://the-pocket.github.io/PocketFlow/guide.html) - a collaborative workflow where humans design at a high level and AI agents handle implementation.
+### Core Dependencies
 
-- Check out the [Agentic Coding Guidance](https://the-pocket.github.io/PocketFlow/guide.html)
-- Check out the [YouTube Tutorial](https://www.youtube.com/@ZacharyLLM?sub_confirmation=1)
+| Package | Purpose |
+|---------|---------|
+| `pocketflow` | LLM workflow framework |
+| `openai` | OpenAI-compatible API client |
+| `chainlit` | Web interface |
+| `pandas` | Data manipulation |
+| `duckdb` | Analytical database |
+| `matplotlib` | Visualizations |
+| `nba_api` | NBA Stats API client |
+| `requests` | HTTP requests |
 
-### AI Coding Assistant Rules
+### Development Dependencies
 
-- [.cursorrules](.cursorrules) for Cursor AI
-- [.clinerules](.clinerules) for Cline
-- [.windsurfrules](.windsurfrules) for Windsurf
-- [.goosehints](.goosehints) for Goose
-- Configuration in [.github](.github) for GitHub Copilot
-- [CLAUDE.md](CLAUDE.md) for Claude Code
-- [GEMINI.md](GEMINI.md) for Gemini
+| Package | Purpose |
+|---------|---------|
+| `pytest` | Testing framework |
+| `ruff` | Linting and formatting |
+| `mypy` | Type checking |
+| `pre-commit` | Git hooks |
+| `pip-audit` | Security scanning |
+| `mkdocs` | Documentation |
 
----
+## Troubleshooting
 
-## Documentation TODOs
+### Common Issues
 
-<!--
-TODO (Documentation): Add visual architecture diagram
-The current text-based architecture diagram (lines 56-68) should be replaced
-with a proper visual diagram. Options:
-  1. Mermaid diagram in README (GitHub renders these)
-  2. PNG/SVG diagram created with draw.io or similar
-  3. Interactive diagram using D2 or Structurizr
+**"No module named 'duckdb'"**
+```bash
+uv sync  # Reinstall dependencies
+```
 
-TODO (Documentation): Add API reference documentation
-Missing formal API docs for:
-  - Backend utilities (call_llm, nba_api_client, knowledge_store)
-  - Node interfaces and expected inputs/outputs
-  - Frontend handlers and commands
-Use MkDocs with mkdocstrings for auto-generation from docstrings.
+**"OPENROUTER_API_KEY not set"**
+```bash
+export OPENROUTER_API_KEY="your-key-here"
+# Or enter it in the web interface Settings panel
+```
 
-TODO (Documentation): Complete MkDocs site
-mkdocs.yml is configured but pages are incomplete:
-  - docs/development/setup.md needs expansion
-  - Missing: docs/api/index.md
-  - Missing: docs/architecture/nodes.md
-  - Missing: docs/architecture/data-flow.md
-Run: mkdocs serve to preview locally
+**"Rate limit exceeded" from NBA API**
+- Wait a few minutes and try again
+- Use `--delay` flag to increase delay between requests:
+  ```bash
+  uv run python -m scripts.populate.cli player-games --delay 1.0
+  ```
 
-TODO (Documentation): Add deployment guide
-Missing production deployment documentation:
-  - Docker deployment (Dockerfile, docker-compose.yml)
-  - Cloud deployment (AWS, GCP, Azure)
-  - Environment variable configuration
-  - Scaling considerations
-  - Monitoring and logging setup
+**"Connection refused" on startup**
+- Ensure port 8000 is not in use
+- Try a different port: `uv run chainlit run app.py --port 9000`
 
-TODO (Documentation): Add troubleshooting guide
-Common issues and solutions:
-  - API key errors
-  - NBA API rate limiting
-  - CSV parsing errors
-  - Memory issues with large datasets
-  - Timeout errors
+**Tests failing with import errors**
+```bash
+# Ensure you're in the project root and dependencies are installed
+cd nba_expert
+uv sync
+uv run pytest tests/unit/ -v --no-cov
+```
 
-TODO (Documentation): Add contribution guidelines
-CONTRIBUTING.md should include:
-  - Development setup
-  - Code style guidelines
-  - Pull request process
-  - Testing requirements
-  - Commit message conventions (commitizen configured but not documented)
--->
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/my-feature`
+3. Make your changes
+4. Run tests: `uv run pytest tests/`
+5. Run linting: `uv run ruff check . && uv run mypy src/`
+6. Commit with conventional commits: `uv run cz commit`
+7. Push and create a Pull Request
+
+## License
+
+This project is open source. See the repository for license details.
+
+## Acknowledgments
+
+- [PocketFlow](https://github.com/The-Pocket/PocketFlow) - The LLM framework powering this agent
+- [Chainlit](https://chainlit.io/) - The web interface framework
+- [NBA API](https://github.com/swar/nba_api) - NBA Stats API wrapper
+- [DuckDB](https://duckdb.org/) - The analytical database engine
