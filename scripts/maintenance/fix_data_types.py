@@ -5,7 +5,7 @@ This script addresses the following issues:
 1. plus_minus columns stored as BIGINT should be DOUBLE (can be fractional in per-game averages)
 2. team_game_stats has fg_pct, fg3_pct, ft_pct as BIGINT (should be DOUBLE)
 
-Run with: python scripts/fix_data_types.py
+Run with: python scripts/maintenance/fix_data_types.py
 """
 
 import sys

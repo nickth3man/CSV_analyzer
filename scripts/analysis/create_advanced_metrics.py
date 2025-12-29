@@ -54,7 +54,7 @@ POSSESSIONS (Team Level):
 - Poss = 0.5 * ((Tm_FGA + 0.4 * Tm_FTA - 1.07 * (Tm_ORB / (Tm_ORB + Opp_DRB)) * (Tm_FGA - Tm_FGM) + Tm_TOV)
          + (Opp_FGA + 0.4 * Opp_FTA - 1.07 * (Opp_ORB / (Opp_ORB + Tm_DRB)) * (Opp_FGA - Opp_FGM) + Opp_TOV))
 
-Run with: python scripts/create_advanced_metrics.py
+Run with: python scripts/analysis/create_advanced_metrics.py
 """
 
 import sys

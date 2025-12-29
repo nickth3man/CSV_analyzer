@@ -13,25 +13,25 @@ It uses the enhanced NBAClient to fetch various types of data including:
 
 Usage:
     # Full population (all data types, all seasons)
-    python scripts/populate_db/populate_nba_data.py
+    python scripts/populate/populate_nba_data.py
 
     # Specific data types only
-    python scripts/populate_db/populate_nba_data.py --data-types players games boxscores
+    python scripts/populate/populate_nba_data.py --data-types players games boxscores
 
     # Specific seasons only
-    python scripts/populate_db/populate_nba_data.py --seasons 2023-24 2022-23
+    python scripts/populate/populate_nba_data.py --seasons 2023-24 2022-23
 
     # Active players only (faster for recent data)
-    python scripts/populate_db/populate_nba_data.py --active-only
+    python scripts/populate/populate_nba_data.py --active-only
 
     # Resume from a specific point
-    python scripts/populate_db/populate_nba_data.py --resume --data-types games
+    python scripts/populate/populate_nba_data.py --resume --data-types games
 
     # Dry run (show what would be done)
-    python scripts/populate_db/populate_nba_data.py --dry-run
+    python scripts/populate/populate_nba_data.py --dry-run
 
     # Custom request delay (default: 0.6 seconds)
-    python scripts/populate_db/populate_nba_data.py --delay 1.0
+    python scripts/populate/populate_nba_data.py --delay 1.0
 
 Data Types:
 - players: Static player information

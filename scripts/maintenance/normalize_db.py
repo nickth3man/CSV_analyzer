@@ -40,7 +40,7 @@ Type inference hierarchy:
 
 Usage:
     # Run normalization
-    python scripts/normalize_db.py
+    python scripts/maintenance/normalize_db.py
 
     # Or via CLI
     python -m scripts.populate.cli normalize
@@ -235,13 +235,13 @@ def main() -> None:
         epilog="""
 Examples:
     # Normalize all tables
-    python scripts/normalize_db.py
+    python scripts/maintenance/normalize_db.py
 
     # Normalize specific tables
-    python scripts/normalize_db.py --tables player team game
+    python scripts/maintenance/normalize_db.py --tables player team game
 
     # Specify custom database
-    python scripts/normalize_db.py --db /path/to/nba.duckdb
+    python scripts/maintenance/normalize_db.py --db /path/to/nba.duckdb
         """,
     )
 

@@ -11,7 +11,7 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 ## Phase 1: Schema Hygiene (High Impact, Medium Effort)
 
 ### 1.2 - Document Canonical Tables ✅ Partial → TODO
-**File**: `scripts/normalize_db.py`
+**File**: `scripts/maintenance/normalize_db.py`
 **Status**: Documentation needed for raw vs canonical table relationships
 **Tasks**:
 - Document which tables are canonical (silver/gold) vs raw text
@@ -19,7 +19,7 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 - Document transformation logic (raw → silver → gold)
 
 ### 1.4 - Add FK Constraints/Tests 🔴 TODO
-**File**: `scripts/check_integrity.py`
+**File**: `scripts/maintenance/check_integrity.py`
 **Status**: Not implemented
 **Tasks**:
 - Implement systematic FK constraint validation
@@ -34,7 +34,7 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 - Consider using dbt or similar for automated constraint testing
 
 ### 1.5 - Quarantine Raw Text Tables 🔴 TODO
-**File**: `scripts/normalize_db.py`
+**File**: `scripts/maintenance/normalize_db.py`
 **Status**: Not implemented
 **Tasks**:
 - Rename raw tables with '_raw' suffix (game → game_raw, etc.)
@@ -48,7 +48,7 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 ## Phase 2: Player & Advanced Metrics (High Impact, High Effort)
 
 ### 2.3 - Create Advanced Metrics Views 🟡 Partial → TODO
-**File**: `scripts/create_advanced_metrics.py`
+**File**: `scripts/analysis/create_advanced_metrics.py`
 **Status**: Basic metrics implemented, advanced metrics incomplete
 **Current**: TS%, eFG%, TOV%, GmSc implemented
 **Missing**:
@@ -62,7 +62,7 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 - WS, WS/48 (win shares)
 
 ### 2.4 - Add Possessions/Pace Data 🔴 TODO
-**File**: `scripts/create_advanced_metrics.py`
+**File**: `scripts/analysis/create_advanced_metrics.py`
 **Status**: Not implemented
 **Tasks**:
 - Calculate team possessions per game for advanced metrics
@@ -192,7 +192,7 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 **Impact**: Critical for end users and developers
 
 ### 4.5 - Add automated quality tests 🔴 TODO
-**File**: `scripts/check_integrity.py`
+**File**: `scripts/maintenance/check_integrity.py`
 **Status**: Not implemented
 **Tasks**:
 1. Null value checks for critical columns

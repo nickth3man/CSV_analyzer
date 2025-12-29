@@ -80,13 +80,13 @@ def cmd_info(args) -> None:
 def cmd_load_csv(args) -> None:
     """Load data from CSV files into the configured database.
 
-    Runs the scripts/convert_csvs.py helper and prints its stdout. If the helper exits with a non-zero status, prints the helper's stderr and exits the process with status 1.
+    Runs the scripts/migration/convert_csvs.py helper and prints its stdout. If the helper exits with a non-zero status, prints the helper's stderr and exits the process with status 1.
     """
     import subprocess
 
     logger.info("Loading CSV files into database...")
     result = subprocess.run(
-        [sys.executable, "scripts/convert_csvs.py"],
+        [sys.executable, "scripts/migration/convert_csvs.py"],
         check=False,
         capture_output=True,
         text=True,
@@ -98,13 +98,13 @@ def cmd_load_csv(args) -> None:
 def cmd_normalize(args) -> None:
     """Run the database normalization step to create the "silver" tables.
 
-    Invokes the external scripts/normalize_db.py script, prints its standard output, and on non-zero exit prints the script's standard error and terminates the process with status 1.
+    Invokes the external scripts/maintenance/normalize_db.py script, prints its standard output, and on non-zero exit prints the script's standard error and terminates the process with status 1.
     """
     import subprocess
 
     logger.info("Normalizing database tables...")
     result = subprocess.run(
-        [sys.executable, "scripts/normalize_db.py"],
+        [sys.executable, "scripts/maintenance/normalize_db.py"],
         check=False,
         capture_output=True,
         text=True,

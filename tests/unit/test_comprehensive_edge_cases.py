@@ -143,7 +143,7 @@ class TestDatabasePathHandling:
 
     def test_check_integrity_uses_correct_default_path(self):
         """Test that check_integrity uses correct default database path."""
-        with patch("scripts.check_integrity.duckdb.connect") as mock_connect:
+        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             mock_con.sql.return_value.fetchone.return_value = [0]
@@ -156,7 +156,7 @@ class TestDatabasePathHandling:
 
     def test_create_advanced_metrics_uses_correct_default_path(self):
         """Test that create_advanced_metrics uses correct default database path."""
-        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -167,7 +167,7 @@ class TestDatabasePathHandling:
 
     def test_create_advanced_metrics_accepts_command_line_path(self):
         """Test that create_advanced_metrics can accept path from command line."""
-        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -187,7 +187,7 @@ class TestDatabasePathHandling:
     ])
     def test_scripts_accept_various_path_formats(self, path):
         """Test that scripts accept various database path formats."""
-        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -202,7 +202,7 @@ class TestErrorHandlingConsistency:
 
     def test_check_integrity_handles_connection_errors(self):
         """Test check_integrity handles connection errors."""
-        with patch("scripts.check_integrity.duckdb.connect") as mock_connect:
+        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_connect.side_effect = Exception("Connection failed")
 
             from scripts.check_integrity import check_integrity
@@ -212,7 +212,7 @@ class TestErrorHandlingConsistency:
 
     def test_create_advanced_metrics_handles_execution_errors(self):
         """Test create_advanced_metrics handles execution errors."""
-        with patch("scripts.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             mock_con.execute.side_effect = Exception("Execution failed")
@@ -224,7 +224,7 @@ class TestErrorHandlingConsistency:
 
     def test_scripts_close_connections_on_errors(self):
         """Test that all scripts close database connections even on errors."""
-        with patch("scripts.check_integrity.duckdb.connect") as mock_connect:
+        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             mock_con.sql.side_effect = Exception("Query error")

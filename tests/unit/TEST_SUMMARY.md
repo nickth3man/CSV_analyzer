@@ -5,7 +5,7 @@ This document summarizes the comprehensive unit tests created for the Python fil
 ## Test Files Created
 
 ### 1. `test_check_integrity.py` (485 lines)
-Tests for `scripts/check_integrity.py` - Database integrity checking functionality.
+Tests for `scripts/maintenance/check_integrity.py` - Database integrity checking functionality.
 
 **Coverage:**
 - Primary key validation and constraint checking
@@ -25,7 +25,7 @@ Tests for `scripts/check_integrity.py` - Database integrity checking functionali
 - Parametrized tests for all PK candidates
 
 ### 2. `test_normalize_db.py` (418 lines)
-Tests for `scripts/normalize_db.py` - Database normalization and type inference.
+Tests for `scripts/maintenance/normalize_db.py` - Database normalization and type inference.
 
 **Coverage:**
 - Table filtering (views, _silver, _rejects exclusion)
@@ -45,7 +45,7 @@ Tests for `scripts/normalize_db.py` - Database normalization and type inference.
 - `test_transform_to_silver_skips_typed_columns` - Optimization check
 
 ### 3. `test_create_advanced_metrics.py` (464 lines)
-Tests for `scripts/create_advanced_metrics.py` - Advanced NBA metrics calculation.
+Tests for `scripts/analysis/create_advanced_metrics.py` - Advanced NBA metrics calculation.
 
 **Coverage:**
 - View creation for player and team advanced metrics
@@ -119,9 +119,9 @@ Tests for existing populate scripts updated with TODO markers.
 
 | Source File | Test File | Test Classes | Test Methods | Lines |
 |------------|-----------|--------------|--------------|-------|
-| `check_integrity.py` | `test_check_integrity.py` | 1 | 14 | 485 |
+| `scripts/maintenance/check_integrity.py` | `test_check_integrity.py` | 1 | 14 | 485 |
 | `normalize_db.py` | `test_normalize_db.py` | 3 | 23 | 418 |
-| `create_advanced_metrics.py` | `test_create_advanced_metrics.py` | 1 | 25 | 464 |
+| `scripts/analysis/create_advanced_metrics.py` | `test_create_advanced_metrics.py` | 1 | 25 | 464 |
 | Placeholder scripts (7 files) | `test_populate_placeholders.py` | 5 | 15 | 182 |
 | Updated scripts (2 files) | `test_populate_updated.py` | 4 | ~13 | 180 |
 
