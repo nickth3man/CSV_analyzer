@@ -32,3 +32,4 @@ matplotlib
 requests
 chainlit
 nba_api
+duckdb>=0.10.0

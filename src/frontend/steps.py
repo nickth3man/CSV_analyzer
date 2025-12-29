@@ -7,7 +7,7 @@ import os
 import chainlit as cl
 
 from backend.flow import create_analyst_flow
-from src.frontend.data_utils import get_schema_info, load_dataframes
+from frontend.data_utils import get_schema_info, load_dataframes
 
 
 logger = logging.getLogger(__name__)

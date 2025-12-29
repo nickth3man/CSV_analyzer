@@ -15,7 +15,7 @@ It is organized into the following components:
 """
 
 # Import handlers, starters, profiles and actions to register them with Chainlit
-from src.frontend.actions import (
+from frontend.actions import (
     on_list_tables,
     on_show_help,
     on_upload_action,
@@ -24,18 +24,18 @@ from src.frontend.actions import (
 )
 
 # Also export UI-agnostic data functions for external use
-from src.frontend.data_utils import get_schema_summary_data, get_table_preview_data
+from frontend.data_utils import get_schema_summary_data, get_table_preview_data
 
 # Display utilities are now in display.py (separated from data_utils.py)
-from src.frontend.display import display_schema_summary, display_table_preview
-from src.frontend.handlers import (
+from frontend.display import display_schema_summary, display_table_preview
+from frontend.handlers import (
     chat_profile,
     on_chat_start,
     on_message,
     on_settings_update,
     set_starters,
 )
-from src.frontend.steps import (
+from frontend.steps import (
     display_result_with_streaming,
     step_load_data,
     step_run_analysis,

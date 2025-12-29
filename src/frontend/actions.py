@@ -6,8 +6,8 @@ import shutil
 import chainlit as cl
 
 from backend.utils.file_sanitizer import sanitize_csv_filename
-from src.frontend.config import HELP_TEXT
-from src.frontend.data_utils import (
+from frontend.config import HELP_TEXT
+from frontend.data_utils import (
     get_csv_files,
     get_data_profile,
     get_schema_info,

@@ -6,8 +6,8 @@ import shutil
 import chainlit as cl
 
 from backend.utils.file_sanitizer import sanitize_csv_filename
-from src.frontend.config import HELP_TEXT
-from src.frontend.data_utils import (
+from frontend.config import HELP_TEXT
+from frontend.data_utils import (
     get_csv_files,
     get_data_profile,
     get_schema_info,
@@ -15,7 +15,7 @@ from src.frontend.data_utils import (
     invalidate_dataframe_cache,
     preview_table,
 )
-from src.frontend.knowledge_utils import clear_knowledge_store, get_knowledge_store_data
+from frontend.knowledge_utils import clear_knowledge_store, get_knowledge_store_data
 
 
 async def handle_command(message_content: str) -> bool:
