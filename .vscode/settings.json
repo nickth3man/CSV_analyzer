@@ -1,3 +1,42 @@
 {
-    "makefile.extensionOutputFolder": "./.vscode"
+    "makefile.extensionOutputFolder": "./.vscode",
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.diagnosticMode": "workspace",
+    "python.analysis.extraPaths": [
+        "./src"
+    ],
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportOptionalMemberAccess": "none",
+        "reportOptionalSubscript": "none",
+        "reportOptionalIterable": "none",
+        "reportOptionalCall": "none",
+        "reportOptionalOperand": "none"
+    },
+    "ruff.importStrategy": "fromEnvironment",
+    "mypy-type-checker.importStrategy": "fromEnvironment",
+    "mypy-type-checker.args": [
+        "--config-file=pyproject.toml"
+    ],
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll.ruff": "always",
+            "source.organizeImports.ruff": "always"
+        }
+    },
+    "cursorpyright.analysis.autoImportCompletions": true,
+    "cursorpyright.analysis.diagnosticMode": "workspace",
+    "cursorpyright.analysis.diagnosticSeverityOverrides": {
+        "reportOptionalMemberAccess": "none",
+        "reportOptionalSubscript": "none",
+        "reportOptionalIterable": "none",
+        "reportOptionalCall": "none",
+        "reportOptionalOperand": "none"
+    },
+    "cursorpyright.analysis.extraPaths": [
+        "./src"
+    ],
+    "cursorpyright.analysis.typeCheckingMode": "basic"
 }

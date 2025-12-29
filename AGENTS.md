@@ -41,11 +41,11 @@ Agentic Coding should be a collaboration between Human System Design and Agent I
           check -->|OK| process
           check -->|Error| fix[Fix]
           fix --> check
-
+          
           subgraph process[Process]
             step1[Step 1] --> step2[Step 2]
           end
-
+          
           process --> endNode[End]
       ```
     - > **If Humans can't specify the flow, AI Agents can't automate it!** Before building an LLM system, thoroughly understand the problem and potential solution by manually solving example inputs to develop intuition.  
@@ -77,7 +77,7 @@ Agentic Coding should be a collaboration between Human System Design and Agent I
               messages=[{"role": "user", "content": prompt}]
           )
           return r.choices[0].message.content
-
+          
       if __name__ == "__main__":
           prompt = "What is the meaning of life?"
           print(call_llm(prompt))
@@ -276,7 +276,7 @@ my_project/
           # Get question directly from user input
           user_question = input("Enter your question: ")
           return user_question
-
+      
       def post(self, shared, prep_res, exec_res):
           # Store the user's question
           shared["question"] = exec_res
@@ -286,11 +286,11 @@ my_project/
       def prep(self, shared):
           # Read question from shared
           return shared["question"]
-
+      
       def exec(self, question):
           # Call LLM to get the answer
           return call_llm(question)
-
+      
       def post(self, shared, prep_res, exec_res):
           # Store the answer in shared
           shared["answer"] = exec_res
@@ -306,10 +306,10 @@ my_project/
       # Create nodes
       get_question_node = GetQuestionNode()
       answer_node = AnswerNode()
-
+      
       # Connect nodes in sequence
       get_question_node >> answer_node
-
+      
       # Create flow starting with input node
       return Flow(start=get_question_node)
   ```
@@ -596,7 +596,7 @@ Nodes and Flows **communicate** in 2 ways:
    - A global data structure (often an in-mem dict) that all nodes can read ( `prep()`) and write (`post()`).  
    - Great for data results, large content, or anything multiple nodes need.
    - You shall design the data structure and populate it ahead.
-
+     
    - > **Separation of Concerns:** Use `Shared Store` for almost all cases to separate *Data Schema* from *Compute Logic*!  This approach is both flexible and easy to manage, resulting in more maintainable code. `Params` is more a syntax sugar for [Batch](./batch.md).
      {: .best-practice }
 
@@ -1143,7 +1143,7 @@ class DecideAction(Node):
         context = shared.get("context", "No previous search")
         query = shared["query"]
         return query, context
-
+        
     def exec(self, inputs):
         query, context = inputs
         prompt = f"""
@@ -1159,14 +1159,14 @@ search_term: search phrase if action is search
         resp = call_llm(prompt)
         yaml_str = resp.split("```yaml")[1].split("```")[0].strip()
         result = yaml.safe_load(yaml_str)
-
+        
         assert isinstance(result, dict)
         assert "action" in result
         assert "reason" in result
         assert result["action"] in ["search", "answer"]
         if result["action"] == "search":
             assert "search_term" in result
-
+        
         return result
 
     def post(self, shared, prep_res, exec_res):
@@ -1177,21 +1177,21 @@ search_term: search phrase if action is search
 class SearchWeb(Node):
     def prep(self, shared):
         return shared["search_term"]
-
+        
     def exec(self, search_term):
         return search_web(search_term)
-
+    
     def post(self, shared, prep_res, exec_res):
         prev_searches = shared.get("context", [])
         shared["context"] = prev_searches + [
             {"term": shared["search_term"], "result": exec_res}
         ]
         return "decide"
-
+        
 class DirectAnswer(Node):
     def prep(self, shared):
         return shared["query"], shared.get("context", "")
-
+        
     def exec(self, inputs):
         query, context = inputs
         return call_llm(f"Context: {context}\nAnswer: {query}")
@@ -1332,7 +1332,7 @@ class ChunkDocs(BatchNode):
         for i in range(0, len(text), size):
             chunks.append(text[i : i + size])
         return chunks
-
+    
     def post(self, shared, prep_res, exec_res_list):
         # exec_res_list is a list of chunk-lists, one per file.
         # flatten them all into a single list of chunks.
