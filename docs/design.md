@@ -11,7 +11,7 @@ The NBA Data Analyst Agent is a Text-to-SQL system that allows users to ask natu
 
 ### Core Capabilities
 
-1.  **DuckDB Integration**: Connects to `data/nba.duckdb` as the exclusive data source.
+1.  **DuckDB Integration**: Connects to `src/backend/data/nba.duckdb` as the exclusive data source.
 2.  **Schema Introspection**: Dynamically explores the database structure (tables, columns, types) to understand available data.
 3.  **Smart Table Selection**: Identifies the most relevant tables for a user's query from the complete schema to minimize context window usage.
 4.  **Text-to-SQL Generation**: Generates valid DuckDB SQL queries to extract the exact data needed.
@@ -25,6 +25,12 @@ The NBA Data Analyst Agent is a Text-to-SQL system that allows users to ask natu
 - As a user, I want the system to handle complex queries involving joins (e.g., "Compare team stats for the Lakers vs Celtics").
 - As a user, I want assurance that the answer is double-checked for accuracy before I see it.
 - As a user, I want the system to explain *how* it derived the answer (e.g., "Based on table X...").
+
+## Repository Organization
+
+> Notes for AI: Keep this section high-level and no-code. Focus on maintainability and discoverability.
+
+The repository is organized to separate runtime code, data assets, documentation, and developer tooling. The entrypoints live under the frontend package, backend logic stays under a single backend package, and all generated or static data lives alongside the backend so paths are consistent for scripts and the app. Documentation is consolidated under `docs/` and aligned with MkDocs navigation. Tooling and integration files remain in the project root when required by the tool or platform.
 
 ## Flow Design
 

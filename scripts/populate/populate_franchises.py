@@ -15,7 +15,7 @@ TODO: ROADMAP Phase 4.2 - Implement franchises data population
   - Historical context for team comparisons
 - Priority: LOW (Phase 4.2)
 - Data Source: NBA official records, Basketball Reference, Wikipedia
-Reference: ROADMAP.md Phase 4.2
+Reference: docs/roadmap.md Phase 4.2
 
 This script will fetch NBA franchise history and populate the franchises table.
 
@@ -75,13 +75,13 @@ def populate_franchises(*args, **kwargs):
     Currently unimplemented.
     
     Raises:
-        NotImplementedError: Always raised until the population logic required by ROADMAP.md Phase 4.2 is implemented.
+        NotImplementedError: Always raised until the population logic required by docs/roadmap.md Phase 4.2 is implemented.
     """
     logger.error("Franchises population not yet implemented")
-    logger.info("TODO: See ROADMAP.md Phase 4.2 for implementation requirements")
+    logger.info("TODO: See docs/roadmap.md Phase 4.2 for implementation requirements")
     raise NotImplementedError(
         "Franchises population is planned but not yet implemented. "
-        "See ROADMAP.md Phase 4.2 for requirements."
+        "See docs/roadmap.md Phase 4.2 for requirements."
     )
 
 
@@ -104,7 +104,7 @@ def main():
     logger.warning("FRANCHISES POPULATION - NOT YET IMPLEMENTED")
     logger.warning("=" * 70)
     logger.warning("This script is a placeholder for future development.")
-    logger.warning("See ROADMAP.md Phase 4.2 for implementation requirements.")
+    logger.warning("See docs/roadmap.md Phase 4.2 for implementation requirements.")
     logger.warning("")
     logger.warning("Key Decisions Needed:")
     logger.warning("1. Data source for franchise history")

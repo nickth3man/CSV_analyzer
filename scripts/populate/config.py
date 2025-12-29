@@ -24,7 +24,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 # Default database path
-DEFAULT_DB_PATH = PROJECT_ROOT / "data" / "nba.duckdb"
+DEFAULT_DB_PATH = PROJECT_ROOT / "src" / "backend" / "data" / "nba.duckdb"
 
 # Cache directory for progress tracking
 CACHE_DIR = PROJECT_ROOT / ".nba_cache"

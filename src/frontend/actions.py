@@ -26,7 +26,7 @@ async def on_upload_action(action: cl.Action) -> str:
     ).send()
 
     if files:
-        csv_dir = "data/raw/csv"
+        csv_dir = "src/backend/data/raw/csv"
         os.makedirs(csv_dir, exist_ok=True)
 
         uploaded = []

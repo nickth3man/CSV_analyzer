@@ -14,7 +14,7 @@ TODO: ROADMAP Phase 3.1 - Resolve NBA API issues blocking play-by-play populatio
   4. Consider caching/historical data sources if API unavailable
 - Impact: Blocks clutch analysis, lineup analysis, and detailed event tracking
 - Priority: HIGH (Phase 3.1)
-Reference: ROADMAP.md Phase 3.1
+Reference: docs/roadmap.md Phase 3.1
 
 Features:
 - Fetches play-by-play data for specific games or seasons

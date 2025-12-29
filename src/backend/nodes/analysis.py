@@ -2,8 +2,8 @@
 
 import json
 import logging
-import os
 import time
+from pathlib import Path
 
 import matplotlib
 import pandas as pd
@@ -257,16 +257,16 @@ class Visualizer(Node):
         return shared.get("exec_result")
 
     def exec(self, prep_res):
-        """Create a simple bar chart from the first numeric column of a DataFrame and save it to the assets directory.
+        """Create a simple bar chart from the first numeric column of a DataFrame and save it to the charts directory.
 
         Parameters:
             prep_res (pandas.DataFrame | None): DataFrame to visualize; may be None or non-DataFrame in which case no chart is produced.
 
         Returns:
-            str | None: File path to the generated PNG chart (assets/chart_<timestamp>.png) if a chart was created, `None` if no chart could be produced (e.g., prep_res is None, not a DataFrame, or contains no numeric columns).
+            str | None: File path to the generated PNG chart (src/backend/data/charts/chart_<timestamp>.png) if a chart was created, `None` if no chart could be produced (e.g., prep_res is None, not a DataFrame, or contains no numeric columns).
 
         Notes:
-            - Ensures the "assets" directory exists and prunes older chart files beyond CHART_HISTORY_LIMIT.
+            - Ensures the charts directory exists and prunes older chart files beyond CHART_HISTORY_LIMIT.
             - The chart uses up to CHART_ROW_LIMIT rows and plots the first numeric column as a bar chart.
         """
         if prep_res is None:
@@ -283,25 +283,21 @@ class Visualizer(Node):
             matplotlib.use("Agg")
             import matplotlib.pyplot as plt
 
-            output_dir = "assets"
-            os.makedirs(output_dir, exist_ok=True)
+            output_dir = Path(__file__).resolve().parents[1] / "data" / "charts"
+            output_dir.mkdir(parents=True, exist_ok=True)
 
             try:
                 chart_files = sorted(
-                    [
-                        file
-                        for file in os.listdir(output_dir)
-                        if file.startswith("chart_")
-                    ],
-                    key=lambda name: os.path.getmtime(os.path.join(output_dir, name)),
+                    [file for file in output_dir.iterdir() if file.name.startswith("chart_")],
+                    key=lambda entry: entry.stat().st_mtime,
                 )
                 for old_file in chart_files[:-CHART_HISTORY_LIMIT]:
-                    os.remove(os.path.join(output_dir, old_file))
+                    old_file.unlink()
             except OSError:
                 pass
 
             timestamp = int(time.time())
-            output_path = os.path.join(output_dir, f"chart_{timestamp}.png")
+            output_path = output_dir / f"chart_{timestamp}.png"
 
             plot_df = prep_res[numeric_cols].head(CHART_ROW_LIMIT)
             plt.figure(figsize=(8, 4))
@@ -312,7 +308,7 @@ class Visualizer(Node):
             plt.tight_layout()
             plt.savefig(output_path)
             plt.close()
-            return output_path
+            return str(output_path)
         return None
 
     def post(self, shared, prep_res, exec_res) -> str:

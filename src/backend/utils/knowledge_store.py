@@ -60,6 +60,7 @@ import json
 import logging
 import os
 import threading
+from pathlib import Path
 from typing import Any
 
 from backend.config import SUCCESSFUL_PATTERN_LIMIT
@@ -67,7 +68,9 @@ from backend.config import SUCCESSFUL_PATTERN_LIMIT
 
 logger = logging.getLogger(__name__)
 
-KNOWLEDGE_FILE = "knowledge_store.json"
+KNOWLEDGE_FILE = str(
+    Path(__file__).resolve().parents[1] / "data" / "json" / "knowledge_store.json",
+)
 
 
 class KnowledgeStore:
@@ -95,6 +98,7 @@ class KnowledgeStore:
     def save(self) -> None:
         with self._lock:
             try:
+                Path(KNOWLEDGE_FILE).parent.mkdir(parents=True, exist_ok=True)
                 with open(KNOWLEDGE_FILE, "w") as f:
                     json.dump(self.data, f, indent=2)
             except OSError as e:

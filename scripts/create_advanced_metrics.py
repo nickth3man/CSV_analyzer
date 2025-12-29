@@ -10,14 +10,14 @@ TODO: ROADMAP Phase 2.3 - Complete advanced metrics implementation
 - Missing: PER (complex formula requiring league averages)
 - Missing: BPM, VORP (require additional regression models)
 - Missing: ORtg, DRtg (require possessions and team context)
-Reference: ROADMAP.md Phase 2.3
+Reference: docs/roadmap.md Phase 2.3
 
 TODO: ROADMAP Phase 2.4 - Add possessions/pace data
 - Need to calculate team possessions per game for advanced metrics
 - Formula: Poss = 0.5 * ((Tm_FGA + 0.4*Tm_FTA - 1.07*(Tm_ORB/(Tm_ORB+Opp_DRB))*(Tm_FGA-Tm_FGM) + Tm_TOV) + (Opp_FGA + 0.4*Opp_FTA - 1.07*(Opp_ORB/(Opp_ORB+Tm_DRB))*(Opp_FGA-Opp_FGM) + Opp_TOV))
 - Required for: USG%, ORtg, DRtg, Pace calculation
 - Blocked by: Need opponent team stats joined per game
-Reference: ROADMAP.md Phase 2.4
+Reference: docs/roadmap.md Phase 2.4
 
 Metrics Implemented:
 ====================
@@ -62,11 +62,11 @@ import sys
 import duckdb
 
 
-def create_advanced_metrics(db_path: str = "data/nba.duckdb") -> None:
+def create_advanced_metrics(db_path: str = "src/backend/data/nba.duckdb") -> None:
     """Create advanced NBA metrics views and a player season summary table in the DuckDB database.
 
     Parameters:
-        db_path (str): Filesystem path to the DuckDB database file (default: "data/nba.duckdb").
+        db_path (str): Filesystem path to the DuckDB database file (default: "src/backend/data/nba.duckdb").
             The function will create or replace views and a season-summary table within this
             database and commit the changes.
     """
@@ -327,7 +327,7 @@ def create_advanced_metrics(db_path: str = "data/nba.duckdb") -> None:
         # - PER (player efficiency rating)
         # - WS, WS/48 (win shares)
         # - BPM, VORP (box plus/minus, value over replacement)
-        # Reference: ROADMAP.md Phase 2.3
+        # Reference: docs/roadmap.md Phase 2.3
 
         # Create table to store aggregated season stats per player
         conn.execute("""
@@ -544,5 +544,5 @@ def create_advanced_metrics(db_path: str = "data/nba.duckdb") -> None:
 
 
 if __name__ == "__main__":
-    db_path = sys.argv[1] if len(sys.argv) > 1 else "data/nba.duckdb"
+    db_path = sys.argv[1] if len(sys.argv) > 1 else "src/backend/data/nba.duckdb"
     create_advanced_metrics(db_path)

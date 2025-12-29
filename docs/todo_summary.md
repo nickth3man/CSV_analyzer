@@ -1,9 +1,9 @@
 # TODO Comments Summary
 
-This document summarizes all TODO comments added to the codebase based on ROADMAP.md.
+This document summarizes all TODO comments added to the codebase based on docs/roadmap.md.
 
 **Date Created**: 2024-12-28
-**Source**: ROADMAP.md database development roadmap
+**Source**: docs/roadmap.md database development roadmap
 **Purpose**: Track implementation tasks across all development phases
 
 ---
@@ -242,7 +242,7 @@ This document summarizes all TODO comments added to the codebase based on ROADMA
 1. **Find TODOs in code**: Search for `TODO: ROADMAP Phase` in the codebase
 2. **Track progress**: Update this document as TODOs are completed
 3. **Prioritize work**: Focus on P0/P1 items first, especially blocked items
-4. **Reference ROADMAP.md**: See complete context and formulas in ROADMAP.md
+4. **Reference docs/roadmap.md**: See complete context and formulas in docs/roadmap.md
 
 ## Next Steps
 

@@ -4,7 +4,7 @@ import contextlib
 import duckdb
 
 
-DATABASE_FILE = "data/nba.duckdb"
+DATABASE_FILE = "src/backend/data/nba.duckdb"
 
 
 def detailed_check() -> None:

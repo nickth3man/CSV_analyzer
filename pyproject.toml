@@ -324,7 +324,7 @@ exclude = ["tests/", ".venv/", "htmlcov/"]
 ignore_decorators = ["@app.route", "@require_*"]
 ignore_names = ["test_*", "setUp", "tearDown"]
 min_confidence = 80
-paths = ["src", "app.py"]
+paths = ["src", "src/frontend/app.py"]
 sort_by_size = true
 
 [tool.commitizen]

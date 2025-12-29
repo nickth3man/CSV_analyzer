@@ -33,7 +33,7 @@ class TestPopulatePlaceholders:
         try:
             populate_arenas.populate_arenas()
         except NotImplementedError as e:
-            assert "ROADMAP.md" in str(e) or "Phase 4.1" in str(e)
+            assert "docs/roadmap.md" in str(e) or "Phase 4.1" in str(e)
 
     def test_populate_franchises_raises_not_implemented(self):
         """Test that populate_franchises raises NotImplementedError."""

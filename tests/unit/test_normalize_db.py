@@ -208,7 +208,7 @@ class TestTransformToSilver:
                 (100,), (100,),  # table2 inference
             ]
 
-            transform_to_silver("data/test.db")
+            transform_to_silver("src/backend/data/test.db")
 
             # Verify CREATE TABLE calls
             calls = [str(c) for c in mock_con.execute.call_args_list]
@@ -231,7 +231,7 @@ class TestTransformToSilver:
             mock_con.sql.return_value.fetchall.return_value = [("col1", "VARCHAR")]
             mock_con.sql.return_value.fetchone.side_effect = [(100,), (100,)]
 
-            transform_to_silver("data/test.db", tables=["specific_table"])
+            transform_to_silver("src/backend/data/test.db", tables=["specific_table"])
 
             calls = [str(c) for c in mock_con.execute.call_args_list]
             assert any("specific_table_silver" in c for c in calls)
@@ -258,7 +258,7 @@ class TestTransformToSilver:
                 (50,), (50,),  # Only VARCHAR column inferred
             ]
 
-            transform_to_silver("data/test.db")
+            transform_to_silver("src/backend/data/test.db")
 
             # Verify type inference not called for BIGINT column
             inference_calls = [c for c in mock_con.sql.call_args_list 
@@ -281,7 +281,7 @@ class TestTransformToSilver:
             ]
             mock_con.sql.return_value.fetchone.side_effect = [(100,), (100,)]
 
-            transform_to_silver("data/test.db")
+            transform_to_silver("src/backend/data/test.db")
 
             # Verify CREATE OR REPLACE TABLE was called
             calls = [str(c) for c in mock_con.execute.call_args_list]
@@ -326,7 +326,7 @@ class TestTransformToSilver:
 
             mock_con.sql.side_effect = sql_side_effect
 
-            transform_to_silver("data/test.db")
+            transform_to_silver("src/backend/data/test.db")
 
             # Should log errors but continue
             assert mock_logger.exception.called
@@ -342,7 +342,7 @@ class TestTransformToSilver:
 
             mock_con.sql.return_value.fetchall.side_effect = [[], []]
 
-            transform_to_silver("data/test.db")
+            transform_to_silver("src/backend/data/test.db")
 
             mock_con.close.assert_called_once()
 
@@ -377,7 +377,7 @@ class TestTransformToSilver:
                     (100,), (0,), (0,), (100,)
                 ]
 
-            transform_to_silver("data/test.db")
+            transform_to_silver("src/backend/data/test.db")
 
             # Verify TRY_CAST with correct type
             calls = [str(c) for c in mock_con.execute.call_args_list]

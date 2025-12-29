@@ -152,7 +152,7 @@ class TestDatabasePathHandling:
             check_integrity()
 
             # Should use default path
-            mock_connect.assert_called_once_with("data/nba.duckdb")
+            mock_connect.assert_called_once_with("src/backend/data/nba.duckdb")
 
     def test_create_advanced_metrics_uses_correct_default_path(self):
         """Test that create_advanced_metrics uses correct default database path."""
@@ -163,7 +163,7 @@ class TestDatabasePathHandling:
             from scripts.create_advanced_metrics import create_advanced_metrics
             create_advanced_metrics()
 
-            mock_connect.assert_called_once_with("data/nba.duckdb")
+            mock_connect.assert_called_once_with("src/backend/data/nba.duckdb")
 
     def test_create_advanced_metrics_accepts_command_line_path(self):
         """Test that create_advanced_metrics can accept path from command line."""
@@ -179,7 +179,7 @@ class TestDatabasePathHandling:
             mock_connect.assert_called_once_with(custom_path)
 
     @pytest.mark.parametrize("path", [
-        "data/nba.duckdb",
+        "src/backend/data/nba.duckdb",
         "test.db",
         ":memory:",
         "/absolute/path/db.duckdb",

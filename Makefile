@@ -54,7 +54,7 @@ security: ## Run security checks
 audit: security ## Alias for security
 
 vulture: ## Check for dead code
-	uv run vulture src app.py --min-confidence=80
+	uv run vulture src src/frontend/app.py --min-confidence=80
 
 interrogate: ## Check docstring coverage
 	uv run interrogate -vv --fail-under=80 src || true
@@ -103,7 +103,7 @@ changelog: ## Generate changelog
 	uv run cz changelog
 
 run: ## Run the Chainlit application
-	uv run chainlit run app.py
+	uv run chainlit run src/frontend/app.py
 
 run-cli: ## Run the CLI version
 	uv run python src/backend/main.py

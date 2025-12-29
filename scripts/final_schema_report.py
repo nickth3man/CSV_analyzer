@@ -1,7 +1,7 @@
 import duckdb
 
 
-DATABASE = "data/nba.duckdb"
+DATABASE = "src/backend/data/nba.duckdb"
 
 
 def final_report() -> None:

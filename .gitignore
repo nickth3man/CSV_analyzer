@@ -86,8 +86,11 @@ coverage/
 *.sqlite3
 
 # DuckDB files (keep structure, ignore generated database)
-data/*.duckdb
-data/*.duckdb.wal
+src/backend/data/*.duckdb
+src/backend/data/*.duckdb.wal
+
+# Generated charts
+src/backend/data/charts/
 
 # NBA population cache (progress tracking)
 .nba_cache/

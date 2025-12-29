@@ -17,7 +17,7 @@ TODO: ROADMAP Phase 3.5 - Implement injury data population
   - Availability predictions
   - Career longevity studies
 - Priority: LOW (Phase 3.5)
-Reference: ROADMAP.md Phase 3.5
+Reference: docs/roadmap.md Phase 3.5
 
 This script will fetch NBA player injury data and populate the injury tracking tables.
 
@@ -74,16 +74,16 @@ def populate_injury_data(*args, **kwargs):
     """
     Placeholder for populating NBA player injury and availability data.
     
-    This function is not yet implemented and serves as a stub for the planned Phase 3.5 feature to ingest and track player injuries, timelines, and games missed. Calling this function will raise a NotImplementedError directing to ROADMAP.md Phase 3.5.
+    This function is not yet implemented and serves as a stub for the planned Phase 3.5 feature to ingest and track player injuries, timelines, and games missed. Calling this function will raise a NotImplementedError directing to docs/roadmap.md Phase 3.5.
     
     Raises:
-        NotImplementedError: Indicates the injury data population feature is not implemented; see ROADMAP.md Phase 3.5 for requirements.
+        NotImplementedError: Indicates the injury data population feature is not implemented; see docs/roadmap.md Phase 3.5 for requirements.
     """
     logger.error("Injury data population not yet implemented")
-    logger.info("TODO: See ROADMAP.md Phase 3.5 for implementation requirements")
+    logger.info("TODO: See docs/roadmap.md Phase 3.5 for implementation requirements")
     raise NotImplementedError(
         "Injury data population is planned but not yet implemented. "
-        "See ROADMAP.md Phase 3.5 for requirements."
+        "See docs/roadmap.md Phase 3.5 for requirements."
     )
 
 
@@ -91,7 +91,7 @@ def main():
     """
     CLI entry point that prints placeholder warnings about unimplemented injury data population and then exits.
     
-    Logs a series of warning messages describing that the feature is not yet implemented and lists key decisions required (see ROADMAP.md Phase 3.5), then terminates the process with exit code 1.
+    Logs a series of warning messages describing that the feature is not yet implemented and lists key decisions required (see docs/roadmap.md Phase 3.5), then terminates the process with exit code 1.
     """
     parser = argparse.ArgumentParser(
         description="Populate injury data (NOT YET IMPLEMENTED)",
@@ -107,7 +107,7 @@ def main():
     logger.warning("INJURY DATA POPULATION - NOT YET IMPLEMENTED")
     logger.warning("=" * 70)
     logger.warning("This script is a placeholder for future development.")
-    logger.warning("See ROADMAP.md Phase 3.5 for implementation requirements.")
+    logger.warning("See docs/roadmap.md Phase 3.5 for implementation requirements.")
     logger.warning("")
     logger.warning("Key Decisions Needed:")
     logger.warning("1. Select primary data source (NBA official, ESPN, RotoWire)")

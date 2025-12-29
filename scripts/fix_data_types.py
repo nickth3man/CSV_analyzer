@@ -13,7 +13,7 @@ import sys
 import duckdb
 
 
-def fix_data_types(db_path: str = "data/nba.duckdb") -> None:
+def fix_data_types(db_path: str = "src/backend/data/nba.duckdb") -> None:
     """Fix data type issues in the database."""
     conn = duckdb.connect(db_path)
 
@@ -191,5 +191,5 @@ def fix_data_types(db_path: str = "data/nba.duckdb") -> None:
 
 
 if __name__ == "__main__":
-    db_path = sys.argv[1] if len(sys.argv) > 1 else "data/nba.duckdb"
+    db_path = sys.argv[1] if len(sys.argv) > 1 else "src/backend/data/nba.duckdb"
     fix_data_types(db_path)

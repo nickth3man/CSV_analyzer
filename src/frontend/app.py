@@ -1,14 +1,14 @@
 """Main entry point for the Chainlit Data Analyst Agent.
 
 This file imports and registers all handlers from the frontend module.
-Run with: chainlit run app.py
+Run with: chainlit run src/frontend/app.py
 """
 
 import sys
 from pathlib import Path
 
 # Add src directory to Python path so imports like "from backend.xxx" work
-src_path = Path(__file__).parent / "src"
+src_path = Path(__file__).resolve().parents[1]
 if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 

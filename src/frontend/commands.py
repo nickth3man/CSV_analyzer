@@ -34,7 +34,7 @@ async def handle_command(message_content: str) -> bool:
         ).send()
 
         if files:
-            csv_dir = "data/raw/csv"
+            csv_dir = "src/backend/data/raw/csv"
             os.makedirs(csv_dir, exist_ok=True)
 
             uploaded = []
@@ -69,7 +69,7 @@ async def handle_command(message_content: str) -> bool:
 
     if content.startswith("/delete "):
         table_name = message_content[8:].strip()
-        filepath = os.path.join("data/raw/csv", f"{table_name}.csv")
+        filepath = os.path.join("src/backend/data/raw/csv", f"{table_name}.csv")
         if os.path.exists(filepath):
             os.remove(filepath)
             # Invalidate cache after delete

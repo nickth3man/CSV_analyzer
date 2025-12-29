@@ -6,7 +6,7 @@ import duckdb
 # Set up logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-DATABASE = "data/nba.duckdb"
+DATABASE = "src/backend/data/nba.duckdb"
 
 
 def create_advanced_schema() -> None:

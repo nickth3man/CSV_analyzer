@@ -485,7 +485,7 @@ Examples:
     parser.add_argument(
         "--db",
         default=None,
-        help="Path to DuckDB database (default: data/nba.duckdb)",
+        help="Path to DuckDB database (default: src/backend/data/nba.duckdb)",
     )
     parser.add_argument(
         "--seasons",

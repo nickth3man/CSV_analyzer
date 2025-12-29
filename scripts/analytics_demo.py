@@ -14,7 +14,7 @@ import duckdb
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 
-def run_analytics_demo(db_path: str = "data/nba.duckdb") -> None:
+def run_analytics_demo(db_path: str = "src/backend/data/nba.duckdb") -> None:
     """Run comprehensive analytics demonstrations."""
     logging.info(f"Connecting to database: {db_path}")
     conn = duckdb.connect(db_path)
@@ -227,7 +227,7 @@ def main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description="NBA Database Analytics Demo")
-    parser.add_argument("--db", default="data/nba.duckdb", help="Database path")
+    parser.add_argument("--db", default="src/backend/data/nba.duckdb", help="Database path")
 
     args = parser.parse_args()
 

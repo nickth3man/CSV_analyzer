@@ -14,7 +14,7 @@ This project, "Pocket Flow," is a minimalist LLM framework designed for agentic 
 The core of Pocket Flow is modeled as a **Graph + Shared Store**.
 
 ### UI/UX Decisions
-- **Chainlit Web Interface** (`app.py` with modular `frontend/` components): Modern chat-first UI running on port 5000
+- **Chainlit Web Interface** (`src/frontend/app.py` with modular `src/frontend/` components): Modern chat-first UI running on port 5000
   - Conversational interface with action buttons
   - Settings panel (gear icon) for API key and model selection
   - File upload via paperclip icon or `/upload` command
@@ -42,11 +42,11 @@ The core of Pocket Flow is modeled as a **Graph + Shared Store**.
     - **Structured Output**: Guides LLMs to produce specific data structures (e.g., YAML) using prompt engineering and validation. YAML is preferred over JSON for better handling of escaping and newlines.
 - **File Structure**:
     - `my_project/`
-        - `app.py`: Chainlit web interface (main entry point).
+        - `src/frontend/app.py`: Chainlit web interface (main entry point).
         - `main.py`: CLI entry point for running analysis without GUI.
         - `nodes.py`: Node definitions (18 nodes including EntityResolver, DeepAnalyzer, ResponseSynthesizer).
         - `flow.py`: Flow creation and connections.
-        - `frontend/`: Modular frontend components
+        - `src/frontend/`: Modular frontend components
           - `__init__.py`: Module initialization
           - `config.py`: Configuration and constants
           - `cache.py`: Dataframe caching
@@ -58,16 +58,16 @@ The core of Pocket Flow is modeled as a **Graph + Shared Store**.
           - `handlers.py`: Main event handlers
         - `chainlit.md`: Chainlit welcome markdown displayed to users.
         - `.chainlit/config.toml`: Chainlit configuration (file upload, CoT display, etc).
-        - `utils/`: Utility functions
+        - `src/backend/utils/`: Utility functions
           - `call_llm.py`: Standard LLM calls
           - `call_llm_streaming.py`: Streaming LLM calls
           - `knowledge_store.py`: Persistent learning storage
-        - `CSV/`: Data directory for CSV files
+        - `src/backend/data/raw/csv/`: Data directory for CSV files
         - `requirements.txt`: Project dependencies (pocketflow, openai, matplotlib, pandas, chainlit).
         - `docs/design.md`: High-level, no-code design documentation.
 
 ## Recent Changes (December 2024)
-- **Refactored to modular frontend architecture** (`app.py` with `frontend/` components) - Organized Chainlit interface into reusable modules:
+- **Refactored to modular frontend architecture** (`src/frontend/app.py` with `src/frontend/` components) - Organized Chainlit interface into reusable modules:
   - Config module for constants and model filtering
   - Cache module for efficient dataframe loading
   - Data utilities for schema and profiling

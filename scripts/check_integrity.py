@@ -5,7 +5,7 @@ TODO: ROADMAP Phase 1.4 - Add comprehensive FK constraints/tests
 - Add referential integrity tests for game_gold -> team_silver
 - Add constraints for player_game_stats -> player_silver/game_gold
 - Consider using dbt or similar for automated constraint testing
-Reference: ROADMAP.md Phase 1.4
+Reference: docs/roadmap.md Phase 1.4
 
 TODO: ROADMAP Phase 4.5 - Add automated quality tests
 - Implement automated data quality checks beyond FK constraints
@@ -17,7 +17,7 @@ TODO: ROADMAP Phase 4.5 - Add automated quality tests
   5. Historical data completeness checks
 - Consider: Great Expectations, dbt tests, or custom test suite
 - Priority: MEDIUM (Phase 4.5)
-Reference: ROADMAP.md Phase 4.5
+Reference: docs/roadmap.md Phase 4.5
 """
 
 import contextlib
@@ -25,7 +25,7 @@ import contextlib
 import duckdb
 
 
-DATABASE = "data/nba.duckdb"
+DATABASE = "src/backend/data/nba.duckdb"
 
 
 def check_integrity() -> None:
@@ -81,7 +81,7 @@ def check_integrity() -> None:
     # - player_game_stats.game_id -> game_gold.game_id
     # - team_game_stats.team_id -> team_silver.id
     # - team_game_stats.game_id -> game_gold.game_id
-    # Reference: ROADMAP.md Phase 1.4
+    # Reference: docs/roadmap.md Phase 1.4
     fk_checks = [
         ("game_silver", "team_id_home", "team_silver", "id"),
         ("game_silver", "team_id_away", "team_silver", "id"),

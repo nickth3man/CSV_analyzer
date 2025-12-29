@@ -16,7 +16,7 @@ class DataFrameCache:
     Implements cache invalidation based on directory modification time.
     """
 
-    def __init__(self, csv_dir: str = "data/raw/csv") -> None:
+    def __init__(self, csv_dir: str = "src/backend/data/raw/csv") -> None:
         self.csv_dir = csv_dir
         self._cache: dict[str, pd.DataFrame] = {}
         self._last_mtime: float | None = None
@@ -90,7 +90,7 @@ class DataFrameCache:
 
 
 # Global DataFrame cache instance
-_df_cache = DataFrameCache("data/raw/csv")
+_df_cache = DataFrameCache("src/backend/data/raw/csv")
 
 
 def get_dataframe_cache():

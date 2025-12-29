@@ -1,7 +1,7 @@
 # NBA Data Analyst Agent - Database Roadmap
 
 > **Last Updated**: 2024-12-28  
-> **Current Database**: `data/nba.duckdb` (58 tables, ~49MB)  
+> **Current Database**: `src/backend/data/nba.duckdb` (58 tables, ~49MB)  
 > **Status**: ✅ **MAJOR TRANSFORMATION COMPLETE** - Database now analytics-ready!
 
 ---

@@ -15,7 +15,7 @@ TODO: ROADMAP Phase 4.3 - Implement officials data population
   - Playoff officiating experience
 - Priority: LOW (Phase 4.3)
 - Data Source: NBA official referee roster, game officiating crews
-Reference: ROADMAP.md Phase 4.3
+Reference: docs/roadmap.md Phase 4.3
 
 This script will fetch NBA referee/official data and populate the officials_directory table.
 
@@ -81,16 +81,16 @@ def populate_officials(*args, **kwargs):
     
     Intended to fetch current (and optionally historical) NBA referee data, store biographical
     and officiating statistics, and create links between officials and games. See
-    ROADMAP.md Phase 4.3 for detailed requirements and data sources.
+    docs/roadmap.md Phase 4.3 for detailed requirements and data sources.
     
     Raises:
-        NotImplementedError: Function is a placeholder; implementation planned per ROADMAP.md Phase 4.3.
+        NotImplementedError: Function is a placeholder; implementation planned per docs/roadmap.md Phase 4.3.
     """
     logger.error("Officials population not yet implemented")
-    logger.info("TODO: See ROADMAP.md Phase 4.3 for implementation requirements")
+    logger.info("TODO: See docs/roadmap.md Phase 4.3 for implementation requirements")
     raise NotImplementedError(
         "Officials population is planned but not yet implemented. "
-        "See ROADMAP.md Phase 4.3 for requirements."
+        "See docs/roadmap.md Phase 4.3 for requirements."
     )
 
 
@@ -98,7 +98,7 @@ def main():
     """
     Command-line entry point that reports the placeholder status for officials population.
     
-    Parses the command-line options --include-historical, --seasons, and --with-games, emits a series of warning messages describing that officials population is not yet implemented and listing required decisions, references ROADMAP.md Phase 4.3, and exits the process with status code 1.
+    Parses the command-line options --include-historical, --seasons, and --with-games, emits a series of warning messages describing that officials population is not yet implemented and listing required decisions, references docs/roadmap.md Phase 4.3, and exits the process with status code 1.
     """
     parser = argparse.ArgumentParser(
         description="Populate officials data (NOT YET IMPLEMENTED)",
@@ -116,7 +116,7 @@ def main():
     logger.warning("OFFICIALS POPULATION - NOT YET IMPLEMENTED")
     logger.warning("=" * 70)
     logger.warning("This script is a placeholder for future development.")
-    logger.warning("See ROADMAP.md Phase 4.3 for implementation requirements.")
+    logger.warning("See docs/roadmap.md Phase 4.3 for implementation requirements.")
     logger.warning("")
     logger.warning("Current officials_directory table status: 0 rows")
     logger.warning("")

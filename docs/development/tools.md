@@ -84,7 +84,7 @@ black .
 
 **Settings**:
 - Line length: 88 characters
-- Target: Python 3.12
+- Target: Python 3.11
 
 **Documentation**: [Black Documentation](https://black.readthedocs.io/)
 
@@ -452,7 +452,7 @@ cz changelog
 ```bash
 make vulture
 # or
-vulture src app.py --min-confidence=80
+vulture src src/frontend/app.py --min-confidence=80
 ```
 
 **Configuration**: `pyproject.toml` under `[tool.vulture]`
@@ -549,7 +549,7 @@ make clean        # Remove build artifacts
 3. **Test** (runs in parallel):
    - pytest with coverage
    - Upload coverage to Codecov
-   - Matrix: Python 3.12
+   - Matrix: Python 3.11
 
 4. **Security** (runs in parallel):
    - Bandit scan

@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 def get_csv_files():
-    """Get list of CSV files in the data/raw/csv directory."""
-    csv_dir = "data/raw/csv"
+    """Get list of CSV files in the src/backend/data/raw/csv directory."""
+    csv_dir = "src/backend/data/raw/csv"
     if not os.path.exists(csv_dir):
         os.makedirs(csv_dir)
     return [f.replace(".csv", "") for f in os.listdir(csv_dir) if f.endswith(".csv")]

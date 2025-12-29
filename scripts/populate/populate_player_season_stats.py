@@ -11,7 +11,7 @@ TODO: ROADMAP Phase 2.5 - Verify and utilize bridge_player_team_season table
   2. Check data quality and completeness
   3. Consider using this table for player-team-season relationships
   4. May simplify season aggregation logic if properly maintained
-- Reference: ROADMAP.md Phase 2.5
+- Reference: docs/roadmap.md Phase 2.5
 
 Features:
 - Aggregates player game stats into season totals

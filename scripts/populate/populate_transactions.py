@@ -15,7 +15,7 @@ TODO: ROADMAP Phase 3.4 - Implement transactions data population
   - Team-building patterns
 - Priority: LOW (Phase 3.4)
 - Data Source: NBA API transactions endpoint or web scraping
-Reference: ROADMAP.md Phase 3.4
+Reference: docs/roadmap.md Phase 3.4
 
 This script will fetch NBA player transaction data and populate the transactions table.
 
@@ -66,16 +66,16 @@ def populate_transactions(*args, **kwargs):
     """
     Populate the transactions table with NBA player transaction records.
     
-    This placeholder outlines planned behavior — ingest transaction data, parse transaction types (including multi-player trades), associate players and teams, and record draft picks — but is not implemented. See ROADMAP.md Phase 3.4 for requirements.
+    This placeholder outlines planned behavior — ingest transaction data, parse transaction types (including multi-player trades), associate players and teams, and record draft picks — but is not implemented. See docs/roadmap.md Phase 3.4 for requirements.
     
     Raises:
         NotImplementedError: always raised until the function is implemented.
     """
     logger.error("Transactions population not yet implemented")
-    logger.info("TODO: See ROADMAP.md Phase 3.4 for implementation requirements")
+    logger.info("TODO: See docs/roadmap.md Phase 3.4 for implementation requirements")
     raise NotImplementedError(
         "Transactions population is planned but not yet implemented. "
-        "See ROADMAP.md Phase 3.4 for requirements."
+        "See docs/roadmap.md Phase 3.4 for requirements."
     )
 
 
@@ -99,7 +99,7 @@ def main():
     logger.warning("TRANSACTIONS POPULATION - NOT YET IMPLEMENTED")
     logger.warning("=" * 70)
     logger.warning("This script is a placeholder for future development.")
-    logger.warning("See ROADMAP.md Phase 3.4 for implementation requirements.")
+    logger.warning("See docs/roadmap.md Phase 3.4 for implementation requirements.")
     logger.warning("")
     logger.warning("Key Decisions Needed:")
     logger.warning("1. Identify reliable data source (NBA API endpoint or scraping)")

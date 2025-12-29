@@ -141,7 +141,7 @@ class LoadData(Node):
         logger.info(f"Loaded {len(exec_res)} dataframes from CSV.")
         if not exec_res:
             shared["final_text"] = (
-                "No CSV files found in the data/raw/csv/ directory. "
+                "No CSV files found in the src/backend/data/raw/csv/ directory. "
                 "Please upload data before asking a question."
             )
             return "no_data"

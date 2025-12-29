@@ -5,8 +5,8 @@ import duckdb
 
 
 # Configuration
-DATABASE_FILE = "data/nba.duckdb"
-DATA_DIRECTORY = "./data/raw/csv/"
+DATABASE_FILE = "src/backend/data/nba.duckdb"
+DATA_DIRECTORY = "./src/backend/data/raw/csv/"
 # We will iterate through files, so we don't use a single source pattern for read_csv
 
 

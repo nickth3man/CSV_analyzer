@@ -19,7 +19,7 @@ TODO: ROADMAP Phase 3.3 - Implement salary data population
   - Team payroll analysis
 - Priority: MEDIUM (Phase 3.3)
 - Blocks: Value-based player analysis
-Reference: ROADMAP.md Phase 3.3
+Reference: docs/roadmap.md Phase 3.3
 
 This script will fetch NBA player salary information and populate the salaries table.
 
@@ -66,16 +66,16 @@ def populate_salaries(*args, **kwargs):
     """
     Placeholder for populating the NBA salaries table.
     
-    This function is not implemented and will raise NotImplementedError directing implementers to ROADMAP.md Phase 3.3 for requirements, data source options, and implementation notes.
+    This function is not implemented and will raise NotImplementedError directing implementers to docs/roadmap.md Phase 3.3 for requirements, data source options, and implementation notes.
     
     Raises:
-        NotImplementedError: Always raised with a message pointing to ROADMAP.md Phase 3.3.
+        NotImplementedError: Always raised with a message pointing to docs/roadmap.md Phase 3.3.
     """
     logger.error("Salary population not yet implemented")
-    logger.info("TODO: See ROADMAP.md Phase 3.3 for implementation requirements")
+    logger.info("TODO: See docs/roadmap.md Phase 3.3 for implementation requirements")
     raise NotImplementedError(
         "Salary population is planned but not yet implemented. "
-        "See ROADMAP.md Phase 3.3 for requirements and data source options."
+        "See docs/roadmap.md Phase 3.3 for requirements and data source options."
     )
 
 
@@ -83,7 +83,7 @@ def main():
     """
     Command-line entry point that outlines salary population options and exits because the feature is unimplemented.
     
-    Parses command-line options for seasons, teams, an all-seasons flag, and a data-source choice; logs roadmap notes and key implementation decisions required, then terminates the process with exit status 1. See ROADMAP.md Phase 3.3 for implementation requirements.
+    Parses command-line options for seasons, teams, an all-seasons flag, and a data-source choice; logs roadmap notes and key implementation decisions required, then terminates the process with exit status 1. See docs/roadmap.md Phase 3.3 for implementation requirements.
     """
     parser = argparse.ArgumentParser(
         description="Populate salary data (NOT YET IMPLEMENTED)",
@@ -100,7 +100,7 @@ def main():
     logger.warning("SALARY POPULATION - NOT YET IMPLEMENTED")
     logger.warning("=" * 70)
     logger.warning("This script is a placeholder for future development.")
-    logger.warning("See ROADMAP.md Phase 3.3 for implementation requirements.")
+    logger.warning("See docs/roadmap.md Phase 3.3 for implementation requirements.")
     logger.warning("")
     logger.warning("Key Decisions Needed:")
     logger.warning("1. Select primary data source (Basketball Reference, HoopsHype, Spotrac)")

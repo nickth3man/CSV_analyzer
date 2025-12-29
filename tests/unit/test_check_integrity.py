@@ -26,7 +26,7 @@ class TestCheckIntegrity:
 
             check_integrity()
 
-            mock_connect.assert_called_once_with("data/nba.duckdb")
+            mock_connect.assert_called_once_with("src/backend/data/nba.duckdb")
             mock_con.close.assert_called_once()
 
     def test_check_integrity_validates_primary_keys(self):

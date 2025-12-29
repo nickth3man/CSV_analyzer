@@ -15,7 +15,7 @@ TODO: ROADMAP Phase 4.1 - Implement arenas data population
   - Travel distance calculations
 - Priority: LOW (Phase 4.1)
 - Data Source: NBA API, Wikipedia, or manual data entry
-Reference: ROADMAP.md Phase 4.1
+Reference: docs/roadmap.md Phase 4.1
 
 This script will fetch NBA arena/venue data and populate the arenas table.
 
@@ -70,16 +70,16 @@ def populate_arenas(*args, **kwargs):
     """
     Populate the arenas table with comprehensive NBA venue data (placeholder — not implemented).
     
-    Intended to collect arena metadata, associate arenas with teams and date ranges, track arena name changes, and add geographic coordinates as specified in ROADMAP.md Phase 4.1.
+    Intended to collect arena metadata, associate arenas with teams and date ranges, track arena name changes, and add geographic coordinates as specified in docs/roadmap.md Phase 4.1.
     
     Raises:
-        NotImplementedError: Function is a placeholder and not yet implemented; see ROADMAP.md Phase 4.1 for requirements.
+        NotImplementedError: Function is a placeholder and not yet implemented; see docs/roadmap.md Phase 4.1 for requirements.
     """
     logger.error("Arenas population not yet implemented")
-    logger.info("TODO: See ROADMAP.md Phase 4.1 for implementation requirements")
+    logger.info("TODO: See docs/roadmap.md Phase 4.1 for implementation requirements")
     raise NotImplementedError(
         "Arenas population is planned but not yet implemented. "
-        "See ROADMAP.md Phase 4.1 for requirements."
+        "See docs/roadmap.md Phase 4.1 for requirements."
     )
 
 
@@ -102,7 +102,7 @@ def main():
     logger.warning("ARENAS POPULATION - NOT YET IMPLEMENTED")
     logger.warning("=" * 70)
     logger.warning("This script is a placeholder for future development.")
-    logger.warning("See ROADMAP.md Phase 4.1 for implementation requirements.")
+    logger.warning("See docs/roadmap.md Phase 4.1 for implementation requirements.")
     logger.warning("")
     logger.warning("Current arenas table status: 0 rows")
     logger.warning("")

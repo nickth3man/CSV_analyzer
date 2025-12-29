@@ -7,7 +7,7 @@ TODO: ROADMAP Phase 1.2 - Document canonical tables vs raw text tables
   1. Which tables are canonical (silver/gold) vs raw text
   2. Relationships between raw and canonical tables
   3. Transformation logic from raw -> silver -> gold
-- Reference: ROADMAP.md Phase 1.2
+- Reference: docs/roadmap.md Phase 1.2
 
 TODO: ROADMAP Phase 1.5 - Quarantine raw text tables
 - Current Status: Raw text tables (game, player, team) coexist with typed versions
@@ -21,7 +21,7 @@ TODO: ROADMAP Phase 1.5 - Quarantine raw text tables
   - Use player_silver (not player)
   - Use team_silver (not team)
   - Use game_gold (not game)
-- Reference: ROADMAP.md Phase 1.5
+- Reference: docs/roadmap.md Phase 1.5
 
 This script analyzes VARCHAR columns in the database and converts them to
 appropriate data types (BIGINT, DOUBLE, DATE) based on content analysis.
@@ -62,7 +62,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Default database path
-DATABASE = "data/nba.duckdb"
+DATABASE = "src/backend/data/nba.duckdb"
 SILVER_SUFFIX = "_silver"
 
 
@@ -148,7 +148,7 @@ def transform_to_silver(
     """Transform tables to silver layer with proper data types.
 
     Args:
-        db_path: Path to DuckDB database (default: data/nba.duckdb)
+        db_path: Path to DuckDB database (default: src/backend/data/nba.duckdb)
         tables: Specific tables to process (default: all)
     """
     db_path = db_path or DATABASE
@@ -248,7 +248,7 @@ Examples:
     parser.add_argument(
         "--db",
         default=DATABASE,
-        help="Path to DuckDB database (default: data/nba.duckdb)",
+        help="Path to DuckDB database (default: src/backend/data/nba.duckdb)",
     )
     parser.add_argument(
         "--tables",

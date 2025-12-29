@@ -3,7 +3,7 @@
 <p align="center">
   <a href="https://github.com/The-Pocket/PocketFlow" target="_blank">
     <img
-      src="./assets/banner.png"
+      src="./docs/assets/banner.png"
       alt="NBA Expert - Data Analyst Agent powered by PocketFlow"
       width="800"
     />
@@ -45,7 +45,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync
 
 # Verify installation
-uv run python -c "from frontend import on_chat_start; print('Installation successful!')"
+uv run python -c "import sys; sys.path.insert(0, 'src'); from frontend import on_chat_start; print('Installation successful!')"
 ```
 
 ### Option 2: Manual venv Setup
@@ -92,10 +92,10 @@ The web interface provides a chat-based UI for interacting with the agent.
 
 ```bash
 # Start the web server
-uv run chainlit run app.py
+uv run chainlit run src/frontend/app.py
 
 # Or specify a port
-uv run chainlit run app.py --port 8080
+uv run chainlit run src/frontend/app.py --port 8080
 
 # Or use Make
 make run
@@ -134,7 +134,7 @@ make run-cli
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `OPENROUTER_API_KEY` | OpenRouter API key for LLM access | None (required) |
-| `NBA_DB_PATH` | Path to DuckDB database | `data/nba.duckdb` |
+| `NBA_DB_PATH` | Path to DuckDB database | `src/backend/data/nba.duckdb` |
 | `NBA_API_DEFAULT_SEASON` | Default NBA season | `2023-24` |
 | `NBA_API_TIMEOUT` | API request timeout (seconds) | `30` |
 | `NBA_API_DELAY` | Delay between API requests (seconds) | `0.6` |
@@ -145,7 +145,7 @@ make run-cli
 **Option 1**: Environment variable
 ```bash
 export OPENROUTER_API_KEY="your-api-key-here"
-uv run chainlit run app.py
+uv run chainlit run src/frontend/app.py
 ```
 
 **Option 2**: In the web interface
@@ -183,7 +183,7 @@ uv run python -m scripts.populate.cli season-stats    # Create aggregated stats
 |---------|-------------|
 | `init` | Initialize database schema |
 | `info` | Show database information and table row counts |
-| `load-csv` | Load data from CSV files in `data/raw/csv/` |
+| `load-csv` | Load data from CSV files in `src/backend/data/raw/csv/` |
 | `normalize` | Normalize data types and create silver tables |
 | `player-games` | Fetch player game stats from NBA API (bulk) |
 | `player-games-legacy` | Fetch player game stats (per-player, slower) |
@@ -255,48 +255,46 @@ flowchart TD
 
 ```
 nba_expert/
-├── app.py                      # Chainlit web interface entry point
-├── pyproject.toml              # Project configuration and dependencies
-├── Makefile                    # Development commands
-├── src/
-│   ├── backend/                # Backend logic
-│   │   ├── flow.py             # Flow creation and node connections
-│   │   ├── main.py             # CLI entry point
-│   │   ├── config.py           # Configuration constants
-│   │   ├── nodes/              # PocketFlow node definitions
-│   │   │   ├── analysis.py     # DeepAnalyzer, Visualizer, ResponseSynthesizer
-│   │   │   ├── code_generation.py  # CodeGenerator, NBAApiCodeGenerator
-│   │   │   ├── data_ingestion.py   # LoadData, NBAApiDataLoader, DataMerger
-│   │   │   ├── entity.py       # EntityResolver, SearchExpander
-│   │   │   ├── execution.py    # Executor, ErrorFixer, SafetyCheck
-│   │   │   ├── planning.py     # Planner, ContextAggregator
-│   │   │   ├── query.py        # ClarifyQuery, AskUser
-│   │   │   ├── schema.py       # SchemaInference, DataProfiler
-│   │   │   └── validation.py   # ResultValidator, CrossValidator
-│   │   └── utils/              # Utilities
-│   │       ├── call_llm.py     # LLM wrapper for OpenRouter
-│   │       ├── knowledge_store.py  # Pattern learning storage
-│   │       ├── nba_api_client.py   # NBA API wrapper
-│   │       └── data_source_manager.py  # Data source management
-│   └── frontend/               # Chainlit frontend
-│       ├── handlers.py         # Main event handlers
-│       ├── commands.py         # Slash command handling
-│       ├── actions.py          # Button action callbacks
-│       ├── steps.py            # Analysis pipeline steps
-│       ├── config.py           # Frontend configuration
-│       ├── cache.py            # DataFrame caching
-│       ├── data_utils.py       # Data loading utilities
-│       └── display.py          # Display utilities
-├── data/
-│   ├── raw/csv/                # Source CSV files
-│   └── nba.duckdb              # DuckDB database (generated)
-├── scripts/
-│   └── populate/               # Database population scripts
-├── tests/                      # Test suite
-│   ├── unit/                   # Unit tests
-│   ├── integration/            # Integration tests
-│   └── security/               # Security tests
-└── docs/                       # Documentation
+|-- src/
+|   |-- backend/
+|   |   |-- data/
+|   |   |   |-- raw/csv/              # Source CSV files
+|   |   |   `-- json/knowledge_store.json
+|   |   |-- nodes/                    # PocketFlow node definitions
+|   |   |-- utils/                    # Utilities
+|   |   |-- flow.py                   # Flow creation and node connections
+|   |   |-- main.py                   # CLI entry point
+|   |   `-- config.py                 # Configuration constants
+|   `-- frontend/                     # Chainlit frontend
+|       |-- app.py                    # Chainlit web interface entry point
+|       |-- handlers.py               # Main event handlers
+|       |-- commands.py               # Slash command handling
+|       |-- actions.py                # Button action callbacks
+|       |-- steps.py                  # Analysis pipeline steps
+|       |-- config.py                 # Frontend configuration
+|       |-- cache.py                  # DataFrame caching
+|       |-- data_utils.py             # Data loading utilities
+|       `-- display.py                # Display utilities
+|-- docs/                             # Documentation
+|   |-- index.md
+|   |-- design.md
+|   |-- data_dictionary.md
+|   |-- roadmap.md
+|   |-- todo_summary.md
+|   |-- development/
+|   |   |-- setup.md
+|   |   `-- tools.md
+|   `-- platforms/
+|       `-- replit.md
+|-- examples/                         # Example modules and snippets
+|-- public/                           # Chainlit static assets
+|-- scripts/                          # Database population and utilities
+|-- tests/                            # Test suite
+|-- chainlit.md                       # Chainlit welcome screen
+|-- .chainlit/config.toml
+|-- pyproject.toml
+|-- Makefile
+`-- README.md
 ```
 
 ## Development
@@ -408,7 +406,7 @@ export OPENROUTER_API_KEY="your-key-here"
 
 **"Connection refused" on startup**
 - Ensure port 8000 is not in use
-- Try a different port: `uv run chainlit run app.py --port 9000`
+- Try a different port: `uv run chainlit run src/frontend/app.py --port 9000`
 
 **Tests failing with import errors**
 ```bash

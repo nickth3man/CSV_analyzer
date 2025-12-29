@@ -39,7 +39,7 @@ class TestCreateAdvancedMetrics:
             
             create_advanced_metrics()
             
-            mock_connect.assert_called_once_with("data/nba.duckdb")
+            mock_connect.assert_called_once_with("src/backend/data/nba.duckdb")
 
     def test_create_advanced_metrics_creates_player_game_advanced_view(self):
         """Test creation of player_game_advanced view."""
@@ -566,7 +566,7 @@ class TestCreateAdvancedMetricsExtended:
             assert "COALESCE" in sql_text or "NULLIF" in sql_text or "CASE" in sql_text
 
     @pytest.mark.parametrize("db_path", [
-        "data/nba.duckdb",
+        "src/backend/data/nba.duckdb",
         "test.db",
         "/tmp/test.duckdb",
         "relative/path/db.duckdb"

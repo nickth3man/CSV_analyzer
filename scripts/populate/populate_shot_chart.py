@@ -15,7 +15,7 @@ TODO: ROADMAP Phase 3.2 - Implement shot chart data population
   - Player shooting tendencies
 - Priority: MEDIUM (Phase 3.2)
 - Data Source: NBA API shotchartdetail endpoint
-Reference: ROADMAP.md Phase 3.2
+Reference: docs/roadmap.md Phase 3.2
 
 This script will fetch detailed shot location data for games and populate
 the shot_chart_detail table.
@@ -58,16 +58,16 @@ def populate_shot_chart(*args, **kwargs):
     """
     Populate the shot_chart_detail table from NBA API data.
     
-    This function is a placeholder and is not yet implemented; it will, when implemented, fetch shot chart data from the NBA API, transform it to the shot_chart_detail schema, insert records with deduplication, and support resumable progress tracking per ROADMAP.md Phase 3.2.
+    This function is a placeholder and is not yet implemented; it will, when implemented, fetch shot chart data from the NBA API, transform it to the shot_chart_detail schema, insert records with deduplication, and support resumable progress tracking per docs/roadmap.md Phase 3.2.
     
     Raises:
-        NotImplementedError: Always raised; implementation planned per ROADMAP.md Phase 3.2.
+        NotImplementedError: Always raised; implementation planned per docs/roadmap.md Phase 3.2.
     """
     logger.error("Shot chart population not yet implemented")
-    logger.info("TODO: See ROADMAP.md Phase 3.2 for implementation requirements")
+    logger.info("TODO: See docs/roadmap.md Phase 3.2 for implementation requirements")
     raise NotImplementedError(
         "Shot chart population is planned but not yet implemented. "
-        "See ROADMAP.md Phase 3.2 for requirements."
+        "See docs/roadmap.md Phase 3.2 for requirements."
     )
 
 
@@ -75,7 +75,7 @@ def main():
     """
     CLI entry point for shot chart population.
     
-    Parses command-line options (--player-id, --games, --seasons, --all-players), logs warnings that the feature is not yet implemented and refers to ROADMAP.md Phase 3.2, then terminates the process with exit code 1.
+    Parses command-line options (--player-id, --games, --seasons, --all-players), logs warnings that the feature is not yet implemented and refers to docs/roadmap.md Phase 3.2, then terminates the process with exit code 1.
     """
     parser = argparse.ArgumentParser(
         description="Populate shot chart data from NBA API (NOT YET IMPLEMENTED)",
@@ -91,7 +91,7 @@ def main():
     logger.warning("SHOT CHART POPULATION - NOT YET IMPLEMENTED")
     logger.warning("=" * 70)
     logger.warning("This script is a placeholder for future development.")
-    logger.warning("See ROADMAP.md Phase 3.2 for implementation requirements.")
+    logger.warning("See docs/roadmap.md Phase 3.2 for implementation requirements.")
     logger.warning("=" * 70)
 
     sys.exit(1)
