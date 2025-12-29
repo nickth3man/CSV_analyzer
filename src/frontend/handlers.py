@@ -68,14 +68,14 @@ logger = logging.getLogger(__name__)
 from chainlit.input_widget import Select, TextInput
 
 from backend.utils.file_sanitizer import sanitize_csv_filename
-from frontend.commands import handle_command
-from frontend.config import DEFAULT_API_KEY, fetch_openrouter_models
-from frontend.data_utils import (
+from .commands import handle_command
+from .config import DEFAULT_API_KEY, fetch_openrouter_models
+from .data_utils import (
     get_csv_files,
     invalidate_dataframe_cache,
     load_dataframes,
 )
-from frontend.steps import (
+from .steps import (
     display_result_with_streaming,
     step_load_data,
     step_run_analysis,

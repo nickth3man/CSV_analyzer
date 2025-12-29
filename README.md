@@ -3,7 +3,9 @@
 <p align="center">
   <a href="https://github.com/The-Pocket/PocketFlow" target="_blank">
     <img
-      src="./assets/banner.png" width="800"
+      src="./assets/banner.png"
+      alt="NBA Expert - Data Analyst Agent powered by PocketFlow"
+      width="800"
     />
   </a>
 </p>

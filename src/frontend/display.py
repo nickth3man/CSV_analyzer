@@ -11,7 +11,7 @@ import logging
 
 import chainlit as cl
 
-from frontend.data_utils import get_schema_summary_data, get_table_preview_data
+from .data_utils import get_schema_summary_data, get_table_preview_data
 
 
 logger = logging.getLogger(__name__)
