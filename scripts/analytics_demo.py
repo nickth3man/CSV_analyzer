@@ -10,6 +10,7 @@ import sys
 
 import duckdb
 
+
 # Set up logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -36,7 +37,8 @@ def run_analytics_demo(db_path: str = "src/backend/data/nba.duckdb") -> None:
     ).fetchall()
 
     for table, _count in tables:
-        actual_count = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        row = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
+        actual_count = row[0] if row else 0
         if actual_count > 0:
             logging.info(f"Table: {table:30s} - Rows: {actual_count:,}")
 
@@ -143,26 +145,29 @@ def run_analytics_demo(db_path: str = "src/backend/data/nba.duckdb") -> None:
 
     # 6. Database Summary Statistics
     logging.info("\n=== DATABASE SUMMARY STATISTICS ===")
+
+    def get_count(q):
+        r = conn.execute(q).fetchone()
+        return r[0] if r else 0
+
     summary_stats = {
-        "Total Games": conn.execute(
-            "SELECT COUNT(DISTINCT game_id) FROM player_game_stats",
-        ).fetchone()[0],
-        "Total Players": conn.execute(
-            "SELECT COUNT(DISTINCT player_id) FROM player_game_stats",
-        ).fetchone()[0],
-        "Total Player Seasons": conn.execute(
-            "SELECT COUNT(*) FROM player_season_stats",
-        ).fetchone()[0],
-        "Seasons Covered": conn.execute(
-            "SELECT COUNT(DISTINCT season) FROM player_season_stats",
-        ).fetchone()[0],
+        "Total Games": get_count(
+            "SELECT COUNT(DISTINCT game_id) FROM player_game_stats"
+        ),
+        "Total Players": get_count(
+            "SELECT COUNT(DISTINCT player_id) FROM player_game_stats"
+        ),
+        "Total Player Seasons": get_count("SELECT COUNT(*) FROM player_season_stats"),
+        "Seasons Covered": get_count(
+            "SELECT COUNT(DISTINCT season) FROM player_season_stats"
+        ),
         "Avg Points/Game": round(
-            conn.execute("SELECT AVG(pts) FROM player_game_stats").fetchone()[0],
+            get_count("SELECT AVG(pts) FROM player_game_stats"),
             1,
         ),
-        "Triple Doubles": conn.execute(
-            "SELECT SUM(is_triple_double) FROM player_game_advanced",
-        ).fetchone()[0],
+        "Triple Doubles": get_count(
+            "SELECT SUM(is_triple_double) FROM player_game_advanced"
+        ),
     }
 
     for stat, value in summary_stats.items():
@@ -227,14 +232,16 @@ def main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description="NBA Database Analytics Demo")
-    parser.add_argument("--db", default="src/backend/data/nba.duckdb", help="Database path")
+    parser.add_argument(
+        "--db", default="src/backend/data/nba.duckdb", help="Database path"
+    )
 
     args = parser.parse_args()
 
     try:
         run_analytics_demo(args.db)
     except Exception as e:
-        logging.error(f"Error running analytics demo: {e}")
+        logging.exception(f"Error running analytics demo: {e}")
         return 1
 
     return 0

@@ -8,16 +8,19 @@ def fix_duplicates() -> None:
     con = duckdb.connect(DATABASE)
 
     # Check duplicate counts
-    total = con.sql("SELECT count(*) FROM game_silver").fetchone()[0]
-    unique = con.sql("SELECT count(DISTINCT game_id) FROM game_silver").fetchone()[0]
+    row = con.sql("SELECT count(*) FROM game_silver").fetchone()
+    total = row[0] if row else 0
+    row = con.sql("SELECT count(DISTINCT game_id) FROM game_silver").fetchone()
+    unique = row[0] if row else 0
 
     if total > unique:
         # Simple deduplication: keep one row per game_id.
         # If rows are identical, DISTINCT works. If they differ, we need arbitrary choice.
         # Let's check if they are identical using DISTINCT *
-        distinct_rows = con.sql(
+        row = con.sql(
             "SELECT count(*) FROM (SELECT DISTINCT * FROM game_silver)",
-        ).fetchone()[0]
+        ).fetchone()
+        distinct_rows = row[0] if row else 0
 
         if distinct_rows == unique:
             con.sql(
@@ -32,12 +35,14 @@ def fix_duplicates() -> None:
              """)
 
         # Verify
-        new_total = con.sql("SELECT count(*) FROM game_gold").fetchone()[0]
+        row = con.sql("SELECT count(*) FROM game_gold").fetchone()
+        new_total = row[0] if row else 0
 
         # Verify PK
-        new_unique = con.sql(
+        row = con.sql(
             "SELECT count(DISTINCT game_id) FROM game_gold",
-        ).fetchone()[0]
+        ).fetchone()
+        new_unique = row[0] if row else 0
         if new_total == new_unique:
             pass
             # Create View for cleaner access? Or just leave as table.

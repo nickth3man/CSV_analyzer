@@ -28,7 +28,7 @@ class DatabaseManager:
         from scripts.populate.config import get_db_path
 
         self.db_path = db_path or get_db_path()
-        self.connection = None
+        self.connection: duckdb.DuckDBPyConnection | None = None
 
     def connect(self) -> duckdb.DuckDBPyConnection:
         """Connect to the database.
@@ -388,7 +388,10 @@ class DatabaseManager:
         """)
 
     def insert_data(
-        self, table_name: str, df: pd.DataFrame, mode: str = "append",
+        self,
+        table_name: str,
+        df: pd.DataFrame,
+        mode: str = "append",
     ) -> int:
         """Insert data into a table.
 
@@ -427,7 +430,10 @@ class DatabaseManager:
             raise
 
     def upsert_data(
-        self, table_name: str, df: pd.DataFrame, key_columns: list[str],
+        self,
+        table_name: str,
+        df: pd.DataFrame,
+        key_columns: list[str],
     ) -> int:
         """Upsert data into a table (insert or update if exists).
 
@@ -603,11 +609,13 @@ class DatabaseManager:
         conn = self.connect()
 
         try:
+            # Use pandas to calculate the cutoff safely
             cutoff_date = datetime.now() - pd.Timedelta(days=days_old)
-            conn.execute(f"""
-                DELETE FROM {table_name}
-                WHERE populated_at < '{cutoff_date.isoformat()}'
-            """).fetchall()
+
+            # Use parameterized query to avoid isoformat() and SQL injection
+            conn.execute(
+                f"DELETE FROM {table_name} WHERE populated_at < ?", [cutoff_date]
+            )
 
             deleted_count: int = conn.execute("SELECT changes()").fetchone()[0]
             logger.info(f"Deleted {deleted_count} old records from {table_name}")

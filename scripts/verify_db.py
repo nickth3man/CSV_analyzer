@@ -14,21 +14,23 @@ def verify_database() -> None:
         result = con.sql(
             "SELECT id, full_name, abbreviation, nickname, city, state, year_founded FROM team LIMIT 5",
         )
-        result.show()
+        result.show()  # type: ignore[attr-defined]
     except Exception:
         pass
 
     # Query 2: Aggregation on games
     with contextlib.suppress(Exception):
-        con.sql("SELECT count(*) as total_games FROM game").fetchone()[0]
+        row = con.sql("SELECT count(*) as total_games FROM game").fetchone()
+        row[0] if row else 0
 
     # Query 3: Join example (Player info)
     with contextlib.suppress(Exception):
-        con.sql("SELECT full_name, is_active FROM player LIMIT 5").show()
+        con.sql("SELECT full_name, is_active FROM player LIMIT 5").show()  # type: ignore[attr-defined]
 
     # Query 4: Verify the empty table
     try:
-        con.sql("SELECT count(*) FROM team_info_common").fetchone()[0]
+        row = con.sql("SELECT count(*) FROM team_info_common").fetchone()
+        row[0] if row else 0
         con.sql("DESCRIBE team_info_common").fetchall()
     except Exception:
         pass

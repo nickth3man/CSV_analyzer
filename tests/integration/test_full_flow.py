@@ -1,6 +1,6 @@
 """Integration tests for full analysis flow."""
 
-from backend.flow import create_analyst_flow
+from src.backend.flow import create_analyst_flow
 
 
 class TestFullAnalysisFlow:

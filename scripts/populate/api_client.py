@@ -868,12 +868,12 @@ class NBAClient:
             timeout=self.config.timeout,
         )
 
-        df = hustle.league_hustle_stats_player.get_data_frame()
-
-        if df.empty:
+        # Use get_data_frames() for better robustness and type checking
+        dfs = hustle.get_data_frames()
+        if not dfs:
             return None
 
-        return df
+        return dfs[0]
 
     @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
     def get_scoreboard(
@@ -910,14 +910,22 @@ class NBAClient:
         if game_date:
             params["game_date"] = game_date
 
-        scoreboard = scoreboardv3.ScoreBoardV3(**params)
-
-        df = scoreboard.score_board.get_data_frame()
-
-        if df.empty:
+        # ScoreboardV3 naming in nba_api is often scoreboardv3.ScoreboardV3
+        # Use getattr to be safe if naming varies across versions
+        try:
+            sb_class = getattr(scoreboardv3, "ScoreboardV3", None) or getattr(scoreboardv3, "ScoreBoardV3", None)
+            if not sb_class:
+                logger.error("Neither ScoreboardV3 nor ScoreBoardV3 found in scoreboardv3 module")
+                return None
+            
+            scoreboard = sb_class(**params)
+            dfs = scoreboard.get_data_frames()
+            if not dfs:
+                return None
+            return dfs[0]
+        except Exception as e:
+            logger.error(f"Error initializing ScoreboardV3: {e}")
             return None
-
-        return df
 
 
 # =============================================================================

@@ -121,25 +121,25 @@ def transform_game_log(df: pd.DataFrame, player_info: dict) -> pd.DataFrame:
 
     # game_id - Handle mixed case from API (Game_ID)
     if "Game_ID" in df_work.columns:
-        output["game_id"] = pd.to_numeric(df_work["Game_ID"], errors="coerce").astype(
+        output["game_id"] = pd.Series(pd.to_numeric(df_work["Game_ID"], errors="coerce")).astype(
             "Int64",
         )
     elif "GAME_ID" in df_work.columns:
-        output["game_id"] = pd.to_numeric(df_work["GAME_ID"], errors="coerce").astype(
+        output["game_id"] = pd.Series(pd.to_numeric(df_work["GAME_ID"], errors="coerce")).astype(
             "Int64",
         )
     else:
-        output["game_id"] = None
+        output["game_id"] = pd.Series(dtype="Int64")
 
     # team_id - Try to extract from MATCHUP (e.g., "LAL vs. GSW" or "LAL @ GSW")
     # Note: NBA API PlayerGameLog doesn't return TEAM_ID directly
-    output["team_id"] = None
+    output["team_id"] = pd.Series(dtype="Int64")
 
     # player_id - from API (Player_ID) or from player_info
     if "Player_ID" in df_work.columns:
-        output["player_id"] = pd.to_numeric(
+        output["player_id"] = pd.Series(pd.to_numeric(
             df_work["Player_ID"], errors="coerce",
-        ).astype("Int64")
+        )).astype("Int64")
     else:
         output["player_id"] = player_info.get("id")
 
@@ -176,11 +176,11 @@ def transform_game_log(df: pd.DataFrame, player_info: dict) -> pd.DataFrame:
     ]
     for api_col, our_col in int_cols:
         if api_col in df_work.columns:
-            output[our_col] = pd.to_numeric(df_work[api_col], errors="coerce").astype(
+            output[our_col] = pd.Series(pd.to_numeric(df_work[api_col], errors="coerce")).astype(
                 "Int64",
             )
         else:
-            output[our_col] = None
+            output[our_col] = pd.Series(dtype="Int64")
 
     # Percentage stats - floats
     pct_cols = [
@@ -206,9 +206,13 @@ def transform_game_log(df: pd.DataFrame, player_info: dict) -> pd.DataFrame:
     # Ensure all columns exist
     for col in final_cols:
         if col not in output.columns:
-            output[col] = None
+            output[col] = pd.Series(dtype="object")
 
-    return output[final_cols]
+    # Explicitly cast to DataFrame to satisfy type checker
+    res = output[final_cols]
+    if isinstance(res, pd.Series):
+        return pd.DataFrame(res).T
+    return res
 
 
 def insert_game_logs(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame) -> int:

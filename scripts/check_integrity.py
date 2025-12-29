@@ -50,11 +50,14 @@ def check_integrity() -> None:
 
     for table, pk in pk_candidates:
         try:
-            total = con.sql(f"SELECT count(*) FROM {table}").fetchone()[0]
-            unique = con.sql(f"SELECT count(DISTINCT {pk}) FROM {table}").fetchone()[0]
-            nulls = con.sql(
+            row = con.sql(f"SELECT count(*) FROM {table}").fetchone()
+            total = row[0] if row else 0
+            row = con.sql(f"SELECT count(DISTINCT {pk}) FROM {table}").fetchone()
+            unique = row[0] if row else 0
+            row = con.sql(
                 f"SELECT count(*) FROM {table} WHERE {pk} IS NULL",
-            ).fetchone()[0]
+            ).fetchone()
+            nulls = row[0] if row else 0
 
             if total == unique and nulls == 0:
                 # We can explicitly add the constraint in DuckDB
@@ -97,7 +100,8 @@ def check_integrity() -> None:
                 LEFT JOIN {parent_table} p ON c.{child_col} = p.{parent_col}
                 WHERE p.{parent_col} IS NULL AND c.{child_col} IS NOT NULL
             """
-            orphan_count = con.sql(query).fetchone()[0]
+            row = con.sql(query).fetchone()
+            orphan_count = row[0] if row else 0
 
             if orphan_count == 0:
                 # Adding FK constraint

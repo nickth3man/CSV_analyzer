@@ -10,7 +10,8 @@ def final_report() -> None:
     tables = ["team_silver", "player_silver", "game_gold"]
 
     for t in tables:
-        con.sql(f"SELECT count(*) FROM {t}").fetchone()[0]
+        row = con.sql(f"SELECT count(*) FROM {t}").fetchone()
+        row_count = row[0] if row else 0
         desc = con.sql(f"DESCRIBE {t}").fetchall()
         for _col in desc:
             pass

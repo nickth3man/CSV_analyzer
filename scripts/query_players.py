@@ -19,27 +19,34 @@ def query_players() -> None:
             # but I saw the report.
             # actually, let's just select * for the matching row to see everything available.
 
-            # Use parameterized query to prevent SQL injection
+            # Use parameterized query via sql() which returns a relation
             search_pattern = f"%{player_name}%"
-            result = con.execute(
-                "SELECT * FROM common_player_info WHERE display_first_last ILIKE ?",
-                [search_pattern],
+            rel = con.sql(
+                "SELECT * FROM common_player_info WHERE display_first_last ILIKE $1",
+                params=[search_pattern],
             )
 
-            if len(result.fetchall()) > 0:
+            if rel.fetchone() is not None:
                 # showing the result
-                con.execute(
-                    "SELECT person_id, display_first_last, birthdate, school, country, height, weight, season_exp, jersey, position, team_name, from_year, to_year FROM common_player_info WHERE display_first_last ILIKE ?",
-                    [search_pattern],
-                ).show()
+                # Use a separate relation object and ignore type checking for .show()
+                res_rel = con.sql(
+                    "SELECT person_id, display_first_last, birthdate, school, country, height, weight, season_exp, jersey, position, team_name, from_year, to_year FROM common_player_info WHERE display_first_last ILIKE $1",
+                    params=[search_pattern],
+                )
+                res_rel.show()  # type: ignore[attr-defined]
             else:
                 # Fallback: Search in 'player' table
-                player_res = con.execute(
-                    "SELECT * FROM player WHERE full_name ILIKE ?",
-                    [search_pattern],
+                player_rel = con.sql(
+                    "SELECT * FROM player WHERE full_name ILIKE $1",
+                    params=[search_pattern],
                 )
-                if len(player_res.fetchall()) > 0:
-                    player_res.show()
+                if player_rel.fetchone() is not None:
+                    # Re-create relation for showing
+                    show_rel = con.sql(
+                        "SELECT * FROM player WHERE full_name ILIKE $1",
+                        params=[search_pattern],
+                    )
+                    show_rel.show()  # type: ignore[attr-defined]
                 else:
                     print(f"No results found for: {player_name}")
 

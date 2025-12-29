@@ -55,9 +55,10 @@ def run_ingestion_pipeline() -> None:
                 # Let's check the count.
 
                 # Check if reject_errors table exists (it might not if no errors ever occurred in the session yet)
-                has_rejects_table = con.sql(
+                row = con.sql(
                     "SELECT count(*) FROM information_schema.tables WHERE table_name = 'reject_errors'",
-                ).fetchone()[0]
+                ).fetchone()
+                has_rejects_table = row[0] if row else 0
 
                 if has_rejects_table > 0:
                     # Check for errors specifically from this load (safest to check if table is not empty)
@@ -66,12 +67,13 @@ def run_ingestion_pipeline() -> None:
                     # We can select errors associated with the current file path if possible.
                     # reject_scans has file_path.
 
-                    reject_count = con.sql(f"""
+                    row = con.sql(f"""
                         SELECT count(*)
                         FROM reject_errors
                         JOIN reject_scans ON reject_errors.scan_id = reject_scans.scan_id
                         WHERE reject_scans.file_path LIKE '%{filename}%'
-                     """).fetchone()[0]
+                     """).fetchone()
+                    reject_count = row[0] if row else 0
 
                     if reject_count > 0:
                         # Persist rejects for this table
@@ -94,7 +96,8 @@ def run_ingestion_pipeline() -> None:
         report_file.write("================\n\n")
 
         for table in tables_created:
-            row_count = con.sql(f"SELECT count(*) FROM {table}").fetchone()[0]
+            row = con.sql(f"SELECT count(*) FROM {table}").fetchone()
+            row_count = row[0] if row else 0
             col_count = len(con.sql(f"DESCRIBE {table}").fetchall())
 
             summary_line = f"Table '{table}': {row_count} rows, {col_count} columns"
@@ -110,7 +113,9 @@ def run_ingestion_pipeline() -> None:
 
                 # Formatting the dataframe as string to write to file
                 report_file.write(
-                    summary_df[["column_name", "column_type", "null_percentage"]].to_string(
+                    summary_df[
+                        ["column_name", "column_type", "null_percentage"]
+                    ].to_string(
                         index=False,
                     ),
                 )

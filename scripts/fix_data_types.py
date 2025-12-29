@@ -42,7 +42,8 @@ def fix_data_types(db_path: str = "src/backend/data/nba.duckdb") -> None:
                     # For now, create a new column and swap
 
                     # Check if table has data
-                    count = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+                    row = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
+                    count = row[0] if row else 0
 
                     if count == 0:
                         # Empty table - can alter directly by recreating
@@ -121,9 +122,10 @@ def fix_data_types(db_path: str = "src/backend/data/nba.duckdb") -> None:
 
             if result and result[0] == "BIGINT":
                 try:
-                    count = conn.execute(
+                    row = conn.execute(
                         "SELECT COUNT(*) FROM team_game_stats",
-                    ).fetchone()[0]
+                    ).fetchone()
+                    count = row[0] if row else 0
 
                     # Get all columns
                     cols = conn.execute("""

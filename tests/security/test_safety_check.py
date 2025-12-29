@@ -1,6 +1,6 @@
 """Security tests for SafetyCheck node - CRITICAL for preventing code injection."""
 
-from backend.nodes import SafetyCheck
+from src.backend.nodes import SafetyCheck
 
 
 class TestSafetyCheckForbiddenImports:
@@ -16,7 +16,8 @@ class TestSafetyCheckForbiddenImports:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "Forbidden import: os" in reason
+        assert reason is not None
+        assert "Forbidden import: os" in (reason or "")
 
     def test_blocks_subprocess_import(self) -> None:
         """Test that 'import subprocess' is blocked."""
@@ -26,7 +27,8 @@ class TestSafetyCheckForbiddenImports:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "subprocess" in reason
+        assert reason is not None
+        assert "subprocess" in (reason or "")
 
     def test_blocks_sys_import(self) -> None:
         """Test that 'import sys' is blocked."""
@@ -36,7 +38,8 @@ class TestSafetyCheckForbiddenImports:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "sys" in reason
+        assert reason is not None
+        assert "sys" in (reason or "")
 
     def test_blocks_socket_import(self) -> None:
         """Test that 'import socket' is blocked."""
@@ -46,7 +49,8 @@ class TestSafetyCheckForbiddenImports:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "socket" in reason
+        assert reason is not None
+        assert "socket" in (reason or "")
 
     def test_blocks_requests_import(self) -> None:
         """Test that 'import requests' is blocked."""
@@ -56,7 +60,8 @@ class TestSafetyCheckForbiddenImports:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "requests" in reason
+        assert reason is not None
+        assert "requests" in (reason or "")
 
     def test_blocks_urllib_import(self) -> None:
         """Test that 'import urllib' is blocked."""
@@ -66,7 +71,8 @@ class TestSafetyCheckForbiddenImports:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "urllib" in reason
+        assert reason is not None
+        assert "urllib" in (reason or "")
 
     def test_blocks_importlib_import(self) -> None:
         """Test that 'import importlib' is blocked."""
@@ -76,7 +82,8 @@ class TestSafetyCheckForbiddenImports:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "importlib" in reason
+        assert reason is not None
+        assert "importlib" in (reason or "")
 
     def test_blocks_shutil_import(self) -> None:
         """Test that 'import shutil' is blocked."""
@@ -86,7 +93,8 @@ class TestSafetyCheckForbiddenImports:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "shutil" in reason
+        assert reason is not None
+        assert "shutil" in (reason or "")
 
     def test_blocks_from_import(self) -> None:
         """Test that 'from os import ...' is blocked."""
@@ -96,7 +104,8 @@ class TestSafetyCheckForbiddenImports:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "Forbidden from-import: os" in reason
+        assert reason is not None
+        assert "Forbidden from-import: os" in (reason or "")
 
     def test_blocks_nested_module_import(self) -> None:
         """Test that 'import os.path' is blocked (root module check)."""
@@ -106,7 +115,8 @@ class TestSafetyCheckForbiddenImports:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "os" in reason
+        assert reason is not None
+        assert "os" in (reason or "")
 
 
 class TestSafetyCheckForbiddenFunctions:
@@ -120,7 +130,8 @@ class TestSafetyCheckForbiddenFunctions:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "eval" in reason
+        assert reason is not None
+        assert "eval" in (reason or "")
 
     def test_blocks_exec(self) -> None:
         """Test that exec() is blocked."""
@@ -130,7 +141,8 @@ class TestSafetyCheckForbiddenFunctions:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "exec" in reason
+        assert reason is not None
+        assert "exec" in (reason or "")
 
     def test_blocks_compile(self) -> None:
         """Test that compile() is blocked."""
@@ -140,7 +152,8 @@ class TestSafetyCheckForbiddenFunctions:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "compile" in reason
+        assert reason is not None
+        assert "compile" in (reason or "")
 
     def test_blocks_open(self) -> None:
         """Test that open() is blocked."""
@@ -150,7 +163,8 @@ class TestSafetyCheckForbiddenFunctions:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "open" in reason
+        assert reason is not None
+        assert "open" in (reason or "")
 
     def test_blocks_input(self) -> None:
         """Test that input() is blocked."""
@@ -160,7 +174,8 @@ class TestSafetyCheckForbiddenFunctions:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "input" in reason
+        assert reason is not None
+        assert "input" in (reason or "")
 
     def test_blocks_getattr(self) -> None:
         """Test that getattr() is blocked."""
@@ -170,7 +185,8 @@ class TestSafetyCheckForbiddenFunctions:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "getattr" in reason
+        assert reason is not None
+        assert "getattr" in (reason or "")
 
     def test_blocks_setattr(self) -> None:
         """Test that setattr() is blocked."""
@@ -180,7 +196,8 @@ class TestSafetyCheckForbiddenFunctions:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "setattr" in reason
+        assert reason is not None
+        assert "setattr" in (reason or "")
 
     def test_blocks_delattr(self) -> None:
         """Test that delattr() is blocked."""
@@ -190,7 +207,8 @@ class TestSafetyCheckForbiddenFunctions:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "delattr" in reason
+        assert reason is not None
+        assert "delattr" in (reason or "")
 
     def test_blocks_globals(self) -> None:
         """Test that globals() is blocked."""
@@ -200,7 +218,8 @@ class TestSafetyCheckForbiddenFunctions:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "globals" in reason
+        assert reason is not None
+        assert "globals" in (reason or "")
 
     def test_blocks_locals(self) -> None:
         """Test that locals() is blocked."""
@@ -210,7 +229,8 @@ class TestSafetyCheckForbiddenFunctions:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "locals" in reason
+        assert reason is not None
+        assert "locals" in (reason or "")
 
     def test_blocks_dunder_import(self) -> None:
         """Test that __import__() is blocked."""
@@ -220,7 +240,8 @@ class TestSafetyCheckForbiddenFunctions:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "__import__" in reason
+        assert reason is not None
+        assert "__import__" in (reason or "")
 
 
 class TestSafetyCheckForbiddenAttributes:
@@ -234,7 +255,8 @@ class TestSafetyCheckForbiddenAttributes:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "__builtins__" in reason
+        assert reason is not None
+        assert "__builtins__" in (reason or "")
 
     def test_blocks_globals_attribute(self) -> None:
         """Test that __globals__ access is blocked."""
@@ -244,7 +266,8 @@ class TestSafetyCheckForbiddenAttributes:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "__globals__" in reason
+        assert reason is not None
+        assert "__globals__" in (reason or "")
 
     def test_blocks_code_attribute(self) -> None:
         """Test that __code__ access is blocked."""
@@ -254,7 +277,8 @@ class TestSafetyCheckForbiddenAttributes:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "__code__" in reason
+        assert reason is not None
+        assert "__code__" in (reason or "")
 
     def test_blocks_class_attribute(self) -> None:
         """Test that __class__ access is blocked."""
@@ -264,7 +288,8 @@ class TestSafetyCheckForbiddenAttributes:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "__class__" in reason
+        assert reason is not None
+        assert "__class__" in (reason or "")
 
     def test_blocks_dict_attribute(self) -> None:
         """Test that __dict__ access is blocked."""
@@ -274,7 +299,8 @@ class TestSafetyCheckForbiddenAttributes:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "__dict__" in reason
+        assert reason is not None
+        assert "__dict__" in (reason or "")
 
     def test_blocks_subscript_builtins_access(self) -> None:
         """Test that obj['__builtins__'] subscript access is blocked."""
@@ -284,7 +310,8 @@ class TestSafetyCheckForbiddenAttributes:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "__builtins__" in reason
+        assert reason is not None
+        assert "__builtins__" in (reason or "")
 
     def test_blocks_subscript_globals_access(self) -> None:
         """Test that obj['__globals__'] subscript access is blocked."""
@@ -294,7 +321,8 @@ class TestSafetyCheckForbiddenAttributes:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "__globals__" in reason
+        assert reason is not None
+        assert "__globals__" in (reason or "")
 
 
 class TestSafetyCheckSyntaxErrors:
@@ -308,7 +336,8 @@ class TestSafetyCheckSyntaxErrors:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "Syntax Error" in reason
+        assert reason is not None
+        assert "Syntax Error" in (reason or "")
 
     def test_handles_invalid_python(self) -> None:
         """Test that completely invalid Python is caught."""
@@ -318,7 +347,8 @@ class TestSafetyCheckSyntaxErrors:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "Syntax Error" in reason
+        assert reason is not None
+        assert "Syntax Error" in (reason or "")
 
 
 class TestSafetyCheckSafeCode:
@@ -424,7 +454,7 @@ class TestSafetyCheckEvasionAttempts:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "__import__" in reason
+        assert "__import__" in (reason or "")
 
     def test_blocks_nested_attribute_access(self) -> None:
         """Test that nested forbidden attribute access is blocked."""
@@ -434,7 +464,7 @@ class TestSafetyCheckEvasionAttempts:
         status, reason = node.exec((code, ""))
 
         assert status == "unsafe"
-        assert "__globals__" in reason
+        assert "__globals__" in (reason or "")
 
     def test_allows_safe_subscripts(self) -> None:
         """Test that safe dictionary subscript access is allowed."""
