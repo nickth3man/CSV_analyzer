@@ -1,7 +1,3 @@
----
-layout: default
-title: "Agentic Coding"
----
 
 # Agentic Coding: Humans Design, Agents code!
 
