@@ -68,6 +68,7 @@ logger = logging.getLogger(__name__)
 
 def populate_arenas(*args, **kwargs):
     """
+    TODO: ROADMAP Phase 4.1 (see docs/roadmap.md for requirements).
     Populate the arenas table with comprehensive NBA venue data (placeholder — not implemented).
     
     Intended to collect arena metadata, associate arenas with teams and date ranges, track arena name changes, and add geographic coordinates as specified in docs/roadmap.md Phase 4.1.

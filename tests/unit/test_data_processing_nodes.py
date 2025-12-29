@@ -265,13 +265,15 @@ class TestVisualizer:
         """Test that output directory is created if it doesn't exist."""
         node = Visualizer()
 
-        with patch("backend.nodes.analysis.os.makedirs") as mock_makedirs:
+        with patch("backend.nodes.analysis.Path.mkdir") as mock_mkdir:
             shared = {"exec_result": sample_df}
             node.prep(shared)
             node.exec(sample_df)
 
-            # Should try to create the assets directory
-            mock_makedirs.assert_called_once()
+            # Should try to create the charts directory
+            mock_mkdir.assert_called_once()
+            _, kwargs = mock_mkdir.call_args
+            assert kwargs == {"parents": True, "exist_ok": True}
 
     def test_limits_chart_files_to_ten(
         self,
@@ -280,26 +282,27 @@ class TestVisualizer:
         tmp_path,
     ) -> None:
         """Test that old chart files are cleaned up (keep last 10)."""
-        # Create the assets directory with mock files
-        assets_dir = tmp_path / "assets"
-        assets_dir.mkdir()
+        class _FakePath:
+            def __init__(self, name: str, mtime: int) -> None:
+                self.name = name
+                self._mtime = mtime
+                self.unlinked = False
 
-        # Create 15 old chart files
-        for i in range(15):
-            chart_file = assets_dir / f"chart_{i}.png"
-            chart_file.write_text("fake chart")
+            def stat(self):
+                class _Stat:
+                    def __init__(self, mtime: int) -> None:
+                        self.st_mtime = mtime
+
+                return _Stat(self._mtime)
+
+            def unlink(self) -> None:
+                self.unlinked = True
+
+        fake_files = [_FakePath(f"chart_{i}.png", i) for i in range(15)]
 
         with (
-            patch("backend.nodes.analysis.os.makedirs"),
-            patch(
-                "backend.nodes.analysis.os.listdir",
-                return_value=[f"chart_{i}.png" for i in range(15)],
-            ),
-            patch(
-                "backend.nodes.analysis.os.path.getmtime",
-                side_effect=lambda x: int(x.split("_")[1].split(".")[0]),
-            ),
-            patch("backend.nodes.analysis.os.remove") as mock_remove,
+            patch("backend.nodes.analysis.Path.mkdir"),
+            patch("backend.nodes.analysis.Path.iterdir", return_value=fake_files),
         ):
             node = Visualizer()
             shared = {"exec_result": sample_df}
@@ -307,7 +310,7 @@ class TestVisualizer:
             node.exec(sample_df)
 
             # Should have removed 5 oldest files (15 - 10 = 5)
-            assert mock_remove.call_count == 5
+            assert sum(1 for f in fake_files if f.unlinked) == 5
 
     def test_stores_chart_path_in_shared(self, sample_df, mock_matplotlib) -> None:
         """Test that chart path is stored in shared."""
