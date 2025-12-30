@@ -34,7 +34,7 @@ import argparse
 import logging
 import sys
 import time
-from typing import Any
+from typing import Any, cast
 
 import duckdb
 import pandas as pd
@@ -225,15 +225,15 @@ class PlayerGameStatsPopulator(BasePopulator):
         # Map columns from PlayerGameLogs to our schema
         # PlayerGameLogs columns: GAME_ID, PLAYER_ID, PLAYER_NAME, TEAM_ID, etc.
 
-        output["game_id"] = pd.to_numeric(df["GAME_ID"], errors="coerce").astype(
-            "Int64",
-        )
-        output["team_id"] = pd.to_numeric(df["TEAM_ID"], errors="coerce").astype(
-            "Int64",
-        )
-        output["player_id"] = pd.to_numeric(df["PLAYER_ID"], errors="coerce").astype(
-            "Int64",
-        )
+        output["game_id"] = cast(
+            pd.Series, pd.to_numeric(df["GAME_ID"], errors="coerce")
+        ).astype("Int64")
+        output["team_id"] = cast(
+            pd.Series, pd.to_numeric(df["TEAM_ID"], errors="coerce")
+        ).astype("Int64")
+        output["player_id"] = cast(
+            pd.Series, pd.to_numeric(df["PLAYER_ID"], errors="coerce")
+        ).astype("Int64")
         output["player_name"] = df["PLAYER_NAME"].fillna("")
 
         # These fields aren't in PlayerGameLogs
@@ -267,9 +267,9 @@ class PlayerGameStatsPopulator(BasePopulator):
 
         for api_col, our_col in int_cols:
             if api_col in df.columns:
-                output[our_col] = pd.to_numeric(df[api_col], errors="coerce").astype(
-                    "Int64",
-                )
+                output[our_col] = cast(
+                    pd.Series, pd.to_numeric(df[api_col], errors="coerce")
+                ).astype("Int64")
             else:
                 output[our_col] = None
 
@@ -297,7 +297,7 @@ class PlayerGameStatsPopulator(BasePopulator):
             if col not in output.columns:
                 output[col] = None
 
-        return output[PLAYER_GAME_STATS_COLUMNS]
+        return cast(pd.DataFrame, output[PLAYER_GAME_STATS_COLUMNS])
 
     def _parse_minutes(self, min_val) -> str | None:
         """Convert a minutes value to a normalized string or return None for missing values.

@@ -53,7 +53,8 @@ insights:
         mock_call_llm_in_nodes.side_effect = mock_llm_response
 
         # Create shared store
-        {"data_dir": str(temp_csv_dir), "question": "What is the average salary?"}
+        shared = {"data_dir": str(temp_csv_dir), "question": "What is the average salary?"}
+        assert shared["data_dir"] is not None
 
         # Create and run flow
         flow = create_analyst_flow()

@@ -44,7 +44,7 @@ import logging
 import sys
 import traceback
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 import duckdb
 import pandas as pd
@@ -177,7 +177,7 @@ def process_play_by_play_data(df: pd.DataFrame, game_id: str) -> pd.DataFrame:
         if col not in processed_df.columns:
             processed_df[col] = None
 
-    return processed_df[output_columns]
+    return cast(pd.DataFrame, processed_df[output_columns])
 
 
 def insert_play_by_play(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame) -> int:

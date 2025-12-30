@@ -1,6 +1,7 @@
 """Security tests for file upload functionality."""
 
 import os
+from typing import cast
 
 from backend.utils.file_sanitizer import sanitize_csv_filename
 
@@ -25,8 +26,9 @@ class TestFileUploadSecurity:
 
             # The basename should be safe
             assert filename is not None, f"Should have sanitized {malicious_path}"
-            assert "/" not in filename
-            assert "\\" not in filename
+            res_filename = cast(str, filename)
+            assert "/" not in res_filename
+            assert "\\" not in res_filename
 
     def test_rejects_path_separators_in_filename(self) -> None:
         """Test that filenames with path separators are rejected."""
@@ -39,11 +41,12 @@ class TestFileUploadSecurity:
 
         for filename in invalid_filenames:
             # Apply validation logic
+            res_filename = cast(str, filename)
             is_valid = not (
-                "/" in filename
-                or "\\" in filename
-                or filename.startswith(".")
-                or not filename
+                "/" in res_filename
+                or "\\" in res_filename
+                or res_filename.startswith(".")
+                or not res_filename
             )
             assert not is_valid, f"Should have rejected {filename}"
 
@@ -52,22 +55,24 @@ class TestFileUploadSecurity:
         invalid_filenames = [".hidden.csv", "..secret.csv", ".bashrc"]
 
         for filename in invalid_filenames:
+            res_filename = cast(str, filename)
             is_valid = not (
-                "/" in filename
-                or "\\" in filename
-                or filename.startswith(".")
-                or not filename
+                "/" in res_filename
+                or "\\" in res_filename
+                or res_filename.startswith(".")
+                or not res_filename
             )
             assert not is_valid, f"Should have rejected {filename}"
 
     def test_rejects_empty_filename(self) -> None:
         """Test that empty filenames are rejected."""
         filename = ""
+        res_filename = cast(str, filename)
         is_valid = not (
-            "/" in filename
-            or "\\" in filename
-            or filename.startswith(".")
-            or not filename
+            "/" in res_filename
+            or "\\" in res_filename
+            or res_filename.startswith(".")
+            or not res_filename
         )
         assert not is_valid, "Should have rejected empty filename"
 
@@ -83,11 +88,12 @@ class TestFileUploadSecurity:
         ]
 
         for filename in valid_filenames:
+            res_filename = cast(str, filename)
             is_valid = not (
-                "/" in filename
-                or "\\" in filename
-                or filename.startswith(".")
-                or not filename
+                "/" in res_filename
+                or "\\" in res_filename
+                or res_filename.startswith(".")
+                or not res_filename
             )
             assert is_valid, f"Should have accepted {filename}"
 
@@ -120,8 +126,9 @@ class TestFileUploadSecurity:
             result = sanitize_csv_filename(malicious)
             assert result == f"{expected_basename}.csv"
             # The basename should not contain any path separators
-            assert "/" not in result
-            assert "\\" not in result
+            res_result = cast(str, result)
+            assert "/" not in res_result
+            assert "\\" not in res_result
 
     def test_file_save_location(self, tmp_path) -> None:
         """Test that files are saved in the correct directory."""
@@ -225,7 +232,7 @@ class TestFilenameSanitization:
 
         for filename in special_names:
             # These should be allowed as long as no path separators
-            not (
+            _ = not (
                 "/" in filename
                 or "\\" in filename
                 or filename.startswith(".")
@@ -274,5 +281,6 @@ class TestFilenameSanitization:
             result = sanitize_csv_filename(filename)
             assert result is not None
             # At minimum, should not contain path separators
+            assert isinstance(result, str)
             assert "/" not in result
             assert "\\" not in result

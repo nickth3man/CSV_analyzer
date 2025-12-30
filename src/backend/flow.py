@@ -124,30 +124,30 @@ def create_analyst_flow() -> Flow:
     viz = Visualizer()
     synthesizer = ResponseSynthesizer()
 
-    load - "default" >> nba_loader
-    load - "no_data" >> ask_user
-    nba_loader >> merger >> schema
-    schema >> profiler >> clarify
+    _ = (load - "default" >> nba_loader)
+    _ = (load - "no_data" >> ask_user)
+    _ = (nba_loader >> merger >> schema)
+    _ = (schema >> profiler >> clarify)
 
-    clarify - "ambiguous" >> ask_user
-    clarify - "clear" >> entity_resolver
+    _ = (clarify - "ambiguous" >> ask_user)
+    _ = (clarify - "clear" >> entity_resolver)
 
     # AskUser can re-enter the flow with a clarified question (CLI mode)
-    ask_user - "clarified" >> entity_resolver
+    _ = (ask_user - "clarified" >> entity_resolver)
     # Other AskUser actions ("default", "quit") terminate the flow
 
-    entity_resolver >> search_expander >> context_aggregator >> plan >> code_gen
-    code_gen >> api_code_gen >> safety
+    _ = (entity_resolver >> search_expander >> context_aggregator >> plan >> code_gen)
+    _ = (code_gen >> api_code_gen >> safety)
 
-    safety - "unsafe" >> code_gen
-    safety - "safe" >> executor
+    _ = (safety - "unsafe" >> code_gen)
+    _ = (safety - "safe" >> executor)
 
-    executor - "error" >> fixer
-    fixer - "fix" >> code_gen
-    fixer - "give_up" >> synthesizer
-    executor - "success" >> result_validator
+    _ = (executor - "error" >> fixer)
+    _ = (fixer - "fix" >> code_gen)
+    _ = (fixer - "give_up" >> synthesizer)
+    _ = (executor - "success" >> result_validator)
 
-    result_validator >> cross_validator >> deep_analyzer >> viz >> synthesizer
+    _ = (result_validator >> cross_validator >> deep_analyzer >> viz >> synthesizer)
 
     return Flow(start=load)
 

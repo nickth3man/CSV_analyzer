@@ -72,7 +72,7 @@ class TestClarifyQueryBasics:
         # The logic checks `len(word) > 3`, so "a_b_c" (5 chars) would be checked
         # but since it's not in schema, it should be flagged
         assert status == "ambiguous"
-        assert "a_b_c" in missing
+        assert missing is not None and "a_b_c" in missing
 
 
 class TestClarifyQueryCaseInsensitivity:
@@ -293,7 +293,7 @@ class TestClarifyQueryEdgeCases:
         status, missing = exec_res
 
         assert status == "ambiguous"
-        assert "some_column_name" in missing
+        assert missing is not None and "some_column_name" in missing
 
     def test_multiple_tables_in_schema(self) -> None:
         """Test with multiple tables in schema."""
@@ -335,8 +335,8 @@ class TestClarifyQueryEdgeCases:
         # Currently fails because punctuation isn't stripped
         # "player_id?" does not match "player_id" in schema
         assert status == "ambiguous"
-        assert "player_id?" in missing
-        assert "team_name!" in missing
+        assert missing is not None and "player_id?" in missing
+        assert missing is not None and "team_name!" in missing
 
     def test_column_name_exactly_three_characters_with_underscore(self) -> None:
         """Test that 3-character words with underscores are ignored."""
@@ -370,7 +370,7 @@ class TestClarifyQueryEdgeCases:
 
         # "a_bc" is 4 chars (len > 3), should be checked and flagged as missing
         assert status == "ambiguous"
-        assert "a_bc" in missing
+        assert missing is not None and "a_bc" in missing
 
 
 class TestClarifyQueryIntegration:
@@ -409,7 +409,7 @@ class TestClarifyQueryIntegration:
         status, missing = exec_res
 
         assert status == "ambiguous"
-        assert "championship_count" in missing
+        assert missing is not None and "championship_count" in missing
 
     def test_sales_analysis_query(self) -> None:
         """Test with sales analysis query."""
@@ -426,7 +426,7 @@ class TestClarifyQueryIntegration:
 
         # total_revenue doesn't exist, should be flagged
         assert status == "ambiguous"
-        assert "total_revenue" in missing
+        assert missing is not None and "total_revenue" in missing
         # product_id and customer_id exist, should not be in missing
-        assert "product_id" not in missing
-        assert "customer_id" not in missing
+        assert missing is not None and "product_id" not in missing
+        assert missing is not None and "customer_id" not in missing

@@ -146,6 +146,7 @@ class TestPopulateShotChartSpecifics:
     def test_populate_shot_chart_references_nba_api(self):
         """Test that documentation references NBA API endpoint."""
         doc = populate_shot_chart.__doc__
+        assert isinstance(doc, str)
         assert "NBA API" in doc or "shotchartdetail" in doc
 
 
@@ -155,6 +156,7 @@ class TestPopulateTransactionsSpecifics:
     def test_populate_transactions_describes_transaction_types(self):
         """Test that documentation describes transaction types to track."""
         doc = populate_transactions.__doc__
+        assert isinstance(doc, str)
         assert any(ttype in doc for ttype in [
             "trade", "signing", "waiver", "release"
         ])

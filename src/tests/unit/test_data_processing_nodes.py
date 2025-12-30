@@ -1,5 +1,6 @@
 """Tests for data processing nodes - Schema, Profiler, CodeGenerator, Visualizer."""
 
+from typing import Any, cast
 from unittest.mock import patch
 
 import pandas as pd
@@ -55,7 +56,7 @@ class TestSchemaInference:
     def test_handles_empty_dataframe(self) -> None:
         """Test handling of empty DataFrame."""
         node = SchemaInference()
-        empty_df = pd.DataFrame(columns=["col1", "col2"])
+        empty_df = pd.DataFrame(columns=cast(Any, ["col1", "col2"]))
         shared = {"dfs": {"empty": empty_df}}
 
         prep_res = node.prep(shared)
@@ -342,7 +343,7 @@ class TestVisualizer:
             prep_res = node.prep(shared)
             exec_res = node.exec(prep_res)
 
-            assert "1234567890" in exec_res
+            assert exec_res is not None and "1234567890" in exec_res
 
     def test_plots_first_numeric_column(self, mock_matplotlib) -> None:
         """Test that the first numeric column is plotted."""
@@ -430,10 +431,11 @@ final_result = dfs['employees']
         profiler_node.post(shared, prep_res, exec_res)
 
         # CodeGenerator (needs more context)
-        shared["plan_steps"] = "Return the employees table"
-        shared["entity_map"] = {}
-        shared["knowledge_hints"] = {}
-        shared["exec_error"] = None
+        shared_any = cast(dict[str, Any], shared)
+        shared_any["plan_steps"] = "Return the employees table"
+        shared_any["entity_map"] = {}
+        shared_any["knowledge_hints"] = {}
+        shared_any["exec_error"] = None
 
         codegen_node = CodeGenerator()
         prep_res = codegen_node.prep(shared)

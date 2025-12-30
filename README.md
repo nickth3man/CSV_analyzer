@@ -1,17 +1,5 @@
 <h1 align="center">NBA Expert - Data Analyst Agent</h1>
 
-<p align="center">
-  <a href="https://github.com/The-Pocket/PocketFlow" target="_blank">
-    <img
-      src="./docs/assets/banner.png"
-      alt="NBA Expert - Data Analyst Agent powered by PocketFlow"
-      width="800"
-    />
-  </a>
-</p>
-
-An LLM-powered data analyst that answers natural language questions about NBA data. Built with [Pocket Flow](https://github.com/The-Pocket/PocketFlow), a minimalist 100-line LLM framework.
-
 ## Features
 
 - **Natural Language Queries**: Ask questions about NBA data in plain English

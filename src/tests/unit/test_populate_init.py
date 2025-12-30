@@ -229,6 +229,7 @@ class TestPopulateInit:
         import src.scripts.populate
         
         doc = src.scripts.populate.__doc__
+        assert isinstance(doc, str)
         assert "Usage:" in doc or "Example:" in doc or "from src.scripts.populate" in doc
 
     def test_populate_init_docstring_lists_modules(self):
@@ -237,6 +238,7 @@ class TestPopulateInit:
         
         doc = src.scripts.populate.__doc__
         # Should mention key modules
+        assert isinstance(doc, str)
         assert any(module in doc for module in [
             "api_client", "database", "populate_nba_data"
         ])

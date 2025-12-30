@@ -1,6 +1,7 @@
 """Security tests for Executor node - sandboxed code execution."""
 
 import pandas as pd
+from typing import Any, Iterable, cast
 
 from backend.nodes import Executor
 
@@ -24,7 +25,7 @@ final_result = sorted([v for v in available_vars if not v.startswith('_')])
 
         assert status == "success"
         # Should only have 'dfs', 'pd', and 'final_result' (created by the code)
-        assert set(result) == {"dfs", "pd", "final_result"}
+        assert set(cast(Iterable[Any], result)) == {"dfs", "pd", "final_result"}
 
     def test_cannot_access_globals(self, sample_df) -> None:
         """Test that code cannot access global scope."""
@@ -62,7 +63,7 @@ except NameError:
         status, result = exec_res["csv"]
 
         assert status == "success"
-        assert set(result) == {"employees", "sales"}
+        assert set(cast(Iterable[Any], result)) == {"employees", "sales"}
 
     def test_can_use_pandas(self, sample_df) -> None:
         """Test that code can use pandas (pd)."""
@@ -110,7 +111,7 @@ class TestExecutorResultExtraction:
         status, result = exec_res["csv"]
 
         assert status == "error"
-        assert "final_result" in result
+        assert isinstance(result, str) and "final_result" in result
 
     def test_returns_dataframe(self, sample_df) -> None:
         """Test that final_result can be a DataFrame."""
@@ -174,8 +175,9 @@ final_result = {
         status, result = exec_res["csv"]
 
         assert status == "success"
-        assert result["count"] == 3
-        assert result["avg_salary"] == 84000
+        res_dict = cast(dict[str, Any], result)
+        assert res_dict["count"] == 3
+        assert res_dict["avg_salary"] == 84000
 
 
 class TestExecutorErrorHandling:
@@ -193,7 +195,8 @@ class TestExecutorErrorHandling:
         status, result = exec_res["csv"]
 
         assert status == "error"
-        assert "nonexistent_column" in result.lower() or "attribute" in result.lower()
+        res_str = str(result).lower()
+        assert "nonexistent_column" in res_str or "attribute" in res_str
 
     def test_handles_key_error(self, sample_df) -> None:
         """Test handling of KeyError."""
@@ -207,7 +210,8 @@ class TestExecutorErrorHandling:
         status, result = exec_res["csv"]
 
         assert status == "error"
-        assert "nonexistent_table" in result or "KeyError" in result
+        res_str = str(result)
+        assert "nonexistent_table" in res_str or "KeyError" in res_str
 
     def test_handles_type_error(self, sample_df) -> None:
         """Test handling of TypeError."""
@@ -221,7 +225,8 @@ class TestExecutorErrorHandling:
         status, result = exec_res["csv"]
 
         assert status == "error"
-        assert "type" in result.lower() or "str" in result.lower()
+        res_str = str(result).lower()
+        assert "type" in res_str or "str" in res_str
 
     def test_handles_zero_division(self, sample_df) -> None:
         """Test handling of ZeroDivisionError."""
@@ -235,7 +240,8 @@ class TestExecutorErrorHandling:
         status, result = exec_res["csv"]
 
         assert status == "error"
-        assert "division" in result.lower() or "zero" in result.lower()
+        res_str = str(result).lower()
+        assert "division" in res_str or "zero" in res_str
 
     def test_handles_index_error(self, sample_df) -> None:
         """Test handling of IndexError."""
@@ -249,7 +255,8 @@ class TestExecutorErrorHandling:
         status, result = exec_res["csv"]
 
         assert status == "error"
-        assert "index" in result.lower() or "out of" in result.lower()
+        res_str = str(result).lower()
+        assert "index" in res_str or "out of" in res_str
 
 
 class TestExecutorPostMethod:
@@ -321,8 +328,9 @@ final_result = grouped.to_dict()
         status, result = exec_res["csv"]
 
         assert status == "success"
-        assert "Engineering" in result
-        assert result["Engineering"] == (75000 + 95000) / 2
+        res_dict = cast(dict[str, Any], result)
+        assert "Engineering" in res_dict
+        assert res_dict["Engineering"] == (75000 + 95000) / 2
 
     def test_aggregation_operation(self, sample_df) -> None:
         """Test aggregation operations."""
@@ -342,9 +350,10 @@ final_result = {
         status, result = exec_res["csv"]
 
         assert status == "success"
-        assert result["mean"] == 84000
-        assert result["median"] == 82000
-        assert result["sum"] == 252000
+        res_dict = cast(dict[str, Any], result)
+        assert res_dict["mean"] == 84000
+        assert res_dict["median"] == 82000
+        assert res_dict["sum"] == 252000
 
     def test_merge_operation(self, sample_df, sample_sales_df) -> None:
         """Test merging DataFrames."""

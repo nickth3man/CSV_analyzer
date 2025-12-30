@@ -1,6 +1,7 @@
 """Tests for EntityResolver node - entity extraction and table matching."""
 
 import pandas as pd
+from typing import Any, cast
 
 from backend.nodes import EntityResolver
 
@@ -391,7 +392,7 @@ class TestEntityResolverErrorHandling:
         """Test handling of empty DataFrames."""
         mock_call_llm_in_nodes.return_value = '["Alice"]'
 
-        df = pd.DataFrame(columns=["name", "salary"])
+        df = pd.DataFrame(columns=cast(Any, ["name", "salary"]))
 
         node = EntityResolver()
         shared = {

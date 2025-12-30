@@ -144,7 +144,7 @@ class DataValidator:
                 (attempted_shots["field_goals_percentage"] < 0)
                 | (attempted_shots["field_goals_percentage"] > 100)
             ]
-            if not invalid_fg_pct.empty:
+            if len(invalid_fg_pct) > 0:
                 errors.append(
                     f"Found {len(invalid_fg_pct)} invalid field goal percentages",
                 )
@@ -159,7 +159,7 @@ class DataValidator:
                 (attempted_3pt["three_pointers_percentage"] < 0)
                 | (attempted_3pt["three_pointers_percentage"] > 100)
             ]
-            if not invalid_3pt_pct.empty:
+            if len(invalid_3pt_pct) > 0:
                 errors.append(f"Found {len(invalid_3pt_pct)} invalid 3PT percentages")
 
         # Check free throw percentages
@@ -172,7 +172,7 @@ class DataValidator:
                 (attempted_ft["free_throws_percentage"] < 0)
                 | (attempted_ft["free_throws_percentage"] > 100)
             ]
-            if not invalid_ft_pct.empty:
+            if len(invalid_ft_pct) > 0:
                 errors.append(
                     f"Found {len(invalid_ft_pct)} invalid free throw percentages",
                 )
@@ -448,7 +448,7 @@ def validate_player_stats_consistency(player_games: pd.DataFrame) -> dict[str, A
         | (player_stats["ast_std"] > 8)  # High assist variation
     ]
 
-    if not high_variation_players.empty:
+    if len(high_variation_players) > 0:
         warnings.append(
             f"Found {len(high_variation_players)} players with high statistical variation",
         )
@@ -458,7 +458,7 @@ def validate_player_stats_consistency(player_games: pd.DataFrame) -> dict[str, A
         (player_stats["pts_count"] < 5) & (player_stats["pts_mean"] > 25)
     ]
 
-    if not low_game_high_stats.empty:
+    if len(low_game_high_stats) > 0:
         warnings.append(
             f"Found {len(low_game_high_stats)} players with few games but high scoring averages",
         )

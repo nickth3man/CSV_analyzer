@@ -21,6 +21,7 @@ class TestPopulatePlayByPlayUpdated:
         module = sys.modules["src.scripts.populate.populate_play_by_play"]
 
         doc = module.__doc__
+        assert isinstance(doc, str)
         assert "TODO" in doc or "ROADMAP" in doc
         assert "Phase 3.1" in doc
 
@@ -30,6 +31,7 @@ class TestPopulatePlayByPlayUpdated:
         module = sys.modules["src.scripts.populate.populate_play_by_play"]
 
         doc = module.__doc__
+        assert isinstance(doc, str)
         assert any(term in doc for term in [
             "API", "authentication", "blocked", "access"
         ])
@@ -48,6 +50,7 @@ class TestPopulatePlayerSeasonStatsUpdated:
         module = sys.modules["src.scripts.populate.populate_player_season_stats"]
 
         doc = module.__doc__
+        assert isinstance(doc, str)
         assert "TODO" in doc or "ROADMAP" in doc
         assert "bridge_player_team_season" in doc or "Phase 2.5" in doc
 
@@ -57,6 +60,7 @@ class TestPopulatePlayerSeasonStatsUpdated:
         module = sys.modules["src.scripts.populate.populate_player_season_stats"]
 
         doc = module.__doc__
+        assert isinstance(doc, str)
         assert any(term in doc for term in [
             "verify", "Verify", "check", "Check"
         ])
