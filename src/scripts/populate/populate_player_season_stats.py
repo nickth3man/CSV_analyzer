@@ -40,7 +40,7 @@ from typing import Any
 import duckdb
 
 # Import shared modules from the populate package
-from scripts.populate.config import get_db_path
+from src.scripts.populate.config import get_db_path
 
 
 # Configure logging

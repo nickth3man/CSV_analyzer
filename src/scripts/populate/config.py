@@ -21,7 +21,7 @@ from pathlib import Path
 # =============================================================================
 
 # Project root directory
-PROJECT_ROOT = Path(__file__).parent.parent.parent
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 
 # Default database path
 DEFAULT_DB_PATH = PROJECT_ROOT / "src" / "backend" / "data" / "nba.duckdb"

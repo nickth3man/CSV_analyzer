@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from scripts.populate import (
+from src.scripts.populate import (
     populate_arenas,
     populate_franchises,
     populate_injury_data,
@@ -76,7 +76,7 @@ class TestPopulatePlaceholders:
     ])
     def test_placeholder_main_functions_exit_with_error(self, module_name, main_func):
         """Test that main functions exit with non-zero status."""
-        module = __import__(f"scripts.populate.{module_name}", fromlist=[main_func])
+        module = __import__(f"src.scripts.populate.{module_name}", fromlist=[main_func])
         main = getattr(module, main_func)
 
         with pytest.raises(SystemExit) as exc_info:
@@ -175,7 +175,7 @@ class TestUnusedVariableRenames:
     def test_unused_args_variable_renamed(self, module_name, has_args_parsing):
         """Test that _args variable (unused) doesn't break argparse."""
         import inspect
-        module = __import__(f"scripts.populate.{module_name}", fromlist=["main"])
+        module = __import__(f"src.scripts.populate.{module_name}", fromlist=["main"])
         
         # Get source code
         source = inspect.getsource(module.main)
@@ -188,7 +188,7 @@ class TestUnusedVariableRenames:
 
     def test_populate_arenas_main_with_args(self):
         """Test that populate_arenas.main() can be called despite unused _args."""
-        from scripts.populate import populate_arenas
+        from src.scripts.populate import populate_arenas
         
         with pytest.raises(SystemExit) as exc_info:
             with patch("sys.argv", ["populate_arenas", "--include-historical"]):
@@ -199,7 +199,7 @@ class TestUnusedVariableRenames:
 
     def test_populate_franchises_main_with_args(self):
         """Test that populate_franchises.main() can be called despite unused _args."""
-        from scripts.populate import populate_franchises
+        from src.scripts.populate import populate_franchises
         
         with pytest.raises(SystemExit) as exc_info:
             with patch("sys.argv", ["populate_franchises", "--include-defunct"]):
@@ -209,7 +209,7 @@ class TestUnusedVariableRenames:
 
     def test_populate_injury_data_main_with_args(self):
         """Test that populate_injury_data.main() can be called despite unused _args."""
-        from scripts.populate import populate_injury_data
+        from src.scripts.populate import populate_injury_data
         
         with pytest.raises(SystemExit) as exc_info:
             with patch("sys.argv", ["populate_injury_data", "--player-id", "2544"]):
@@ -219,7 +219,7 @@ class TestUnusedVariableRenames:
 
     def test_populate_officials_main_with_args(self):
         """Test that populate_officials.main() can be called despite unused _args."""
-        from scripts.populate import populate_officials
+        from src.scripts.populate import populate_officials
         
         with pytest.raises(SystemExit) as exc_info:
             with patch("sys.argv", ["populate_officials", "--with-games"]):
@@ -229,7 +229,7 @@ class TestUnusedVariableRenames:
 
     def test_populate_salaries_main_with_args(self):
         """Test that populate_salaries.main() can be called despite unused _args."""
-        from scripts.populate import populate_salaries
+        from src.scripts.populate import populate_salaries
         
         with pytest.raises(SystemExit) as exc_info:
             with patch("sys.argv", ["populate_salaries", "--source", "basketball-reference"]):
@@ -239,7 +239,7 @@ class TestUnusedVariableRenames:
 
     def test_populate_shot_chart_main_with_args(self):
         """Test that populate_shot_chart.main() can be called despite unused _args."""
-        from scripts.populate import populate_shot_chart
+        from src.scripts.populate import populate_shot_chart
         
         with pytest.raises(SystemExit) as exc_info:
             with patch("sys.argv", ["populate_shot_chart", "--all-players"]):
@@ -249,7 +249,7 @@ class TestUnusedVariableRenames:
 
     def test_populate_transactions_main_with_args(self):
         """Test that populate_transactions.main() can be called despite unused _args."""
-        from scripts.populate import populate_transactions
+        from src.scripts.populate import populate_transactions
         
         with pytest.raises(SystemExit) as exc_info:
             with patch("sys.argv", ["populate_transactions", "--all-seasons"]):
@@ -259,7 +259,7 @@ class TestUnusedVariableRenames:
 
     def test_argparse_setup_still_functional(self):
         """Test that argparse setup is still functional despite _args being unused."""
-        from scripts.populate import populate_arenas
+        from src.scripts.populate import populate_arenas
         import argparse
         
         # Check that ArgumentParser is used
@@ -273,7 +273,7 @@ class TestUnusedVariableRenames:
     def test_unused_variable_convention_followed(self):
         """Test that unused variables follow Python convention (_prefix)."""
         import inspect
-        from scripts.populate import (
+        from src.scripts.populate import (
             populate_arenas,
             populate_franchises,
             populate_injury_data,

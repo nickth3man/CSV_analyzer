@@ -11,7 +11,7 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 ## Phase 1: Schema Hygiene (High Impact, Medium Effort)
 
 ### 1.2 - Document Canonical Tables ✅ Partial → TODO
-**File**: `scripts/maintenance/normalize_db.py`
+**File**: `src/scripts/maintenance/normalize_db.py`
 **Status**: Documentation needed for raw vs canonical table relationships
 **Tasks**:
 - Document which tables are canonical (silver/gold) vs raw text
@@ -19,7 +19,7 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 - Document transformation logic (raw → silver → gold)
 
 ### 1.4 - Add FK Constraints/Tests 🔴 TODO
-**File**: `scripts/maintenance/check_integrity.py`
+**File**: `src/scripts/maintenance/check_integrity.py`
 **Status**: Not implemented
 **Tasks**:
 - Implement systematic FK constraint validation
@@ -34,7 +34,7 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 - Consider using dbt or similar for automated constraint testing
 
 ### 1.5 - Quarantine Raw Text Tables 🔴 TODO
-**File**: `scripts/maintenance/normalize_db.py`
+**File**: `src/scripts/maintenance/normalize_db.py`
 **Status**: Not implemented
 **Tasks**:
 - Rename raw tables with '_raw' suffix (game → game_raw, etc.)
@@ -48,7 +48,7 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 ## Phase 2: Player & Advanced Metrics (High Impact, High Effort)
 
 ### 2.3 - Create Advanced Metrics Views 🟡 Partial → TODO
-**File**: `scripts/analysis/create_advanced_metrics.py`
+**File**: `src/scripts/analysis/create_advanced_metrics.py`
 **Status**: Basic metrics implemented, advanced metrics incomplete
 **Current**: TS%, eFG%, TOV%, GmSc implemented
 **Missing**:
@@ -62,7 +62,7 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 - WS, WS/48 (win shares)
 
 ### 2.4 - Add Possessions/Pace Data 🔴 TODO
-**File**: `scripts/analysis/create_advanced_metrics.py`
+**File**: `src/scripts/analysis/create_advanced_metrics.py`
 **Status**: Not implemented
 **Tasks**:
 - Calculate team possessions per game for advanced metrics
@@ -71,7 +71,7 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 - Blocked by: Need opponent team stats joined per game
 
 ### 2.5 - Verify bridge_player_team_season 🟡 Partial → TODO
-**File**: `scripts/populate/populate_player_season_stats.py`
+**File**: `src/scripts/populate/populate_player_season_stats.py`
 **Status**: Partial verification needed
 **Tasks**:
 1. Verify bridge_player_team_season table exists and is populated
@@ -84,7 +84,7 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 ## Phase 3: Events & Economics (Medium Impact, High Effort)
 
 ### 3.1 - Populate play_by_play 🟡 HIGH Priority → Blocked
-**File**: `scripts/populate/populate_play_by_play.py`
+**File**: `src/scripts/populate/populate_play_by_play.py`
 **Status**: Script implemented but blocked by NBA API access issues
 **Tasks**:
 - Resolve NBA API authentication/access issues
@@ -97,7 +97,7 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 **Impact**: Blocks clutch analysis, lineup analysis, detailed event tracking
 
 ### 3.2 - Add shot_chart_detail 🔴 TODO
-**File**: `scripts/populate/populate_shot_chart.py` ✨ NEW PLACEHOLDER
+**File**: `src/scripts/populate/populate_shot_chart.py` ✨ NEW PLACEHOLDER
 **Status**: Not yet implemented
 **Tasks**:
 1. Fetch shot chart data from NBA API (shotchartdetail endpoint)
@@ -108,7 +108,7 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 **Priority**: MEDIUM
 
 ### 3.3 - Populate salaries 🔴 TODO
-**File**: `scripts/populate/populate_salaries.py` ✨ NEW PLACEHOLDER
+**File**: `src/scripts/populate/populate_salaries.py` ✨ NEW PLACEHOLDER
 **Status**: Not yet implemented
 **Tasks**:
 1. Identify reliable salary data source (NBA API doesn't provide this)
@@ -120,7 +120,7 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 **Blocks**: Value-based player analysis
 
 ### 3.4 - Populate transactions 🔴 TODO
-**File**: `scripts/populate/populate_transactions.py` ✨ NEW PLACEHOLDER
+**File**: `src/scripts/populate/populate_transactions.py` ✨ NEW PLACEHOLDER
 **Status**: Not yet implemented
 **Tasks**:
 1. Fetch transaction data from NBA API or alternative source
@@ -131,7 +131,7 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 **Priority**: LOW
 
 ### 3.5 - Add injury data 🔴 TODO
-**File**: `scripts/populate/populate_injury_data.py` ✨ NEW PLACEHOLDER
+**File**: `src/scripts/populate/populate_injury_data.py` ✨ NEW PLACEHOLDER
 **Status**: Not yet implemented
 **Tasks**:
 1. Fetch injury reports and player availability status
@@ -146,7 +146,7 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 ## Phase 4: Enrichment & Documentation (Medium Impact, Medium Effort)
 
 ### 4.1 - Populate arenas 🔴 TODO
-**File**: `scripts/populate/populate_arenas.py` ✨ NEW PLACEHOLDER
+**File**: `src/scripts/populate/populate_arenas.py` ✨ NEW PLACEHOLDER
 **Status**: Not yet implemented (0 rows in arenas table)
 **Tasks**:
 1. Fetch arena/venue information for all NBA teams
@@ -157,7 +157,7 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 **Priority**: LOW
 
 ### 4.2 - Populate franchises 🔴 TODO
-**File**: `scripts/populate/populate_franchises.py` ✨ NEW PLACEHOLDER
+**File**: `src/scripts/populate/populate_franchises.py` ✨ NEW PLACEHOLDER
 **Status**: Not yet implemented
 **Tasks**:
 1. Track complete franchise history including relocations
@@ -168,7 +168,7 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 **Priority**: LOW
 
 ### 4.3 - Populate officials_directory 🔴 TODO
-**File**: `scripts/populate/populate_officials.py` ✨ NEW PLACEHOLDER
+**File**: `src/scripts/populate/populate_officials.py` ✨ NEW PLACEHOLDER
 **Status**: Not yet implemented (0 rows)
 **Tasks**:
 1. Fetch referee/official information from NBA
@@ -192,7 +192,7 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 **Impact**: Critical for end users and developers
 
 ### 4.5 - Add automated quality tests 🔴 TODO
-**File**: `scripts/maintenance/check_integrity.py`
+**File**: `src/scripts/maintenance/check_integrity.py`
 **Status**: Not implemented
 **Tasks**:
 1. Null value checks for critical columns
@@ -208,20 +208,20 @@ This document summarizes all TODO comments added to the codebase based on docs/r
 ## Summary Statistics
 
 ### Files Modified
-- ✏️ `scripts/check_integrity.py` - Added Phase 1.4 and 4.5 TODOs
-- ✏️ `scripts/create_advanced_metrics.py` - Added Phase 2.3 and 2.4 TODOs
-- ✏️ `scripts/normalize_db.py` - Added Phase 1.2 and 1.5 TODOs
-- ✏️ `scripts/populate/populate_play_by_play.py` - Added Phase 3.1 TODO
-- ✏️ `scripts/populate/populate_player_season_stats.py` - Added Phase 2.5 TODO
+- ✏️ `src/scripts/check_integrity.py` - Added Phase 1.4 and 4.5 TODOs
+- ✏️ `src/scripts/create_advanced_metrics.py` - Added Phase 2.3 and 2.4 TODOs
+- ✏️ `src/scripts/normalize_db.py` - Added Phase 1.2 and 1.5 TODOs
+- ✏️ `src/scripts/populate/populate_play_by_play.py` - Added Phase 3.1 TODO
+- ✏️ `src/scripts/populate/populate_player_season_stats.py` - Added Phase 2.5 TODO
 
 ### Files Created (Placeholders)
-- ✨ `scripts/populate/populate_shot_chart.py` - Phase 3.2
-- ✨ `scripts/populate/populate_salaries.py` - Phase 3.3
-- ✨ `scripts/populate/populate_transactions.py` - Phase 3.4
-- ✨ `scripts/populate/populate_injury_data.py` - Phase 3.5
-- ✨ `scripts/populate/populate_arenas.py` - Phase 4.1
-- ✨ `scripts/populate/populate_franchises.py` - Phase 4.2
-- ✨ `scripts/populate/populate_officials.py` - Phase 4.3
+- ✨ `src/scripts/populate/populate_shot_chart.py` - Phase 3.2
+- ✨ `src/scripts/populate/populate_salaries.py` - Phase 3.3
+- ✨ `src/scripts/populate/populate_transactions.py` - Phase 3.4
+- ✨ `src/scripts/populate/populate_injury_data.py` - Phase 3.5
+- ✨ `src/scripts/populate/populate_arenas.py` - Phase 4.1
+- ✨ `src/scripts/populate/populate_franchises.py` - Phase 4.2
+- ✨ `src/scripts/populate/populate_officials.py` - Phase 4.3
 - ✨ `docs/data_dictionary.md` - Phase 4.4 skeleton
 
 ### By Priority

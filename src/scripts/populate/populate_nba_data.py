@@ -60,8 +60,8 @@ import pandas as pd
 # Add project root to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from scripts.populate.api_client import NBAClient, get_client
-from scripts.populate.config import (
+from src.scripts.populate.api_client import NBAClient, get_client
+from src.scripts.populate.config import (
     ALL_SEASONS,
     DEFAULT_SEASON_TYPES,
     PROGRESS_FILE,

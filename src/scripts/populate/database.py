@@ -25,7 +25,7 @@ class DatabaseManager:
         Parameters:
             db_path (Optional[Path]): Path to the DuckDB database file. If omitted, the path is obtained from the application's configuration.
         """
-        from scripts.populate.config import get_db_path
+        from src.scripts.populate.config import get_db_path
 
         self.db_path = db_path or get_db_path()
         self.connection: duckdb.DuckDBPyConnection | None = None

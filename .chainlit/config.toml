@@ -109,7 +109,7 @@ default_sidebar_state = "closed"
 cot = "tool_call"
 
 # Custom CSS file for enhanced styling
-custom_css = "/public/custom.css"
+custom_css = "/custom.css"
 
 # Specify additional attributes for a custom CSS file
 # custom_css_attributes = "media=\"print\""
@@ -138,10 +138,10 @@ alert_style = "modern"
 # custom_meta_image_url = "https://chainlit-cloud.s3.eu-west-3.amazonaws.com/logo/chainlit_banner.png"
 
 # Load assistant logo from public directory
-logo_file_url = "/public/logo.svg"
+logo_file_url = "/logo.svg"
 
 # Load assistant avatar image from public directory
-default_avatar_file_url = "/public/avatars/assistant.svg"
+default_avatar_file_url = "/avatars/assistant.svg"
 
 # Specify a custom build directory for the frontend.
 # This can be used to customize the frontend code.

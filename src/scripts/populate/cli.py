@@ -29,7 +29,7 @@ import logging
 import sys
 from typing import Any
 
-from scripts.populate.config import (
+from src.scripts.populate.config import (
     DEFAULT_SEASON_TYPES,
 )
 
@@ -49,7 +49,7 @@ def cmd_init(args):
     Returns:
         dict: Result of the initialization operation; may include an `error_count` key indicating the number of errors encountered.
     """
-    from scripts.populate.init_db import init_database
+    from src.scripts.populate.init_db import init_database
 
     return init_database(
         db_path=args.db,
@@ -64,7 +64,7 @@ def cmd_info(args) -> None:
     Parameters:
         args: An object (typically argparse.Namespace) with attribute `db` giving the path to the database. The function prints the database path, whether it exists, the number of tables (if present), and per-table row counts or error messages.
     """
-    from scripts.populate.init_db import get_database_info
+    from src.scripts.populate.init_db import get_database_info
 
     info = get_database_info(args.db)
 
@@ -86,7 +86,7 @@ def cmd_load_csv(args) -> None:
 
     logger.info("Loading CSV files into database...")
     result = subprocess.run(
-        [sys.executable, "scripts/migration/convert_csvs.py"],
+        [sys.executable, "src/scripts/migration/convert_csvs.py"],
         check=False,
         capture_output=True,
         text=True,
@@ -104,7 +104,7 @@ def cmd_normalize(args) -> None:
 
     logger.info("Normalizing database tables...")
     result = subprocess.run(
-        [sys.executable, "scripts/maintenance/normalize_db.py"],
+        [sys.executable, "src/scripts/maintenance/normalize_db.py"],
         check=False,
         capture_output=True,
         text=True,
@@ -118,7 +118,7 @@ def cmd_player_games(args):
 
     @returns The value returned by populate_player_game_stats_v2 — typically a dict containing status information (may include an `error_count` key).
     """
-    from scripts.populate.populate_player_game_stats_v2 import (
+    from src.scripts.populate.populate_player_game_stats_v2 import (
         populate_player_game_stats_v2,
     )
 
@@ -144,7 +144,7 @@ def cmd_player_games_legacy(args):
     Returns:
         The value returned by `populate_player_game_stats` — typically a dictionary containing status information (for example progress or `error_count`).
     """
-    from scripts.populate.populate_player_game_stats import populate_player_game_stats
+    from src.scripts.populate.populate_player_game_stats import populate_player_game_stats
 
     season_types = DEFAULT_SEASON_TYPES
     if args.regular_only:
@@ -178,7 +178,7 @@ def cmd_play_by_play(args):
     Returns:
         result (dict): Summary of the operation. May include keys such as `error_count` (int) and other status details.
     """
-    from scripts.populate.populate_play_by_play import populate_play_by_play
+    from src.scripts.populate.populate_play_by_play import populate_play_by_play
 
     return populate_play_by_play(
         db_path=args.db,
@@ -192,7 +192,7 @@ def cmd_play_by_play(args):
 
 def cmd_season_stats(args):
     """Create player season stats (aggregated)."""
-    from scripts.populate.populate_player_season_stats import (
+    from src.scripts.populate.populate_player_season_stats import (
         populate_player_season_stats,
     )
 

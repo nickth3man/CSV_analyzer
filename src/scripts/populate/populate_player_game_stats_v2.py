@@ -39,9 +39,9 @@ from typing import Any
 import duckdb
 import pandas as pd
 
-from scripts.populate.api_client import get_client
-from scripts.populate.base import BasePopulator
-from scripts.populate.config import (
+from src.scripts.populate.api_client import get_client
+from src.scripts.populate.base import BasePopulator
+from src.scripts.populate.config import (
     ALL_SEASONS,
     DEFAULT_SEASON_TYPES,
     PLAYER_GAME_STATS_COLUMNS,

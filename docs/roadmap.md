@@ -183,7 +183,7 @@
 
 ## Implementation Scripts
 
-### Available Scripts (in `/scripts/`)
+### Available Scripts (in `src/scripts/`)
 
 | Script | Purpose | Status |
 |--------|---------|--------|

@@ -81,7 +81,7 @@ uv sync
 uv run pre-commit install
 
 # Verify with tests
-uv run pytest tests/unit/ -v --no-cov
+uv run pytest src/tests/unit/ -v --no-cov
 ```
 
 ## Running the Application
@@ -160,21 +160,21 @@ The project includes a DuckDB database with NBA data. You can populate it with C
 
 ```bash
 # Initialize database and load CSV files
-uv run python -m scripts.populate.cli all --skip-api
+uv run python -m src.scripts.populate.cli all --skip-api
 ```
 
 ### Full Population (Including NBA API Data)
 
 ```bash
 # Run full pipeline (may take a while due to API rate limits)
-uv run python -m scripts.populate.cli all
+uv run python -m src.scripts.populate.cli all
 
 # Or run individual steps:
-uv run python -m scripts.populate.cli init            # Initialize schema
-uv run python -m scripts.populate.cli load-csv        # Load CSV files
-uv run python -m scripts.populate.cli normalize       # Normalize data types
-uv run python -m scripts.populate.cli player-games --seasons 2024-25  # Fetch from API
-uv run python -m scripts.populate.cli season-stats    # Create aggregated stats
+uv run python -m src.scripts.populate.cli init            # Initialize schema
+uv run python -m src.scripts.populate.cli load-csv        # Load CSV files
+uv run python -m src.scripts.populate.cli normalize       # Normalize data types
+uv run python -m src.scripts.populate.cli player-games --seasons 2024-25  # Fetch from API
+uv run python -m src.scripts.populate.cli season-stats    # Create aggregated stats
 ```
 
 ### Population Commands
@@ -265,16 +265,19 @@ nba_expert/
 |   |   |-- flow.py                   # Flow creation and node connections
 |   |   |-- main.py                   # CLI entry point
 |   |   `-- config.py                 # Configuration constants
-|   `-- frontend/                     # Chainlit frontend
-|       |-- app.py                    # Chainlit web interface entry point
-|       |-- handlers.py               # Main event handlers
-|       |-- commands.py               # Slash command handling
-|       |-- actions.py                # Button action callbacks
-|       |-- steps.py                  # Analysis pipeline steps
-|       |-- config.py                 # Frontend configuration
-|       |-- cache.py                  # DataFrame caching
-|       |-- data_utils.py             # Data loading utilities
-|       `-- display.py                # Display utilities
+|   |-- frontend/                     # Chainlit frontend
+|   |   |-- app.py                    # Chainlit web interface entry point
+|   |   |-- handlers.py               # Main event handlers
+|   |   |-- commands.py               # Slash command handling
+|   |   |-- actions.py                # Button action callbacks
+|   |   |-- steps.py                  # Analysis pipeline steps
+|   |   |-- config.py                 # Frontend configuration
+|   |   |-- cache.py                  # DataFrame caching
+|   |   |-- data_utils.py             # Data loading utilities
+|   |   |-- display.py                # Display utilities
+|   |   `-- public/                   # Chainlit static assets
+|   |-- scripts/                      # Database population and utilities
+|   `-- tests/                        # Test suite
 |-- docs/                             # Documentation
 |   |-- index.md
 |   |-- design.md
@@ -286,10 +289,6 @@ nba_expert/
 |   |   `-- tools.md
 |   `-- platforms/
 |       `-- replit.md
-|-- examples/                         # Example modules and snippets
-|-- public/                           # Chainlit static assets
-|-- scripts/                          # Database population and utilities
-|-- tests/                            # Test suite
 |-- chainlit.md                       # Chainlit welcome screen
 |-- .chainlit/config.toml
 |-- pyproject.toml
@@ -306,7 +305,7 @@ nba_expert/
 uv run pytest tests/ -v
 
 # Run unit tests only
-uv run pytest tests/unit/ -v --no-cov
+uv run pytest src/tests/unit/ -v --no-cov
 
 # Run with coverage
 uv run pytest tests/ --cov=src --cov-report=html
@@ -401,7 +400,7 @@ export OPENROUTER_API_KEY="your-key-here"
 - Wait a few minutes and try again
 - Use `--delay` flag to increase delay between requests:
   ```bash
-  uv run python -m scripts.populate.cli player-games --delay 1.0
+  uv run python -m src.scripts.populate.cli player-games --delay 1.0
   ```
 
 **"Connection refused" on startup**
@@ -413,7 +412,7 @@ export OPENROUTER_API_KEY="your-key-here"
 # Ensure you're in the project root and dependencies are installed
 cd nba_expert
 uv sync
-uv run pytest tests/unit/ -v --no-cov
+uv run pytest src/tests/unit/ -v --no-cov
 ```
 
 ## Contributing

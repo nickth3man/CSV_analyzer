@@ -17,22 +17,22 @@ install-dev: ## Install development dependencies using uv
 	uv run pre-commit install
 
 test: ## Run tests
-	uv run pytest tests/ -v --no-cov
+	uv run pytest src/tests/ -v --no-cov
 
 test-verbose: ## Run tests with verbose output
-	uv run pytest tests/ -vv -s --no-cov
+	uv run pytest src/tests/ -vv -s --no-cov
 
 test-cov: ## Run tests with coverage report
-	uv run pytest tests/ -v --cov=src --cov-report=term-missing --cov-report=html --cov-report=xml
+	uv run pytest src/tests/ -v --cov=src --cov-report=term-missing --cov-report=html --cov-report=xml
 
 test-unit: ## Run unit tests only
-	uv run pytest tests/unit/ -v --no-cov
+	uv run pytest src/tests/unit/ -v --no-cov
 
 test-integration: ## Run integration tests only
-	uv run pytest tests/integration/ -v --no-cov
+	uv run pytest src/tests/integration/ -v --no-cov
 
 test-security: ## Run security tests only
-	uv run pytest tests/security/ -v --no-cov
+	uv run pytest src/tests/security/ -v --no-cov
 
 lint: ## Run all linters
 	uv run ruff check .

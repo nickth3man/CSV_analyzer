@@ -90,22 +90,22 @@ async def set_starters():
         cl.Starter(
             label="Compare Player Careers",
             message="Compare the careers of LeBron James and Tracy McGrady",
-            icon="/public/icons/compare.svg",
+            icon="/icons/compare.svg",
         ),
         cl.Starter(
             label="Team Statistics",
             message="Which team has the most draft picks?",
-            icon="/public/icons/stats.svg",
+            icon="/icons/stats.svg",
         ),
         cl.Starter(
             label="Top Players Ranking",
             message="Show me the top 10 players by games played",
-            icon="/public/icons/ranking.svg",
+            icon="/icons/ranking.svg",
         ),
         cl.Starter(
             label="Search Draft Class",
             message="Find all players drafted in 2003",
-            icon="/public/icons/search.svg",
+            icon="/icons/search.svg",
         ),
     ]
 
@@ -117,34 +117,34 @@ async def chat_profile():
         cl.ChatProfile(
             name="Quick Analysis",
             markdown_description="**Fast answers** with basic statistics and summaries. Best for simple queries.",
-            icon="/public/icons/quick.svg",
+            icon="/icons/quick.svg",
             starters=[
                 cl.Starter(
                     label="Top Scorers",
                     message="Show me the top 10 players by points scored",
-                    icon="/public/icons/ranking.svg",
+                    icon="/icons/ranking.svg",
                 ),
                 cl.Starter(
                     label="Team Overview",
                     message="Give me a quick overview of the Chicago Bulls",
-                    icon="/public/icons/stats.svg",
+                    icon="/icons/stats.svg",
                 ),
             ],
         ),
         cl.ChatProfile(
             name="Deep Analysis",
             markdown_description="**Detailed comparisons** with charts and comprehensive insights. Best for complex queries.",
-            icon="/public/icons/deep.svg",
+            icon="/icons/deep.svg",
             starters=[
                 cl.Starter(
                     label="Career Comparison",
                     message="Compare the full careers of LeBron James and Michael Jordan including stats, achievements, and playing style",
-                    icon="/public/icons/compare.svg",
+                    icon="/icons/compare.svg",
                 ),
                 cl.Starter(
                     label="Draft Analysis",
                     message="Analyze the 2003 NBA draft class performance over their careers with charts",
-                    icon="/public/icons/search.svg",
+                    icon="/icons/search.svg",
                 ),
             ],
         ),

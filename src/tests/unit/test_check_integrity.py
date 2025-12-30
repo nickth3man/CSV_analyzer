@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from scripts.maintenance.check_integrity import check_integrity
+from src.scripts.maintenance.check_integrity import check_integrity
 
 
 class TestCheckIntegrity:
@@ -19,7 +19,7 @@ class TestCheckIntegrity:
 
     def test_check_integrity_connects_to_database(self):
         """Test that check_integrity connects to the correct database."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             mock_con.sql.return_value.fetchone.return_value = [0]
@@ -31,7 +31,7 @@ class TestCheckIntegrity:
 
     def test_check_integrity_validates_primary_keys(self):
         """Test primary key validation for all candidate tables."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -59,7 +59,7 @@ class TestCheckIntegrity:
 
     def test_check_integrity_detects_non_unique_primary_keys(self):
         """Test detection of non-unique primary key values."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -91,7 +91,7 @@ class TestCheckIntegrity:
 
     def test_check_integrity_detects_null_primary_keys(self):
         """Test detection of NULL values in primary key columns."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -112,7 +112,7 @@ class TestCheckIntegrity:
 
     def test_check_integrity_validates_foreign_keys(self):
         """Test foreign key validation for defined relationships."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -134,7 +134,7 @@ class TestCheckIntegrity:
 
     def test_check_integrity_detects_orphan_records(self):
         """Test detection of orphan records (FK violations)."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -155,7 +155,7 @@ class TestCheckIntegrity:
 
     def test_check_integrity_handles_database_errors_gracefully(self):
         """Test graceful handling of database connection errors."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_connect.side_effect = Exception("Database connection failed")
 
             # Should raise exception - no graceful handling at connection level
@@ -164,7 +164,7 @@ class TestCheckIntegrity:
 
     def test_check_integrity_handles_query_errors_gracefully(self):
         """Test graceful handling of SQL query errors."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -178,7 +178,7 @@ class TestCheckIntegrity:
 
     def test_check_integrity_attempts_to_add_primary_key_constraints(self):
         """Test that valid PKs trigger constraint addition attempts."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -196,7 +196,7 @@ class TestCheckIntegrity:
 
     def test_check_integrity_attempts_to_add_foreign_key_constraints(self):
         """Test that valid FKs trigger constraint addition attempts."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -215,7 +215,7 @@ class TestCheckIntegrity:
 
     def test_check_integrity_closes_connection_after_completion(self):
         """Test that database connection is properly closed."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             mock_con.sql.return_value.fetchone.return_value = [0]
@@ -226,7 +226,7 @@ class TestCheckIntegrity:
 
     def test_check_integrity_closes_connection_on_error(self):
         """Test that connection is closed even when errors occur."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             mock_con.sql.side_effect = Exception("Query error")
@@ -243,7 +243,7 @@ class TestCheckIntegrity:
     ])
     def test_check_integrity_validates_all_pk_candidates(self, table, pk_col):
         """Test that all PK candidates are validated."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             mock_con.sql.return_value.fetchone.return_value = [0]
@@ -256,7 +256,7 @@ class TestCheckIntegrity:
 
     def test_check_integrity_handles_missing_tables_gracefully(self):
         """Test handling of missing tables."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -278,7 +278,7 @@ class TestCheckIntegrityAdvanced:
 
     def test_check_integrity_handles_partial_constraint_failures(self):
         """Test handling when some constraints succeed and others fail."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -297,7 +297,7 @@ class TestCheckIntegrityAdvanced:
 
     def test_check_integrity_handles_large_null_count(self):
         """Test handling of tables with significant NULL values."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -316,7 +316,7 @@ class TestCheckIntegrityAdvanced:
 
     def test_check_integrity_handles_all_null_column(self):
         """Test handling of columns that are entirely NULL."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -330,7 +330,7 @@ class TestCheckIntegrityAdvanced:
 
     def test_check_integrity_verifies_multiple_fk_relationships(self):
         """Test that all defined FK relationships are checked."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             mock_con.sql.return_value.fetchone.return_value = [0]
@@ -349,7 +349,7 @@ class TestCheckIntegrityAdvanced:
 
     def test_check_integrity_detects_multiple_orphans(self):
         """Test detection of multiple orphaned records."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -372,7 +372,7 @@ class TestCheckIntegrityAdvanced:
 
     def test_check_integrity_handles_constraint_already_exists(self):
         """Test graceful handling when constraints already exist."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -393,7 +393,7 @@ class TestCheckIntegrityAdvanced:
 
     def test_check_integrity_validates_not_null_before_pk(self):
         """Test that NOT NULL is set before PRIMARY KEY constraint."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -413,7 +413,7 @@ class TestCheckIntegrityAdvanced:
 
     def test_check_integrity_handles_index_creation_failure(self):
         """Test handling when unique index creation fails."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -434,7 +434,7 @@ class TestCheckIntegrityAdvanced:
 
     def test_check_integrity_validates_distinct_count_calculation(self):
         """Test correct calculation of distinct values."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -452,7 +452,7 @@ class TestCheckIntegrityAdvanced:
 
     def test_check_integrity_handles_empty_tables(self):
         """Test handling of tables with zero rows."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -465,7 +465,7 @@ class TestCheckIntegrityAdvanced:
     @pytest.mark.parametrize("orphan_count", [1, 10, 100, 1000])
     def test_check_integrity_handles_varying_orphan_counts(self, orphan_count):
         """Test handling of different numbers of orphaned records."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -483,7 +483,7 @@ class TestCheckIntegrityAdvanced:
 
     def test_check_integrity_sql_injection_protection(self):
         """Test that table and column names don't allow SQL injection."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             mock_con.sql.return_value.fetchone.return_value = [0]
@@ -497,7 +497,7 @@ class TestCheckIntegrityAdvanced:
 
     def test_check_integrity_commits_changes(self):
         """Test that changes are committed to database."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             mock_con.sql.return_value.fetchone.return_value = [0]
@@ -509,7 +509,7 @@ class TestCheckIntegrityAdvanced:
 
     def test_check_integrity_handles_concurrent_access(self):
         """Test behavior with concurrent database access."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
 
@@ -525,7 +525,7 @@ class TestCheckIntegrityAdvanced:
 
     def test_check_integrity_verifies_referential_integrity_direction(self):
         """Test that FK relationships are checked in correct direction."""
-        with patch("scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.check_integrity.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             mock_con.sql.return_value.fetchone.return_value = [0]

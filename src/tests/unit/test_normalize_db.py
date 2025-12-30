@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from scripts.maintenance.normalize_db import (
+from src.scripts.maintenance.normalize_db import (
     get_tables,
     infer_column_type,
     transform_to_silver,
@@ -181,7 +181,7 @@ class TestTransformToSilver:
         """
         Ensure transform_to_silver exits with SystemExit when the given database path does not exist.
         """
-        with patch("scripts.maintenance.normalize_db.Path") as mock_path:
+        with patch("src.scripts.maintenance.normalize_db.Path") as mock_path:
             mock_path.return_value.exists.return_value = False
 
             with pytest.raises(SystemExit):
@@ -189,8 +189,8 @@ class TestTransformToSilver:
 
     def test_transform_to_silver_processes_all_tables_by_default(self):
         """Test that all tables are processed when none specified."""
-        with patch("scripts.maintenance.normalize_db.Path") as mock_path, \
-             patch("scripts.maintenance.normalize_db.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.normalize_db.Path") as mock_path, \
+             patch("src.scripts.maintenance.normalize_db.duckdb.connect") as mock_connect:
 
             mock_path.return_value.exists.return_value = True
             mock_con = MagicMock()
@@ -221,8 +221,8 @@ class TestTransformToSilver:
         
         Asserts that a `specific_table_silver` table is created by inspecting the executed SQL statements.
         """
-        with patch("scripts.maintenance.normalize_db.Path") as mock_path, \
-             patch("scripts.maintenance.normalize_db.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.normalize_db.Path") as mock_path, \
+             patch("src.scripts.maintenance.normalize_db.duckdb.connect") as mock_connect:
 
             mock_path.return_value.exists.return_value = True
             mock_con = MagicMock()
@@ -242,8 +242,8 @@ class TestTransformToSilver:
         
         Verifies that TRY_CAST calls are only generated for columns lacking a predefined type (e.g., VARCHAR) and are not issued for columns already typed as BIGINT.
         """
-        with patch("scripts.maintenance.normalize_db.Path") as mock_path, \
-             patch("scripts.maintenance.normalize_db.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.normalize_db.Path") as mock_path, \
+             patch("src.scripts.maintenance.normalize_db.duckdb.connect") as mock_connect:
 
             mock_path.return_value.exists.return_value = True
             mock_con = MagicMock()
@@ -267,8 +267,8 @@ class TestTransformToSilver:
 
     def test_transform_to_silver_creates_silver_tables(self):
         """Test that _silver tables are created with proper schema."""
-        with patch("scripts.maintenance.normalize_db.Path") as mock_path, \
-             patch("scripts.maintenance.normalize_db.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.normalize_db.Path") as mock_path, \
+             patch("src.scripts.maintenance.normalize_db.duckdb.connect") as mock_connect:
 
             mock_path.return_value.exists.return_value = True
             mock_con = MagicMock()
@@ -294,9 +294,9 @@ class TestTransformToSilver:
         
         Simulates a database with two tables and configures the connection to raise an exception when executing table-specific SQL; asserts that logger.exception is called to record the error.
         """
-        with patch("scripts.maintenance.normalize_db.Path") as mock_path, \
-             patch("scripts.maintenance.normalize_db.duckdb.connect") as mock_connect, \
-             patch("scripts.maintenance.normalize_db.logger") as mock_logger:
+        with patch("src.scripts.maintenance.normalize_db.Path") as mock_path, \
+             patch("src.scripts.maintenance.normalize_db.duckdb.connect") as mock_connect, \
+             patch("src.scripts.maintenance.normalize_db.logger") as mock_logger:
 
             mock_path.return_value.exists.return_value = True
             mock_con = MagicMock()
@@ -333,8 +333,8 @@ class TestTransformToSilver:
 
     def test_transform_to_silver_closes_connection(self):
         """Test that database connection is closed after processing."""
-        with patch("scripts.maintenance.normalize_db.Path") as mock_path, \
-             patch("scripts.maintenance.normalize_db.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.normalize_db.Path") as mock_path, \
+             patch("src.scripts.maintenance.normalize_db.duckdb.connect") as mock_connect:
 
             mock_path.return_value.exists.return_value = True
             mock_con = MagicMock()
@@ -354,8 +354,8 @@ class TestTransformToSilver:
         Parameters:
             inferred_type (str): Expected inferred SQL type for the column; one of "BIGINT", "DOUBLE", or "DATE".
         """
-        with patch("scripts.maintenance.normalize_db.Path") as mock_path, \
-             patch("scripts.maintenance.normalize_db.duckdb.connect") as mock_connect:
+        with patch("src.scripts.maintenance.normalize_db.Path") as mock_path, \
+             patch("src.scripts.maintenance.normalize_db.duckdb.connect") as mock_connect:
 
             mock_path.return_value.exists.return_value = True
             mock_con = MagicMock()

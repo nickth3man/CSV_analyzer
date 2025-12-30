@@ -49,10 +49,10 @@ from typing import Any
 import duckdb
 import pandas as pd
 
-from scripts.populate.api_client import NBAClient, get_client
+from src.scripts.populate.api_client import NBAClient, get_client
 
 # Import shared modules from the populate package
-from scripts.populate.config import (
+from src.scripts.populate.config import (
     CACHE_DIR,
     ensure_cache_dir,
     get_db_path,

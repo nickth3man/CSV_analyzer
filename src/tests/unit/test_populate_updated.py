@@ -18,7 +18,7 @@ class TestPopulatePlayByPlayUpdated:
         import sys
         # Ensure module is loaded
         # Get the actual module object from sys.modules to avoid function shadowing
-        module = sys.modules["scripts.populate.populate_play_by_play"]
+        module = sys.modules["src.scripts.populate.populate_play_by_play"]
 
         doc = module.__doc__
         assert "TODO" in doc or "ROADMAP" in doc
@@ -27,7 +27,7 @@ class TestPopulatePlayByPlayUpdated:
     def test_populate_play_by_play_todo_mentions_api_issues(self):
         """Test that TODO mentions NBA API access issues."""
         import sys
-        module = sys.modules["scripts.populate.populate_play_by_play"]
+        module = sys.modules["src.scripts.populate.populate_play_by_play"]
 
         doc = module.__doc__
         assert any(term in doc for term in [
@@ -45,7 +45,7 @@ class TestPopulatePlayerSeasonStatsUpdated:
         Asserts that the module-level documentation includes either "TODO" or "ROADMAP", and contains either "bridge_player_team_season" or "Phase 2.5".
         """
         import sys
-        module = sys.modules["scripts.populate.populate_player_season_stats"]
+        module = sys.modules["src.scripts.populate.populate_player_season_stats"]
 
         doc = module.__doc__
         assert "TODO" in doc or "ROADMAP" in doc
@@ -54,7 +54,7 @@ class TestPopulatePlayerSeasonStatsUpdated:
     def test_populate_player_season_stats_todo_mentions_verification(self):
         """Test that TODO mentions verification tasks."""
         import sys
-        module = sys.modules["scripts.populate.populate_player_season_stats"]
+        module = sys.modules["src.scripts.populate.populate_player_season_stats"]
 
         doc = module.__doc__
         assert any(term in doc for term in [
@@ -72,11 +72,11 @@ class TestScriptsModuleStructure:
         This test ensures each listed module remains importable; the test fails if any module import raises ImportError.
         """
         modules = [
-            "scripts.check_integrity",
-            "scripts.create_advanced_metrics",
+            "src.scripts.maintenance.check_integrity",
+            "src.scripts.analysis.create_advanced_metrics",
             "scripts.normalize_db",
-            "scripts.populate.populate_play_by_play",
-            "scripts.populate.populate_player_season_stats",
+            "src.scripts.populate.populate_play_by_play",
+            "src.scripts.populate.populate_player_season_stats",
         ]
 
         for module_name in modules:
@@ -88,13 +88,13 @@ class TestScriptsModuleStructure:
     def test_placeholder_scripts_can_be_imported(self):
         """Test that new placeholder scripts can be imported."""
         placeholders = [
-            "scripts.populate.populate_arenas",
-            "scripts.populate.populate_franchises",
-            "scripts.populate.populate_injury_data",
-            "scripts.populate.populate_officials",
-            "scripts.populate.populate_salaries",
-            "scripts.populate.populate_shot_chart",
-            "scripts.populate.populate_transactions",
+            "src.scripts.populate.populate_arenas",
+            "src.scripts.populate.populate_franchises",
+            "src.scripts.populate.populate_injury_data",
+            "src.scripts.populate.populate_officials",
+            "src.scripts.populate.populate_salaries",
+            "src.scripts.populate.populate_shot_chart",
+            "src.scripts.populate.populate_transactions",
         ]
 
         for module_name in placeholders:
@@ -108,8 +108,8 @@ class TestScriptsModuleStructure:
         Assert that each updated script module in the predefined list has a module-level docstring exceeding 50 characters.
         """
         modules = [
-            "scripts.check_integrity",
-            "scripts.create_advanced_metrics",
+            "src.scripts.maintenance.check_integrity",
+            "src.scripts.analysis.create_advanced_metrics",
             "scripts.normalize_db",
         ]
 
@@ -129,15 +129,15 @@ class TestScriptsModuleStructure:
     ])
     def test_placeholder_scripts_have_comprehensive_docstrings(self, script_name):
         """
-        Verify a placeholder script module under scripts.populate contains a comprehensive docstring that includes TODO/ROADMAP markers and phase information.
+        Verify a placeholder script module under src.scripts.populate contains a comprehensive docstring that includes TODO/ROADMAP markers and phase information.
         
         Parameters:
-            script_name (str): Name of the module file (without package prefix) under scripts.populate to import and validate.
+            script_name (str): Name of the module file (without package prefix) under src.scripts.populate to import and validate.
         
         The test asserts the module has a docstring, the docstring length exceeds 200 characters, and the docstring contains the substrings "TODO", "ROADMAP", and "Phase".
         """
         module = __import__(
-            f"scripts.populate.{script_name}",
+            f"src.scripts.populate.{script_name}",
             fromlist=["__doc__"]
         )
 
@@ -159,11 +159,11 @@ class TestTODOMarkersConsistency:
         Checks that the docstring for each module in the predefined list contains the word "ROADMAP" (case-insensitive) to confirm a TODO marker referencing the roadmap is present.
         """
         modules_with_todos = [
-            "scripts.check_integrity",
-            "scripts.create_advanced_metrics",
+            "src.scripts.maintenance.check_integrity",
+            "src.scripts.analysis.create_advanced_metrics",
             "scripts.normalize_db",
-            "scripts.populate.populate_play_by_play",
-            "scripts.populate.populate_player_season_stats",
+            "src.scripts.populate.populate_play_by_play",
+            "src.scripts.populate.populate_player_season_stats",
         ]
 
         for module_name in modules_with_todos:
@@ -180,8 +180,8 @@ class TestTODOMarkersConsistency:
         For each (module, expected_phases) tuple, import the module and assert its top-level docstring contains at least one of the expected phase strings.
         """
         modules_with_todos = [
-            ("scripts.check_integrity", ["Phase 1.4", "Phase 4.5"]),
-            ("scripts.create_advanced_metrics", ["Phase 2.3", "Phase 2.4"]),
+            ("src.scripts.maintenance.check_integrity", ["Phase 1.4", "Phase 4.5"]),
+            ("src.scripts.analysis.create_advanced_metrics", ["Phase 2.3", "Phase 2.4"]),
             ("scripts.normalize_db", ["Phase 1.2", "Phase 1.5"]),
         ]
 

@@ -5,7 +5,7 @@ This document summarizes the comprehensive unit tests created for the Python fil
 ## Test Files Created
 
 ### 1. `test_check_integrity.py` (485 lines)
-Tests for `scripts/maintenance/check_integrity.py` - Database integrity checking functionality.
+Tests for `src/scripts/maintenance/check_integrity.py` - Database integrity checking functionality.
 
 **Coverage:**
 - Primary key validation and constraint checking
@@ -25,7 +25,7 @@ Tests for `scripts/maintenance/check_integrity.py` - Database integrity checking
 - Parametrized tests for all PK candidates
 
 ### 2. `test_normalize_db.py` (418 lines)
-Tests for `scripts/maintenance/normalize_db.py` - Database normalization and type inference.
+Tests for `src/scripts/maintenance/normalize_db.py` - Database normalization and type inference.
 
 **Coverage:**
 - Table filtering (views, _silver, _rejects exclusion)
@@ -45,7 +45,7 @@ Tests for `scripts/maintenance/normalize_db.py` - Database normalization and typ
 - `test_transform_to_silver_skips_typed_columns` - Optimization check
 
 ### 3. `test_create_advanced_metrics.py` (464 lines)
-Tests for `scripts/analysis/create_advanced_metrics.py` - Advanced NBA metrics calculation.
+Tests for `src/scripts/analysis/create_advanced_metrics.py` - Advanced NBA metrics calculation.
 
 **Coverage:**
 - View creation for player and team advanced metrics
@@ -119,9 +119,9 @@ Tests for existing populate scripts updated with TODO markers.
 
 | Source File | Test File | Test Classes | Test Methods | Lines |
 |------------|-----------|--------------|--------------|-------|
-| `scripts/maintenance/check_integrity.py` | `test_check_integrity.py` | 1 | 14 | 485 |
+| `src/scripts/maintenance/check_integrity.py` | `test_check_integrity.py` | 1 | 14 | 485 |
 | `normalize_db.py` | `test_normalize_db.py` | 3 | 23 | 418 |
-| `scripts/analysis/create_advanced_metrics.py` | `test_create_advanced_metrics.py` | 1 | 25 | 464 |
+| `src/scripts/analysis/create_advanced_metrics.py` | `test_create_advanced_metrics.py` | 1 | 25 | 464 |
 | Placeholder scripts (7 files) | `test_populate_placeholders.py` | 5 | 15 | 182 |
 | Updated scripts (2 files) | `test_populate_updated.py` | 4 | ~13 | 180 |
 
@@ -135,17 +135,17 @@ Tests for existing populate scripts updated with TODO markers.
 
 ```bash
 # Run all new tests
-pytest tests/unit/test_check_integrity.py -v
-pytest tests/unit/test_normalize_db.py -v
-pytest tests/unit/test_create_advanced_metrics.py -v
-pytest tests/unit/test_populate_placeholders.py -v
-pytest tests/unit/test_populate_updated.py -v
+pytest src/tests/unit/test_check_integrity.py -v
+pytest src/tests/unit/test_normalize_db.py -v
+pytest src/tests/unit/test_create_advanced_metrics.py -v
+pytest src/tests/unit/test_populate_placeholders.py -v
+pytest src/tests/unit/test_populate_updated.py -v
 
 # Run all tests for scripts
-pytest tests/unit/ -k "test_check_integrity or test_normalize or test_create_advanced or test_populate" -v
+pytest src/tests/unit/ -k "test_check_integrity or test_normalize or test_create_advanced or test_populate" -v
 
 # With coverage
-pytest tests/unit/test_*.py --cov=scripts --cov-report=html
+pytest src/tests/unit/test_*.py --cov=scripts --cov-report=html
 ```
 
 ## Test Patterns Used

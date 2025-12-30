@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, Mock, call, patch
 
 import pytest
 
-from scripts.analysis.create_advanced_metrics import create_advanced_metrics
+from src.scripts.analysis.create_advanced_metrics import create_advanced_metrics
 
 
 class TestCreateAdvancedMetrics:
@@ -20,7 +20,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_connects_to_database(self):
         """Test that function connects to correct database."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             mock_con.execute.return_value = MagicMock()
@@ -32,7 +32,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_uses_default_path(self):
         """Test default database path is used when not specified."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             mock_con.execute.return_value = MagicMock()
@@ -43,7 +43,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_creates_player_game_advanced_view(self):
         """Test creation of player_game_advanced view."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -55,7 +55,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_creates_team_game_advanced_view(self):
         """Test creation of team_game_advanced view."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -66,7 +66,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_creates_player_season_stats_table(self):
         """Test creation of player_season_stats table."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -78,7 +78,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_creates_four_factors_view(self):
         """Test creation of team_four_factors view."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -89,7 +89,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_creates_league_averages_view(self):
         """Test creation of league_season_averages view."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -100,7 +100,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_creates_career_summary_view(self):
         """Test creation of player_career_summary view."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -111,7 +111,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_includes_true_shooting_percentage(self):
         """Test that TS% calculation is included."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -124,7 +124,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_includes_effective_fg_percentage(self):
         """Test that eFG% calculation is included."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -137,7 +137,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_includes_turnover_percentage(self):
         """Test that TOV% calculation is included."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -149,7 +149,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_includes_game_score(self):
         """Test that Game Score calculation is included."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -161,7 +161,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_includes_fantasy_points(self):
         """Test that fantasy points calculation is included."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -173,7 +173,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_includes_double_double_indicator(self):
         """Test that double-double detection is included."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -185,7 +185,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_includes_triple_double_indicator(self):
         """Test that triple-double detection is included."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -198,7 +198,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_commits_transaction(self):
         """Test that database transaction is committed."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -208,7 +208,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_closes_connection_on_success(self):
         """Test that connection is closed after successful completion."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -218,7 +218,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_closes_connection_on_error(self):
         """Test that connection is closed even when error occurs."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             mock_con.execute.side_effect = Exception("SQL error")
@@ -230,7 +230,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_uses_create_or_replace_for_views(self):
         """Test that views use CREATE OR REPLACE."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -244,7 +244,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_uses_if_not_exists_for_tables(self):
         """Test that tables use IF NOT EXISTS."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -257,7 +257,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_verifies_view_creation(self):
         """Test that function verifies views were created."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             mock_con.execute.return_value.fetchall.return_value = [
@@ -273,7 +273,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_handles_missing_source_tables_gracefully(self):
         """Test graceful handling when source tables don't exist."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             mock_con.execute.side_effect = [
@@ -287,7 +287,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_calculates_per_game_averages(self):
         """Test that per-game averages are calculated in season stats."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -299,7 +299,7 @@ class TestCreateAdvancedMetrics:
 
     def test_create_advanced_metrics_includes_primary_key_in_season_stats(self):
         """Test that player_season_stats has composite primary key."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -314,7 +314,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_accepts_custom_path(self):
         """Test that custom database path is accepted."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -325,7 +325,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_creates_all_required_views(self):
         """Test that all documented views are created."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -348,7 +348,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_calculates_true_shooting_percentage(self):
         """Test that TS% formula is included."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -362,7 +362,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_calculates_effective_field_goal_percentage(self):
         """Test that eFG% formula is included."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -376,7 +376,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_calculates_game_score(self):
         """Test that Game Score (GmSc) is calculated."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -389,7 +389,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_handles_division_by_zero(self):
         """Test that metrics handle division by zero safely."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -403,7 +403,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_aggregates_by_season(self):
         """Test that season-level aggregations are performed."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -417,7 +417,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_uses_create_or_replace(self):
         """Test that views use CREATE OR REPLACE for idempotency."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -433,7 +433,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_closes_connection_on_success(self):
         """Test that connection is closed after successful execution."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -443,7 +443,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_closes_connection_on_error(self):
         """Test that connection is closed even if errors occur."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             mock_con.execute.side_effect = Exception("SQL error")
@@ -455,7 +455,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_includes_assist_to_turnover_ratio(self):
         """Test that AST/TO ratio is calculated."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -468,7 +468,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_calculates_turnover_percentage(self):
         """Test that TOV% is calculated."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -482,7 +482,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_includes_four_factors(self):
         """Test that Four Factors analysis is included."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -496,7 +496,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_handles_missing_player_game_stats(self):
         """Test graceful handling when player_game_stats table is missing."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -511,7 +511,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_uses_appropriate_data_types(self):
         """Test that calculated metrics use appropriate data types."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -525,7 +525,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_aggregates_totals_correctly(self):
         """Test that season totals are aggregated with SUM."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -539,7 +539,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_calculates_averages_correctly(self):
         """Test that season averages use COUNT for games played."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -553,7 +553,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_handles_null_values_in_calculations(self):
         """Test that NULL values are handled appropriately."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -573,7 +573,7 @@ class TestCreateAdvancedMetricsExtended:
     ])
     def test_create_advanced_metrics_accepts_various_paths(self, db_path):
         """Test that various database path formats are accepted."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -583,7 +583,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_processes_multiple_seasons(self):
         """Test that metrics work across multiple seasons."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -597,7 +597,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_joins_player_and_game_data(self):
         """Test that player and game data are properly joined."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -611,7 +611,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_orders_results_logically(self):
         """Test that results are ordered appropriately."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -629,7 +629,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_maintains_referential_integrity(self):
         """Test that foreign key relationships are preserved."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -643,7 +643,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_calculates_league_averages(self):
         """Test that league-wide averages are calculated."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             
@@ -657,7 +657,7 @@ class TestCreateAdvancedMetricsExtended:
 
     def test_create_advanced_metrics_handles_partial_execution(self):
         """Test behavior when some views succeed and others fail."""
-        with patch("scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
+        with patch("src.scripts.analysis.create_advanced_metrics.duckdb.connect") as mock_connect:
             mock_con = MagicMock()
             mock_connect.return_value = mock_con
             

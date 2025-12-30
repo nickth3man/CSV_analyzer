@@ -16,28 +16,28 @@ class TestPopulateInit:
     def test_populate_init_imports_successfully(self):
         """Test that the populate package can be imported."""
         try:
-            import scripts.populate
-            assert scripts.populate is not None
+            import src.scripts.populate
+            assert src.scripts.populate is not None
         except ImportError as e:
-            pytest.fail(f"Failed to import scripts.populate: {e}")
+            pytest.fail(f"Failed to import src.scripts.populate: {e}")
 
     def test_populate_init_has_version(self):
         """Test that package has version information."""
-        from scripts.populate import __version__
+        from src.scripts.populate import __version__
         assert __version__ is not None
         assert isinstance(__version__, str)
         assert len(__version__) > 0
 
     def test_populate_init_version_format(self):
         """Test that version follows semantic versioning."""
-        from scripts.populate import __version__
+        from src.scripts.populate import __version__
         parts = __version__.split(".")
         assert len(parts) >= 2, "Version should have at least major.minor"
         assert all(part.isdigit() for part in parts), "Version parts should be numeric"
 
     def test_populate_init_exports_core_components(self):
         """Test that core components are exported."""
-        from scripts.populate import (
+        from src.scripts.populate import (
             NBAClient,
             DatabaseManager,
             PopulationManager,
@@ -51,7 +51,7 @@ class TestPopulateInit:
 
     def test_populate_init_exports_base_classes(self):
         """Test that base classes are exported."""
-        from scripts.populate import (
+        from src.scripts.populate import (
             BasePopulator,
             PopulationMetrics,
             ProgressTracker,
@@ -63,7 +63,7 @@ class TestPopulateInit:
 
     def test_populate_init_exports_config(self):
         """Test that configuration constants are exported."""
-        from scripts.populate import (
+        from src.scripts.populate import (
             ALL_SEASONS,
             CURRENT_SEASON,
             DEFAULT_SEASONS,
@@ -79,7 +79,7 @@ class TestPopulateInit:
 
     def test_populate_init_exports_database_functions(self):
         """Test that database utility functions are exported."""
-        from scripts.populate import (
+        from src.scripts.populate import (
             init_database,
             get_database_info,
             get_db_path,
@@ -91,7 +91,7 @@ class TestPopulateInit:
 
     def test_populate_init_exports_population_functions(self):
         """Test that population functions are exported."""
-        from scripts.populate import (
+        from src.scripts.populate import (
             populate_player_game_stats,
             populate_player_game_stats_v2,
             populate_player_season_stats,
@@ -105,12 +105,12 @@ class TestPopulateInit:
 
     def test_populate_init_exports_api_client_factory(self):
         """Test that API client factory function is exported."""
-        from scripts.populate import get_client
+        from src.scripts.populate import get_client
         assert callable(get_client)
 
     def test_populate_init_exports_config_functions(self):
         """Test that configuration helper functions are exported."""
-        from scripts.populate import (
+        from src.scripts.populate import (
             get_api_config,
             ensure_cache_dir,
         )
@@ -120,7 +120,7 @@ class TestPopulateInit:
 
     def test_populate_init_all_definition_complete(self):
         """Test that __all__ includes all public exports."""
-        from scripts.populate import __all__
+        from src.scripts.populate import __all__
         
         assert isinstance(__all__, list)
         assert len(__all__) > 0
@@ -144,22 +144,22 @@ class TestPopulateInit:
 
     def test_populate_init_all_items_are_defined(self):
         """Test that all items in __all__ are actually defined."""
-        import scripts.populate
-        from scripts.populate import __all__
+        import src.scripts.populate
+        from src.scripts.populate import __all__
         
         for item in __all__:
-            assert hasattr(scripts.populate, item), f"{item} in __all__ but not defined"
+            assert hasattr(src.scripts.populate, item), f"{item} in __all__ but not defined"
 
     def test_populate_init_imports_use_absolute_paths(self):
-        """Test that imports use absolute paths (scripts.populate.*)."""
+        """Test that imports use absolute paths (src.scripts.populate.*)."""
         import inspect
-        import scripts.populate
+        import src.scripts.populate
         
         # Get the source code of the __init__.py
-        source = inspect.getsource(scripts.populate)
+        source = inspect.getsource(src.scripts.populate)
         
         # Check that imports use absolute paths
-        assert "from scripts.populate." in source or "import scripts.populate." in source
+        assert "from src.scripts.populate." in source or "import src.scripts.populate." in source
         
         # Verify no relative imports for main components
         lines = source.split("\n")
@@ -168,14 +168,14 @@ class TestPopulateInit:
         # Core imports should be absolute
         for line in import_lines:
             if any(component in line for component in ["api_client", "base", "database", "init_db"]):
-                assert "scripts.populate" in line, f"Expected absolute import in: {line}"
+                assert "src.scripts.populate" in line, f"Expected absolute import in: {line}"
 
     def test_populate_init_no_star_imports(self):
         """Test that __init__ doesn't use star imports."""
         import inspect
-        import scripts.populate
+        import src.scripts.populate
         
-        source = inspect.getsource(scripts.populate)
+        source = inspect.getsource(src.scripts.populate)
         lines = source.split("\n")
         import_lines = [line for line in lines if "import" in line]
         
@@ -185,7 +185,7 @@ class TestPopulateInit:
 
     def test_populate_init_exports_season_constants(self):
         """Test that season-related constants are exported."""
-        from scripts.populate import (
+        from src.scripts.populate import (
             RECENT_SEASONS,
             DEFAULT_SEASON_TYPES,
         )
@@ -195,7 +195,7 @@ class TestPopulateInit:
 
     def test_populate_init_season_constants_are_valid(self):
         """Test that season constants have valid formats."""
-        from scripts.populate import CURRENT_SEASON, ALL_SEASONS
+        from src.scripts.populate import CURRENT_SEASON, ALL_SEASONS
         
         # Current season should be in YYYY-YY format
         assert isinstance(CURRENT_SEASON, str)
@@ -207,7 +207,7 @@ class TestPopulateInit:
 
     def test_populate_init_cache_dir_is_valid(self):
         """Test that CACHE_DIR is a valid path."""
-        from scripts.populate import CACHE_DIR
+        from src.scripts.populate import CACHE_DIR
         from pathlib import Path
         
         assert isinstance(CACHE_DIR, (str, Path))
@@ -217,25 +217,25 @@ class TestPopulateInit:
 
     def test_populate_init_docstring_exists(self):
         """Test that package has comprehensive docstring."""
-        import scripts.populate
+        import src.scripts.populate
         
-        assert scripts.populate.__doc__ is not None
-        assert len(scripts.populate.__doc__) > 100  # Should be comprehensive
-        assert "NBA" in scripts.populate.__doc__
-        assert "populate" in scripts.populate.__doc__.lower()
+        assert src.scripts.populate.__doc__ is not None
+        assert len(src.scripts.populate.__doc__) > 100  # Should be comprehensive
+        assert "NBA" in src.scripts.populate.__doc__
+        assert "populate" in src.scripts.populate.__doc__.lower()
 
     def test_populate_init_docstring_describes_usage(self):
         """Test that docstring includes usage examples."""
-        import scripts.populate
+        import src.scripts.populate
         
-        doc = scripts.populate.__doc__
-        assert "Usage:" in doc or "Example:" in doc or "from scripts.populate" in doc
+        doc = src.scripts.populate.__doc__
+        assert "Usage:" in doc or "Example:" in doc or "from src.scripts.populate" in doc
 
     def test_populate_init_docstring_lists_modules(self):
         """Test that docstring documents sub-modules."""
-        import scripts.populate
+        import src.scripts.populate
         
-        doc = scripts.populate.__doc__
+        doc = src.scripts.populate.__doc__
         # Should mention key modules
         assert any(module in doc for module in [
             "api_client", "database", "populate_nba_data"
@@ -243,19 +243,19 @@ class TestPopulateInit:
 
     def test_populate_init_exports_are_importable(self):
         """Test that all exports can be imported directly."""
-        from scripts.populate import __all__
+        from src.scripts.populate import __all__
         
         for export_name in __all__:
             try:
-                exec(f"from scripts.populate import {export_name}")  # noqa: S102
+                exec(f"from src.scripts.populate import {export_name}")  # noqa: S102
             except ImportError as e:
                 pytest.fail(f"Failed to import {export_name}: {e}")
 
     def test_populate_init_no_circular_imports(self):
         """Test that importing doesn't cause circular import errors."""
         try:
-            import scripts.populate  # noqa: F401
-            from scripts.populate import NBAClient, PopulationManager  # noqa: F401
+            import src.scripts.populate  # noqa: F401
+            from src.scripts.populate import NBAClient, PopulationManager  # noqa: F401
             
             # If we got here, no circular imports
             assert True
@@ -266,15 +266,15 @@ class TestPopulateInit:
 
     def test_populate_init_client_factory_returns_client(self):
         """Test that get_client factory returns an NBAClient instance."""
-        from scripts.populate import get_client, NBAClient
+        from src.scripts.populate import get_client, NBAClient
         
         client = get_client()
         assert isinstance(client, NBAClient)
 
     def test_populate_init_config_functions_callable(self):
         """Test that configuration functions are callable and return expected types."""
-        from scripts.populate import get_api_config, get_db_path
-        from scripts.populate.config import NBAAPIConfig
+        from src.scripts.populate import get_api_config, get_db_path
+        from src.scripts.populate.config import NBAAPIConfig
         from pathlib import Path
         
         # get_api_config should return NBAAPIConfig instance
@@ -287,7 +287,7 @@ class TestPopulateInit:
 
     def test_populate_init_ensure_cache_dir_function(self):
         """Test that ensure_cache_dir function exists and is callable."""
-        from scripts.populate import ensure_cache_dir
+        from src.scripts.populate import ensure_cache_dir
         
         assert callable(ensure_cache_dir)
         # Should not raise error when called
@@ -306,22 +306,22 @@ class TestPopulateInit:
     ])
     def test_populate_init_critical_exports_exist(self, export_name):
         """Test that critical exports are available."""
-        from scripts.populate import __all__
+        from src.scripts.populate import __all__
         
         assert export_name in __all__, f"Critical export {export_name} not in __all__"
         
         # Also verify it's importable
-        import scripts.populate
-        assert hasattr(scripts.populate, export_name)
+        import src.scripts.populate
+        assert hasattr(src.scripts.populate, export_name)
 
     def test_populate_init_version_is_accessible_from_package(self):
         """Test that version is accessible from package level."""
-        import scripts.populate
+        import src.scripts.populate
         
-        assert hasattr(scripts.populate, "__version__")
-        version = scripts.populate.__version__
+        assert hasattr(src.scripts.populate, "__version__")
+        version = src.scripts.populate.__version__
         assert isinstance(version, str)
-        assert version == scripts.populate.__version__  # Consistent access
+        assert version == src.scripts.populate.__version__  # Consistent access
 
 
 class TestPopulateInitImportPaths:
@@ -330,64 +330,64 @@ class TestPopulateInitImportPaths:
     def test_absolute_imports_work_for_api_client(self):
         """Test that absolute import works for api_client."""
         try:
-            from scripts.populate.api_client import NBAClient, get_client
+            from src.scripts.populate.api_client import NBAClient, get_client
             assert NBAClient is not None
             assert get_client is not None
         except ImportError as e:
-            pytest.fail(f"Failed to import from scripts.populate.api_client: {e}")
+            pytest.fail(f"Failed to import from src.scripts.populate.api_client: {e}")
 
     def test_absolute_imports_work_for_base(self):
         """Test that absolute import works for base."""
         try:
-            from scripts.populate.base import BasePopulator, PopulationMetrics
+            from src.scripts.populate.base import BasePopulator, PopulationMetrics
             assert BasePopulator is not None
             assert PopulationMetrics is not None
         except ImportError as e:
-            pytest.fail(f"Failed to import from scripts.populate.base: {e}")
+            pytest.fail(f"Failed to import from src.scripts.populate.base: {e}")
 
     def test_absolute_imports_work_for_config(self):
         """Test that absolute import works for config."""
         try:
-            from scripts.populate.config import (
+            from src.scripts.populate.config import (
                 CURRENT_SEASON,
                 get_db_path,
             )
             assert CURRENT_SEASON is not None
             assert callable(get_db_path)
         except ImportError as e:
-            pytest.fail(f"Failed to import from scripts.populate.config: {e}")
+            pytest.fail(f"Failed to import from src.scripts.populate.config: {e}")
 
     def test_absolute_imports_work_for_database(self):
         """Test that absolute import works for database."""
         try:
-            from scripts.populate.database import DatabaseManager
+            from src.scripts.populate.database import DatabaseManager
             assert DatabaseManager is not None
         except ImportError as e:
-            pytest.fail(f"Failed to import from scripts.populate.database: {e}")
+            pytest.fail(f"Failed to import from src.scripts.populate.database: {e}")
 
     def test_absolute_imports_work_for_init_db(self):
         """Test that absolute import works for init_db."""
         try:
-            from scripts.populate.init_db import init_database, get_database_info
+            from src.scripts.populate.init_db import init_database, get_database_info
             assert callable(init_database)
             assert callable(get_database_info)
         except ImportError as e:
-            pytest.fail(f"Failed to import from scripts.populate.init_db: {e}")
+            pytest.fail(f"Failed to import from src.scripts.populate.init_db: {e}")
 
     def test_absolute_imports_work_for_validation(self):
         """Test that absolute import works for validation."""
         try:
-            from scripts.populate.validation import DataValidator
+            from src.scripts.populate.validation import DataValidator
             assert DataValidator is not None
         except ImportError as e:
-            pytest.fail(f"Failed to import from scripts.populate.validation: {e}")
+            pytest.fail(f"Failed to import from src.scripts.populate.validation: {e}")
 
     def test_relative_imports_still_work_within_package(self):
         """Test that relative imports still work within package modules."""
         # This tests that the package structure supports both import styles
         try:
-            import scripts.populate.populate_nba_data
+            import src.scripts.populate.populate_nba_data
             # If the module loads, its internal imports worked
-            assert scripts.populate.populate_nba_data is not None
+            assert src.scripts.populate.populate_nba_data is not None
         except ImportError as e:
             pytest.fail(f"Package internal imports failed: {e}")

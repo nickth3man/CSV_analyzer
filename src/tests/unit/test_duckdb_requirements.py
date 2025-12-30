@@ -266,25 +266,24 @@ class TestDuckDBIntegrationWithScripts:
     def test_check_integrity_can_import_duckdb(self):
         """Test that check_integrity script can import duckdb."""
         try:
-            import scripts.check_integrity
-            # If import succeeds, duckdb import worked
-            assert scripts.check_integrity is not None
+            import src.scripts.maintenance.check_integrity as check_integrity_module
+            assert check_integrity_module is not None
         except ImportError as e:
             pytest.fail(f"check_integrity failed to import duckdb: {e}")
 
     def test_create_advanced_metrics_can_import_duckdb(self):
         """Test that create_advanced_metrics script can import duckdb."""
         try:
-            import scripts.create_advanced_metrics
-            assert scripts.create_advanced_metrics is not None
+            import src.scripts.analysis.create_advanced_metrics as metrics_module
+            assert metrics_module is not None
         except ImportError as e:
             pytest.fail(f"create_advanced_metrics failed to import duckdb: {e}")
 
     def test_normalize_db_can_import_duckdb(self):
         """Test that normalize_db script can import duckdb."""
         try:
-            import scripts.normalize_db
-            assert scripts.normalize_db is not None
+            import src.scripts.maintenance.normalize_db as normalize_module
+            assert normalize_module is not None
         except ImportError as e:
             pytest.fail(f"normalize_db failed to import duckdb: {e}")
 
