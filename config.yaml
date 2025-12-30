@@ -1,0 +1,28 @@
+# NBA Data Analyst Agent Configuration
+# See design.md Section 11 for full specification
+
+database:
+  path: "src/backend/data/nba.duckdb"
+  timeout_seconds: 30
+
+llm:
+  model: "nvidia/nemotron-3-nano-30b-a3b:free"
+  temperature: 0.1
+  max_tokens: 2000
+  rate_limit_rpm: 60
+
+resilience:
+  circuit_breaker_threshold: 5
+  circuit_breaker_recovery_seconds: 60
+  max_retries: 3
+  backoff_base_seconds: 2
+
+cache:
+  semantic_threshold: 0.95
+  ttl_hours: 24
+  max_entries: 10000
+
+logging:
+  level: "INFO"
+  structured: true
+  include_prompts: false

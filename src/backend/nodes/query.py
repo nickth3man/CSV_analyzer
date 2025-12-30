@@ -1,128 +1,256 @@
-"""Query clarification and user feedback nodes."""
+"""Query clarification and user feedback nodes.
+
+This module handles query clarity checking and user interaction,
+as specified in design.md Section 6.1.
+"""
+
+from __future__ import annotations
 
 import logging
+import re
+from typing import Any
 
+import yaml
 from pocketflow import Node
 
+from src.backend.models import QueryIntent
+from src.backend.utils.call_llm import call_llm
+from src.backend.utils.logger import get_logger
 
 logger = logging.getLogger(__name__)
 
 
+CLARIFY_QUERY_PROMPT = """You are analyzing if a user's NBA question is specific enough to query a database.
+
+CLEAR queries have:
+- Specific metrics (points, FG%, rebounds, assists)
+- Time bounds (season, year, date range)
+- Entity references (player name, team name)
+
+AMBIGUOUS queries need clarification:
+- "Who is the best?" → Best by what metric?
+- "How did they do?" → Who is "they"? What timeframe?
+- "Show me some stats" → Which stats? For whom?
+
+Conversation context (may resolve ambiguity):
+{conversation_history}
+
+Current question: {question}
+
+Output as YAML:
+```yaml
+intent: clear | ambiguous
+reasoning: <one sentence explaining your decision>
+clarification_questions:  # Only if ambiguous, 2-3 targeted questions
+  - <question 1>
+  - <question 2>
+```
+"""
+
+
 class ClarifyQuery(Node):
-    """Detect whether a user query references unknown tables or columns."""
+    """Determine if the user's question is specific enough to answer.
 
-    def prep(self, shared):
-        """Extract the current question, schema string, and list of dataframe/table names from the shared state.
+    This node uses LLM to analyze if the query is specific enough for SQL
+    generation. If ambiguous, it generates targeted clarification questions.
+    """
 
-        Parameters:
-            shared (dict): Shared runtime state expected to contain the keys:
-                - "question": the user's question (str).
-                - "schema_str": rendered schema description (str).
-                - "dfs": mapping of dataframe/table names to their objects.
+    def prep(self, shared: dict[str, Any]) -> dict[str, Any]:
+        """Read question and conversation history from shared store.
 
-        Returns:
-            tuple: (question, schema_str, table_names) where `question` is the question string,
-            `schema_str` is the schema description string, and `table_names` is a list of
-            keys from `shared["dfs"]`.
-        """
-        return shared["question"], shared["schema_str"], list(shared["dfs"].keys())
-
-    def exec(self, prep_res):
-        """Detects whether the user's question contains identifiers (words with underscores) that are not present in the provided schema.
-
-        Parameters:
-            prep_res (tuple): A tuple (question, schema, _table_names) where `question` is the user query string, `schema` is a string representation of available table/column names, and `_table_names` is a list of table names (unused).
+        Args:
+            shared: The shared store.
 
         Returns:
-            tuple: A pair (status, missing) where `status` is `"ambiguous"` if one or more identifier-like words from the question are missing from the schema and `"clear"` otherwise; `missing` is a list of the missing identifier strings when `status` is `"ambiguous"`, or `None` when `status` is `"clear"`.
+            Dictionary with question and conversation_history.
         """
-        question, schema, _table_names = prep_res
-        question_lower = question.lower()
-        suspicious_patterns = []
+        question = shared.get("question", "")
+        conversation_history = shared.get("conversation_history", [])
 
-        words = question_lower.split()
-        suspicious_patterns = [
-            word
-            for word in words
-            if "_" in word and len(word) > 3 and word not in schema.lower()
-        ]
+        get_logger().log_node_start(
+            "ClarifyQuery",
+            {
+                "question": question[:100],
+                "history_turns": len(conversation_history),
+            },
+        )
 
-        if suspicious_patterns:
-            schema_lower = schema.lower()
-            truly_missing = [
-                pattern
-                for pattern in suspicious_patterns
-                if pattern not in schema_lower
-            ]
-            if truly_missing:
-                return "ambiguous", truly_missing
+        return {
+            "question": question,
+            "conversation_history": conversation_history,
+        }
 
-        return "clear", None
+    def exec(self, prep_res: dict[str, Any]) -> dict[str, Any]:
+        """Analyze query clarity using LLM.
 
-    def post(self, shared, prep_res, exec_res) -> str:
-        """Update shared state when the clarification step completes and indicate next flow status.
-
-        Parameters:
-            shared (dict): Mutable workflow state; may be updated with a user-facing final_text when references are missing.
-            prep_res: Preparation result (not used by this method).
-            exec_res (tuple): Execution result as (status, missing) where `status` is either "ambiguous" or "clear" and `missing` is a list or representation of missing schema identifiers.
+        Args:
+            prep_res: Dictionary with question and history.
 
         Returns:
-            str: `"ambiguous"` if missing references were detected and `shared["final_text"]` was set, `"clear"` otherwise.
+            Dictionary with intent, reasoning, and clarification_questions.
         """
-        status, missing = exec_res
-        if status == "ambiguous":
-            shared["final_text"] = (
-                "Your query references unknown columns or tables: "
-                f"{missing}. Please clarify or check available schema."
-            )
+        question = prep_res["question"]
+        conversation_history = prep_res["conversation_history"]
+
+        history_text = self._format_conversation_history(conversation_history)
+
+        prompt = CLARIFY_QUERY_PROMPT.format(
+            question=question,
+            conversation_history=history_text or "No previous conversation.",
+        )
+
+        response = call_llm(prompt)
+        return self._parse_response(response)
+
+    def post(
+        self,
+        shared: dict[str, Any],
+        prep_res: dict[str, Any],
+        exec_res: dict[str, Any],
+    ) -> str:
+        """Store intent and clarification questions in shared store.
+
+        Args:
+            shared: The shared store.
+            prep_res: Result from prep().
+            exec_res: Result from exec().
+
+        Returns:
+            Action string: "clear" or "ambiguous".
+        """
+        intent = exec_res.get("intent", QueryIntent.CLEAR)
+        shared["intent"] = intent
+
+        get_logger().log_node_end(
+            "ClarifyQuery",
+            {
+                "intent": intent.value if hasattr(intent, "value") else str(intent),
+                "reasoning": exec_res.get("reasoning", "")[:100],
+            },
+            "success",
+        )
+
+        if intent == QueryIntent.AMBIGUOUS:
+            clarification_questions = exec_res.get("clarification_questions", [])
+            shared["clarification_questions"] = clarification_questions
+
+            if clarification_questions:
+                shared["final_text"] = (
+                    "I need a bit more information to answer your question:\n"
+                    + "\n".join(f"- {q}" for q in clarification_questions)
+                )
+            else:
+                shared["final_text"] = (
+                    "Your question is too vague. Please be more specific about "
+                    "what statistics, players, teams, or time periods you're interested in."
+                )
+
+            logger.info("Query is ambiguous: %s", exec_res.get("reasoning", ""))
             return "ambiguous"
+
+        logger.info("Query is clear: %s", exec_res.get("reasoning", ""))
         return "clear"
+
+    def _format_conversation_history(self, history: list[Any]) -> str:
+        """Format conversation history for the prompt.
+
+        Args:
+            history: List of ConversationTurn objects.
+
+        Returns:
+            Formatted string representation.
+        """
+        if not history:
+            return ""
+
+        lines = []
+        for i, turn in enumerate(history[-3:], 1):  # Last 3 turns
+            q = turn.question if hasattr(turn, "question") else str(turn)
+            a = turn.answer if hasattr(turn, "answer") else ""
+            lines.append(f"Turn {i}:")
+            lines.append(f"  Q: {q}")
+            if a:
+                truncated = a[:150] + "..." if len(a) > 150 else a
+                lines.append(f"  A: {truncated}")
+
+        return "\n".join(lines)
+
+    def _parse_response(self, response: str) -> dict[str, Any]:
+        """Parse YAML response from LLM.
+
+        Args:
+            response: Raw LLM response.
+
+        Returns:
+            Dictionary with intent, reasoning, and clarification_questions.
+        """
+        try:
+            yaml_match = re.search(r"```yaml\s*(.*?)\s*```", response, re.DOTALL)
+            if yaml_match:
+                yaml_str = yaml_match.group(1)
+            else:
+                yaml_str = response.strip()
+
+            result = yaml.safe_load(yaml_str)
+
+            if not isinstance(result, dict):
+                return {"intent": QueryIntent.CLEAR, "reasoning": "Parse failed, assuming clear"}
+
+            intent_str = result.get("intent", "clear").lower()
+            intent = QueryIntent.AMBIGUOUS if intent_str == "ambiguous" else QueryIntent.CLEAR
+
+            reasoning = result.get("reasoning", "")
+            clarification_questions = result.get("clarification_questions", [])
+
+            if not isinstance(clarification_questions, list):
+                clarification_questions = []
+
+            return {
+                "intent": intent,
+                "reasoning": reasoning,
+                "clarification_questions": clarification_questions,
+            }
+
+        except yaml.YAMLError as e:
+            logger.warning("Failed to parse YAML response: %s", e)
+            return {"intent": QueryIntent.CLEAR, "reasoning": "Parse error, assuming clear"}
 
 
 class AskUser(Node):
-    """Terminal node for ambiguous queries. In CLI mode, prompts user for clarification."""
+    """Terminal node for ambiguous queries. Prompts user for clarification."""
 
-    def prep(self, shared):
-        """Assemble the values AskUser needs from the shared execution state for its exec step.
+    def prep(self, shared: dict[str, Any]) -> dict[str, Any]:
+        """Prepare data for user interaction.
 
-        Parameters:
-            shared (dict): Shared runtime state; may contain keys "final_text", "question", "schema_str", and "is_cli".
+        Args:
+            shared: The shared store.
 
         Returns:
-            dict: A mapping with keys:
-                - "final_text" (str): message to show the user (default "").
-                - "question" (str): current question text (default "").
-                - "schema_str" (str): schema description string (default "").
-                - "is_cli" (bool): whether the environment is CLI (default False).
+            Dictionary with final_text, question, and is_cli flag.
         """
         return {
             "final_text": shared.get("final_text", ""),
             "question": shared.get("question", ""),
-            "schema_str": shared.get("schema_str", ""),
+            "clarification_questions": shared.get("clarification_questions", []),
             "is_cli": shared.get("is_cli", False),
         }
 
-    def exec(self, prep_res):
-        """Prompt the user for a clarified question when running in CLI mode and return the chosen action.
+    def exec(self, prep_res: dict[str, Any]) -> dict[str, Any]:
+        """Prompt user for clarification in CLI mode.
 
-        Parameters:
-            prep_res (dict): Preparation result containing:
-                - final_text (str): Message to show the user (defaults to "").
-                - is_cli (bool): If True, prompt the user on the CLI; otherwise skip prompting.
+        Args:
+            prep_res: Dictionary with final_text and is_cli.
 
         Returns:
-            dict: An action dictionary with keys:
-                - "action" (str): One of:
-                    - "clarified": user provided a non-empty clarified question.
-                    - "quit": user chose to quit or an interrupt/EOF occurred.
-                    - "exit": not in CLI mode (no prompt performed).
-                - "clarified_question" (str or None): The user's clarified question when action is "clarified", otherwise None.
+            Dictionary with action and clarified_question.
         """
-        prep_res.get("final_text", "")
         is_cli = prep_res.get("is_cli", False)
 
         if is_cli:
+            final_text = prep_res.get("final_text", "")
+            if final_text:
+                print(final_text)
+
             try:
                 user_input = input("> ").strip()
                 if user_input.lower() in ["quit", "exit", "q"]:
@@ -134,16 +262,21 @@ class AskUser(Node):
 
         return {"action": "exit", "clarified_question": None}
 
-    def post(self, shared, prep_res, exec_res) -> str:
-        """Apply the user's response to the shared runtime state and determine the next node outcome.
+    def post(
+        self,
+        shared: dict[str, Any],
+        prep_res: dict[str, Any],
+        exec_res: dict[str, Any],
+    ) -> str:
+        """Process user response and determine next action.
 
-        Parameters:
-            shared (dict): Mutable shared state for the flow; may be updated when the user provides a clarified question or ends the session.
-            prep_res: Unused in this post-processing step.
-            exec_res (dict or None): Execution result from exec containing an 'action' key (e.g., "clarified", "quit", or other) and an optional 'clarified_question' string. If None, it is treated as {"action": "exit", "clarified_question": None}.
+        Args:
+            shared: The shared store.
+            prep_res: Result from prep().
+            exec_res: Result from exec().
 
         Returns:
-            str: "clarified" if the clarified question was applied and analysis should restart, "quit" if the session was terminated by the user, or "default" for all other outcomes.
+            Action string: "clarified", "quit", or "default".
         """
         if exec_res is None:
             exec_res = {"action": "exit", "clarified_question": None}
@@ -153,17 +286,19 @@ class AskUser(Node):
 
         if action == "clarified" and clarified_question:
             shared["question"] = clarified_question
-            shared["exec_error"] = None
-            shared["retry_count"] = 0
-            shared.pop("entities", None)
-            shared.pop("entity_map", None)
-            shared.pop("cross_references", None)
-            logger.info(f"Re-analyzing with clarified question: {clarified_question}")
+            shared["execution_error"] = None
+            shared["total_retries"] = 0
+            shared.pop("grader_feedback", None)
+            shared.pop("sql_query", None)
+            shared.pop("query_result", None)
+
+            logger.info("Re-analyzing with clarified question: %s", clarified_question)
             return "clarified"
+
         if action == "quit":
             shared["final_text"] = "Session ended by user."
-            logger.info("Goodbye!")
+            logger.info("Session ended by user")
             return "quit"
 
-        logger.info(f"System: {shared.get('final_text', 'Ends')}")
+        logger.info("Exiting AskUser: %s", shared.get("final_text", ""))
         return "default"

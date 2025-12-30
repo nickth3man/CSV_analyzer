@@ -1,60 +1,167 @@
-"""Shared configuration constants for backend modules.
+"""Shared configuration for the NBA Data Analyst Agent.
 
-# TODO (Configuration): Add dynamic season detection
-# Current default season is hardcoded as "2023-24". Should auto-detect:
-#   def get_current_nba_season():
-#       now = datetime.now()
-#       year = now.year
-#       # NBA season starts in October
-#       if now.month >= 10:
-#           return f"{year}-{str(year+1)[-2:]}"
-#       else:
-#           return f"{year-1}-{str(year)[-2:]}"
-#   NBA_DEFAULT_SEASON = os.environ.get("NBA_API_DEFAULT_SEASON", get_current_nba_season())
+This module provides centralized configuration loading from:
+1. config.yaml file (primary source)
+2. Environment variables (overrides)
+3. Hardcoded defaults (fallback)
 
-# TODO (Configuration): Consolidate all configuration
-# Configuration is split between this file, frontend/config.py, and environment
-# variables. Consider:
-#   1. Use a single configuration class with validation:
-#      class Config:
-#          data_dir: str = Field(default="src/backend/data/raw/csv")
-#          nba_season: str = Field(default_factory=get_current_season)
-#          execution_timeout: int = Field(default=30, ge=5, le=300)
-#   2. Or use pydantic-settings for environment variable loading:
-#      from pydantic_settings import BaseSettings
-#      class Settings(BaseSettings):
-#          openrouter_api_key: str
-#          nba_api_cache_ttl: int = 3600
-#          class Config:
-#              env_file = ".env"
-
-# TODO (Configuration): Add environment-specific configs
-# Different settings for dev/staging/production:
-#   ENV = os.environ.get("ENVIRONMENT", "development")
-#   if ENV == "production":
-#       CSV_EXECUTION_TIMEOUT = 60
-#       API_EXECUTION_TIMEOUT = 120
-#       LOG_LEVEL = "WARNING"
-#   else:
-#       CSV_EXECUTION_TIMEOUT = 30
-#       API_EXECUTION_TIMEOUT = 60
-#       LOG_LEVEL = "DEBUG"
-
-# TODO (Feature): Add configurable LLM parameters
-# Allow users to tune LLM behavior:
-#   LLM_TEMPERATURE = float(os.environ.get("LLM_TEMPERATURE", 0.7))
-#   LLM_MAX_TOKENS = int(os.environ.get("LLM_MAX_TOKENS", 4096))
-#   LLM_TOP_P = float(os.environ.get("LLM_TOP_P", 0.9))
+See design.md Section 11 for full specification.
 """
 
 from __future__ import annotations
 
+import logging
 import os
 import re
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+
+import yaml
+
+logger = logging.getLogger(__name__)
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+CONFIG_FILE = PROJECT_ROOT / "config.yaml"
+
+
+def get_current_nba_season() -> str:
+    """Auto-detect current NBA season based on date.
+
+    NBA season starts in October, so:
+    - Oct 2024 - Sep 2025 = "2024-25"
+    """
+    now = datetime.now()
+    year = now.year
+    if now.month >= 10:
+        return f"{year}-{str(year + 1)[-2:]}"
+    return f"{year - 1}-{str(year)[-2:]}"
+
+
+@dataclass
+class DatabaseConfig:
+    """Database configuration."""
+
+    path: str = "src/backend/data/nba.duckdb"
+    timeout_seconds: int = 30
+
+
+@dataclass
+class LLMConfig:
+    """LLM configuration."""
+
+    model: str = "gpt-4o"
+    temperature: float = 0.1
+    max_tokens: int = 2000
+    rate_limit_rpm: int = 60
+
+
+@dataclass
+class ResilienceConfig:
+    """Resilience patterns configuration."""
+
+    circuit_breaker_threshold: int = 5
+    circuit_breaker_recovery_seconds: int = 60
+    max_retries: int = 3
+    backoff_base_seconds: int = 2
+
+
+@dataclass
+class CacheConfig:
+    """Cache configuration."""
+
+    semantic_threshold: float = 0.95
+    ttl_hours: int = 24
+    max_entries: int = 10000
+
+
+@dataclass
+class LoggingConfig:
+    """Logging configuration."""
+
+    level: str = "INFO"
+    structured: bool = True
+    include_prompts: bool = False
+
+
+@dataclass
+class AppConfig:
+    """Complete application configuration."""
+
+    database: DatabaseConfig = field(default_factory=DatabaseConfig)
+    llm: LLMConfig = field(default_factory=LLMConfig)
+    resilience: ResilienceConfig = field(default_factory=ResilienceConfig)
+    cache: CacheConfig = field(default_factory=CacheConfig)
+    logging: LoggingConfig = field(default_factory=LoggingConfig)
+
+
+def load_config(config_path: Path | None = None) -> AppConfig:
+    """Load configuration from YAML file with environment overrides.
+
+    Args:
+        config_path: Optional path to config file. Defaults to PROJECT_ROOT/config.yaml.
+
+    Returns:
+        AppConfig with loaded settings.
+    """
+    config_path = config_path or CONFIG_FILE
+    config = AppConfig()
+
+    if config_path.exists():
+        try:
+            with open(config_path) as f:
+                data = yaml.safe_load(f) or {}
+
+            if "database" in data:
+                config.database = DatabaseConfig(**data["database"])
+            if "llm" in data:
+                config.llm = LLMConfig(**data["llm"])
+            if "resilience" in data:
+                config.resilience = ResilienceConfig(**data["resilience"])
+            if "cache" in data:
+                config.cache = CacheConfig(**data["cache"])
+            if "logging" in data:
+                config.logging = LoggingConfig(**data["logging"])
+
+            logger.debug(f"Loaded config from {config_path}")
+        except (yaml.YAMLError, TypeError) as e:
+            logger.warning(f"Failed to load config from {config_path}: {e}")
+
+    if db_path := os.environ.get("NBA_DB_PATH"):
+        config.database.path = db_path
+    if db_timeout := os.environ.get("NBA_DB_TIMEOUT"):
+        config.database.timeout_seconds = int(db_timeout)
+
+    if llm_model := os.environ.get("LLM_MODEL"):
+        config.llm.model = llm_model
+    if llm_temp := os.environ.get("LLM_TEMPERATURE"):
+        config.llm.temperature = float(llm_temp)
+    if llm_tokens := os.environ.get("LLM_MAX_TOKENS"):
+        config.llm.max_tokens = int(llm_tokens)
+
+    if log_level := os.environ.get("LOG_LEVEL"):
+        config.logging.level = log_level
+
+    return config
+
+
+_config: AppConfig | None = None
+
+
+def get_config() -> AppConfig:
+    """Get the global configuration instance.
+
+    Returns:
+        Application configuration.
+    """
+    global _config
+    if _config is None:
+        _config = load_config()
+    return _config
 
 
 DEFAULT_DATA_DIR = "src/backend/data/raw/csv"
-NBA_DEFAULT_SEASON = os.environ.get("NBA_API_DEFAULT_SEASON", "2023-24")
+NBA_DEFAULT_SEASON = os.environ.get("NBA_API_DEFAULT_SEASON", get_current_nba_season())
 ENTITY_SAMPLE_SIZE = 1000
 SEARCH_SAMPLE_SIZE = 1000
 CSV_EXECUTION_TIMEOUT = 30
