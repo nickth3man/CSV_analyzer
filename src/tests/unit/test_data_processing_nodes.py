@@ -1,4 +1,8 @@
 """Tests for data processing nodes - Schema, Profiler, CodeGenerator, Visualizer."""
+import pytest
+
+pytest.skip("Legacy CSV/codegen flow removed in SQL redesign.", allow_module_level=True)
+
 
 from typing import Any, cast
 from unittest.mock import patch

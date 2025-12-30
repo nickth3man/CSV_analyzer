@@ -1,43 +1,42 @@
 """Step functions for analysis pipeline."""
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import os
 
 import chainlit as cl
 
-from backend.flow import create_analyst_flow
-from .data_utils import get_schema_info, load_dataframes
+from src.backend.config import get_config
+from src.backend.flow import create_analyst_flow
+from src.backend.utils.logger import get_logger
+from src.backend.utils.memory import get_memory
+from .data_utils import get_schema_info, get_table_names
 
 
 logger = logging.getLogger(__name__)
 
 
-@cl.step(type="tool", name="Loading Data")
+@cl.step(type="tool", name="Loading Tables")
 async def step_load_data() -> str:
-    """Load data step."""
-    dfs = load_dataframes()
-    table_names = ", ".join(f"`{name}`" for name in dfs)
-    return f"Loaded {len(dfs)} tables: {table_names}"
+    """Load table metadata from DuckDB."""
+    tables = get_table_names()
+    if not tables:
+        return "No tables found in the DuckDB database."
+    table_names = ", ".join(f"`{name}`" for name in tables)
+    return f"Loaded {len(tables)} tables: {table_names}"
 
 
 @cl.step(type="tool", name="Analyzing Schema")
-async def step_schema():
+async def step_schema() -> str:
     """Analyze schema step."""
     return get_schema_info()
 
 
 @cl.step(type="tool", name="Running Analysis")
-async def step_run_analysis(question: str, settings: dict):
-    """Run the analysis pipeline.
-
-    Args:
-        question: The user's question
-        settings: User settings (API key, model)
-
-    Returns:
-        Tuple of (shared dict, final text, chart path)
-    """
+async def step_run_analysis(question: str, settings: dict) -> dict | None:
+    """Run the analysis pipeline."""
     api_key = settings.get("api_key", "")
     model = settings.get("model", "")
 
@@ -46,57 +45,42 @@ async def step_run_analysis(question: str, settings: dict):
     if model:
         os.environ["OPENROUTER_MODEL"] = model
 
-    dfs = load_dataframes()
-    if not dfs:
-        return None, "No CSV files loaded. Please upload some data first.", None
+    config = get_config()
+    memory = get_memory()
 
     shared = {
         "question": question,
-        "retry_count": 0,
-        "exec_error": None,
+        "conversation_history": memory.get_context(n_turns=5).turns,
+        "total_retries": 0,
+        "grader_retries": 0,
+        "max_retries": config.resilience.max_retries,
     }
+
+    trace_logger = get_logger()
+    trace_id = trace_logger.start_trace(question=question)
 
     try:
         analyst_flow = create_analyst_flow()
         analyst_flow.run(shared)
+    finally:
+        shared["execution_trace"] = trace_logger.end_trace(trace_id)
 
-        final_text = shared.get(
-            "final_text",
-            "Analysis complete but no response was generated.",
-        )
-        chart_path = shared.get("chart_path")
-
-        return shared, final_text, chart_path
-
-    except Exception as e:
-        return None, f"An error occurred: {e!s}", None
+    return shared
 
 
 async def stream_response(content: str, elements: list | None = None):
-    """Stream a response to the user for a more interactive feel.
-
-    Args:
-        content: The text content to stream
-        elements: Optional list of elements (images, etc.) to attach
-
-    Returns:
-        The sent message object
-    """
+    """Stream a response to the user for a more interactive feel."""
     msg = cl.Message(content="", elements=elements or [])
     await msg.send()
 
-    # Stream the content in chunks to preserve formatting (whitespace, line breaks)
-    # Use fixed-size chunks instead of splitting by words to preserve markdown
-    chunk_size = 50  # characters per chunk
+    chunk_size = 50
     position = 0
 
     while position < len(content):
-        # Stream in chunks, preserving original formatting
         end_pos = min(position + chunk_size, len(content))
         chunk = content[position:end_pos]
         await msg.stream_token(chunk)
         position = end_pos
-        # Small delay for natural streaming effect
         await asyncio.sleep(0.02)
 
     await msg.update()
@@ -105,24 +89,10 @@ async def stream_response(content: str, elements: list | None = None):
 
 async def display_result_with_streaming(
     final_text: str,
-    chart_path: str | None = None,
+    elements: list | None = None,
 ) -> None:
-    """Display the analysis result with optional streaming and chart.
-
-    Args:
-        final_text: The analysis result text
-        chart_path: Optional path to a chart image
-    """
-    elements = []
-    if chart_path:
-        try:
-            elements.append(cl.Image(path=chart_path, name="chart", display="inline"))
-        except (FileNotFoundError, OSError) as e:
-            logger.warning(f"Could not load chart image: {e}")
-
-    # For shorter responses, stream for effect
-    # For longer responses, just send directly to avoid delay
+    """Display the analysis result with optional streaming."""
     if len(final_text) < 2000:
         await stream_response(final_text, elements)
     else:
-        await cl.Message(content=final_text, elements=elements).send()
+        await cl.Message(content=final_text, elements=elements or []).send()

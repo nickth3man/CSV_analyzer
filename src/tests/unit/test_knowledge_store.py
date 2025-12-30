@@ -1,4 +1,8 @@
 """Tests for KnowledgeStore - persistent learning storage."""
+import pytest
+
+pytest.skip("Legacy CSV/codegen flow removed in SQL redesign.", allow_module_level=True)
+
 
 import json
 import os

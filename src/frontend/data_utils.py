@@ -1,154 +1,116 @@
-"""Utilities for data loading, schema, and profiling.
+"""Utilities for DuckDB data access and schema presentation."""
 
-This module provides UI-agnostic data utilities. All functions return
-data structures (dicts, DataFrames, strings) rather than sending UI messages.
-For Chainlit-specific display functions, see the display module.
-"""
+from __future__ import annotations
 
 import logging
-import os
 
 import pandas as pd
 
-from .cache import get_dataframe_cache
+from src.backend.utils.duckdb_client import get_duckdb_client
 
 
 logger = logging.getLogger(__name__)
 
 
-def get_csv_files():
-    """Get list of CSV files in the src/backend/data/raw/csv directory."""
-    csv_dir = "src/backend/data/raw/csv"
-    if not os.path.exists(csv_dir):
-        os.makedirs(csv_dir)
-    return [f.replace(".csv", "") for f in os.listdir(csv_dir) if f.endswith(".csv")]
+def get_table_names() -> list[str]:
+    """Get list of table names from DuckDB."""
+    client = get_duckdb_client()
+    tables = client.get_all_tables()
+    return [table.name for table in tables]
 
 
-def load_dataframes():
-    """Load DataFrames using cache to avoid redundant disk reads."""
-    return get_dataframe_cache().get_dataframes()
+def get_schema_info() -> str:
+    """Get schema information for all tables."""
+    client = get_duckdb_client()
+    tables = client.get_all_tables()
 
-
-def invalidate_dataframe_cache() -> None:
-    """Invalidate the DataFrame cache after file changes."""
-    get_dataframe_cache().invalidate()
-
-
-def get_schema_info():
-    """Get schema information for all loaded DataFrames."""
-    dfs = load_dataframes()
-    if not dfs:
-        return "No CSV files loaded. Upload some data to get started!"
+    if not tables:
+        return "No tables found in the DuckDB database."
 
     schema_lines = []
-    # TODO: Expand schema summaries to include Excel/JSON/DB metadata once additional formats are supported.
-    for name, df in dfs.items():
-        cols = ", ".join(df.columns[:10])
-        if len(df.columns) > 10:
-            cols += f"... (+{len(df.columns) - 10} more)"
+    for table in tables:
+        cols = ", ".join(table.columns[:10])
+        if len(table.columns) > 10:
+            cols += f"... (+{len(table.columns) - 10} more)"
+        rows = f"{table.row_count:,}" if table.row_count is not None else "unknown"
         schema_lines.append(
-            f"**{name}** ({len(df)} rows, {len(df.columns)} columns)\n  Columns: {cols}",
+            f"**{table.name}** ({rows} rows, {len(table.columns)} columns)\n"
+            f"  Columns: {cols}"
         )
+
     return "\n\n".join(schema_lines)
 
 
-def get_table_schema(table_name) -> str:
-    """Get schema information for a specific table."""
-    dfs = load_dataframes()
-    if not dfs:
-        return "No CSV files loaded. Upload some data to get started!"
-    if table_name not in dfs:
+def get_table_schema(table_name: str) -> str:
+    """Get DDL schema for a specific table."""
+    client = get_duckdb_client()
+    ddl = client.get_table_schema([table_name])
+    if not ddl:
         return f"Table '{table_name}' not found."
-
-    df = dfs[table_name]
-    cols = ", ".join(df.columns)
-    return f"**{table_name}** ({len(df)} rows, {len(df.columns)} columns)\n  Columns: {cols}"
+    return f"```sql\n{ddl}\n```"
 
 
-def get_data_profile():
-    """Get data profile summary for all loaded DataFrames."""
-    dfs = load_dataframes()
-    if not dfs:
-        return "No data loaded."
+def get_data_profile() -> str:
+    """Get a lightweight data profile for all tables."""
+    client = get_duckdb_client()
+    tables = client.get_all_tables()
 
-    profile_text = []
-    for name, df in dfs.items():
-        name_cols = [
-            c
-            for c in df.columns
-            if any(x in c.lower() for x in ["name", "first", "last", "player", "team"])
-        ]
-        id_cols = [c for c in df.columns if "id" in c.lower()]
-        numeric_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
+    if not tables:
+        return "No tables found in the DuckDB database."
 
-        profile_text.append(
-            f"""### {name}
-- Rows: {len(df):,}
-- Columns: {len(df.columns)}
-- Key columns: {", ".join(name_cols[:5]) if name_cols else "None identified"}
-- ID columns: {", ".join(id_cols[:5]) if id_cols else "None identified"}
-- Numeric columns: {len(numeric_cols)}
-""",
+    lines = []
+    for table in tables:
+        rows = f"{table.row_count:,}" if table.row_count is not None else "unknown"
+        lines.append(
+            f"- **{table.name}**: {rows} rows, {len(table.columns)} columns"
         )
-    return "\n".join(profile_text)
+
+    return "\n".join(lines)
 
 
-def preview_table(table_name):
+def preview_table(table_name: str) -> str:
     """Get a preview of a table as markdown."""
-    dfs = load_dataframes()
-    if table_name in dfs:
-        df = dfs[table_name]
-        return df.head(20).to_markdown(index=False)
-    return "Table not found"
+    client = get_duckdb_client()
+    try:
+        df = client.execute_query(f'SELECT * FROM "{table_name}" LIMIT 20')
+    except Exception as exc:
+        logger.warning("Failed to preview table %s: %s", table_name, exc)
+        return f"Unable to preview table '{table_name}'."
+
+    if df.empty:
+        return f"Table '{table_name}' has no rows."
+    return df.to_markdown(index=False)
 
 
 def get_table_preview_data(table_name: str, max_rows: int = 10) -> dict | None:
-    """Get table preview data for display.
+    """Get table preview data for display."""
+    client = get_duckdb_client()
+    tables = {table.name: table for table in client.get_all_tables()}
 
-    This is a UI-agnostic function that returns data structures
-    suitable for rendering by any UI layer.
-
-    Args:
-        table_name: Name of the table to preview
-        max_rows: Maximum number of rows to display
-
-    Returns:
-        Dictionary with preview data, or None if table not found:
-        {
-            'table_name': str,
-            'preview_df': DataFrame,
-            'total_rows': int,
-            'total_cols': int,
-            'num_cols': int,
-            'str_cols': int,
-            'rows_shown': int
-        }
-    """
-    logger.info(
-        f"Getting preview data for table '{table_name}' with max_rows={max_rows}",
-    )
-    dfs = load_dataframes()
-
-    if table_name not in dfs:
-        logger.warning(f"Table '{table_name}' not found for preview")
+    if table_name not in tables:
         return None
 
-    df = dfs[table_name]
-    preview_df = df.head(max_rows)
+    try:
+        preview_df = client.execute_query(
+            f'SELECT * FROM "{table_name}" LIMIT {max_rows}'
+        )
+    except Exception as exc:
+        logger.warning("Failed to load preview for %s: %s", table_name, exc)
+        return None
 
-    # Build summary stats - use is_string_dtype for robust string detection
-    num_cols = len([c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])])
-    str_cols = len([c for c in df.columns if pd.api.types.is_string_dtype(df[c])])
-
-    logger.debug(
-        f"Table '{table_name}': {len(df)} rows, {len(df.columns)} cols ({num_cols} numeric, {str_cols} text)",
+    table_meta = tables[table_name]
+    num_cols = len(
+        [c for c in preview_df.columns if pd.api.types.is_numeric_dtype(preview_df[c])]
+    )
+    str_cols = len(
+        [c for c in preview_df.columns if pd.api.types.is_string_dtype(preview_df[c])]
     )
 
     return {
         "table_name": table_name,
         "preview_df": preview_df,
-        "total_rows": len(df),
-        "total_cols": len(df.columns),
+        "total_rows": table_meta.row_count or len(preview_df),
+        "total_cols": len(table_meta.columns),
         "num_cols": num_cols,
         "str_cols": str_cols,
         "rows_shown": len(preview_df),
@@ -156,60 +118,47 @@ def get_table_preview_data(table_name: str, max_rows: int = 10) -> dict | None:
 
 
 def get_schema_summary_data() -> dict | None:
-    """Get schema summary data for all loaded tables.
+    """Get schema summary data for all tables."""
+    client = get_duckdb_client()
+    tables = client.get_all_tables()
 
-    This is a UI-agnostic function that returns data structures
-    suitable for rendering by any UI layer.
-
-    Returns:
-        Dictionary with schema data, or None if no tables loaded:
-        {
-            'table_count': int,
-            'tables': [
-                {
-                    'name': str,
-                    'rows': int,
-                    'cols': int,
-                    'num_cols': int,
-                    'col_info': DataFrame  # Column, Type, Non-Null, Sample
-                },
-                ...
-            ]
-        }
-    """
-    logger.info("Getting schema summary data")
-    dfs = load_dataframes()
-
-    if not dfs:
-        logger.warning("No tables loaded for schema summary")
+    if not tables:
         return None
 
-    tables = []
-    for name, df in dfs.items():
-        num_cols = len([c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])])
-
-        # Create a summary DataFrame of column info
-        col_info = pd.DataFrame(
+    summary = []
+    for table in tables:
+        col_info = _get_column_info(table.name)
+        summary.append(
             {
-                "Column": df.columns,
-                "Type": [str(df[c].dtype) for c in df.columns],
-                "Non-Null": [df[c].notna().sum() for c in df.columns],
-                "Sample": [
-                    str(df[c].iloc[0])[:30] if len(df) > 0 else "" for c in df.columns
-                ],
-            },
-        )
-
-        tables.append(
-            {
-                "name": name,
-                "rows": len(df),
-                "cols": len(df.columns),
-                "num_cols": num_cols,
+                "name": table.name,
+                "rows": table.row_count or 0,
+                "cols": len(table.columns),
+                "num_cols": len(
+                    [col for col in table.columns if col.lower().endswith("_id")]
+                ),
                 "col_info": col_info,
-            },
+            }
         )
 
-    logger.info(f"Retrieved schema summary data for {len(tables)} tables")
+    return {"table_count": len(summary), "tables": summary}
 
-    return {"table_count": len(tables), "tables": tables}
+
+def _get_column_info(table_name: str) -> pd.DataFrame:
+    """Fetch column metadata for a table."""
+    client = get_duckdb_client()
+    df = client.execute_query(
+        """
+        SELECT column_name, data_type, is_nullable
+        FROM information_schema.columns
+        WHERE table_name = ?
+        ORDER BY ordinal_position
+        """,
+        params=[table_name],
+    )
+    return df.rename(
+        columns={
+            "column_name": "Column",
+            "data_type": "Type",
+            "is_nullable": "Nullable",
+        }
+    )

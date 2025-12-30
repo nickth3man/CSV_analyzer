@@ -10,7 +10,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import duckdb
 import pandas as pd
@@ -200,11 +200,12 @@ class DuckDBClient:
 
     @circuit_breaker(threshold=3, recovery=60)
     @timeout(seconds=30)
-    def execute_query(self, sql: str) -> pd.DataFrame:
+    def execute_query(self, sql: str, params: list[Any] | None = None) -> pd.DataFrame:
         """Execute a read-only SQL query with timeout protection.
 
         Args:
             sql: SQL query to execute.
+            params: Optional parameter list for parameterized queries.
 
         Returns:
             DataFrame with query results.
@@ -217,7 +218,10 @@ class DuckDBClient:
         start_time = time.time()
 
         try:
-            result = conn.execute(sql).fetchdf()
+            if params:
+                result = conn.execute(sql, params).fetchdf()
+            else:
+                result = conn.execute(sql).fetchdf()
             latency_ms = int((time.time() - start_time) * 1000)
 
             self._structured_logger.log_sql_execution(

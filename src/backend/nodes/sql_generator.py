@@ -88,11 +88,22 @@ class SQLGenerator(Node):
         Returns:
             Dictionary with inputs for SQL generation.
         """
-        rewritten_query = shared.get("rewritten_query", shared.get("question", ""))
+        sub_query_id = self.params.get("sub_query_id")
+        sub_query_description = self.params.get("sub_query_description")
+        rewritten_query = sub_query_description or shared.get(
+            "rewritten_query", shared.get("question", "")
+        )
         table_schemas = shared.get("table_schemas", "")
-        grader_feedback = shared.get("grader_feedback")
-        execution_error = shared.get("execution_error")
-        previous_attempts = shared.get("generation_attempts", [])
+        if sub_query_id:
+            previous_attempts = (
+                shared.get("sub_query_attempts", {}).get(sub_query_id, [])
+            )
+            grader_feedback = None
+            execution_error = shared.get("sub_query_errors", {}).get(sub_query_id)
+        else:
+            previous_attempts = shared.get("generation_attempts", [])
+            grader_feedback = shared.get("grader_feedback")
+            execution_error = shared.get("execution_error")
 
         self.internal_retries = 0
 
@@ -112,6 +123,7 @@ class SQLGenerator(Node):
             "grader_feedback": grader_feedback,
             "execution_error": execution_error,
             "previous_attempts": previous_attempts,
+            "sub_query_id": sub_query_id,
         }
 
     def exec(self, prep_res: dict[str, Any]) -> dict[str, Any]:
@@ -128,6 +140,7 @@ class SQLGenerator(Node):
         grader_feedback = prep_res["grader_feedback"]
         execution_error = prep_res["execution_error"]
         previous_attempts = prep_res["previous_attempts"]
+        sub_query_id = prep_res.get("sub_query_id")
 
         db_client = get_duckdb_client()
         attempts = []
@@ -207,6 +220,7 @@ class SQLGenerator(Node):
             "is_valid": is_valid,
             "attempts": attempts,
             "thinking": parsed.get("thinking", ""),
+            "sub_query_id": sub_query_id,
         }
 
     def post(
@@ -223,13 +237,20 @@ class SQLGenerator(Node):
             exec_res: Result from exec().
 
         Returns:
-            Action string: "valid", "retry", or "fallback".
+            Action string: "valid" or "fallback".
         """
-        shared["sql_query"] = exec_res["sql"]
+        sub_query_id = exec_res.get("sub_query_id")
         shared["sql_is_valid"] = exec_res["is_valid"]
 
-        existing_attempts = shared.get("generation_attempts", [])
-        shared["generation_attempts"] = existing_attempts + exec_res["attempts"]
+        if sub_query_id:
+            shared.setdefault("sub_query_sqls", {})[sub_query_id] = exec_res["sql"]
+            sub_attempts = shared.setdefault("sub_query_attempts", {})
+            existing_attempts = sub_attempts.get(sub_query_id, [])
+            sub_attempts[sub_query_id] = existing_attempts + exec_res["attempts"]
+        else:
+            shared["sql_query"] = exec_res["sql"]
+            existing_attempts = shared.get("generation_attempts", [])
+            shared["generation_attempts"] = existing_attempts + exec_res["attempts"]
 
         get_logger().log_node_end(
             "SQLGenerator",
@@ -245,12 +266,8 @@ class SQLGenerator(Node):
             logger.info("Generated valid SQL after %d attempts", len(exec_res["attempts"]))
             return "valid"
 
-        total_attempts = len(shared["generation_attempts"])
-        if total_attempts >= self.max_internal_retries * 2:
-            logger.warning("Max SQL generation retries exceeded")
-            return "fallback"
-
-        return "retry"
+        logger.warning("SQL generation failed after max retries")
+        return "fallback"
 
     def _build_previous_context(
         self,
@@ -367,31 +384,90 @@ class SQLGenerator(Node):
     def _validate_schema_references(
         self, sql: str, table_schemas: str
     ) -> list[str]:
-        """Validate that SQL references only tables/columns in the schema.
+        """Validate that SQL references only tables/columns in the schema."""
+        errors: list[str] = []
 
-        Args:
-            sql: SQL query to validate.
-            table_schemas: DDL string with available tables.
-
-        Returns:
-            List of error messages for invalid references.
-        """
-        errors = []
-
-        table_pattern = r"CREATE TABLE (\w+)"
+        table_pattern = r"CREATE TABLE\s+([A-Za-z_][\\w]*)\s*\\("
         available_tables = set(re.findall(table_pattern, table_schemas, re.IGNORECASE))
 
-        from_pattern = r"FROM\s+([\"']?)(\w+)\1"
-        join_pattern = r"JOIN\s+([\"']?)(\w+)\1"
+        from_pattern = (
+            r"FROM\s+([\"']?)([A-Za-z_][\\w]*)\1"
+            r"(?:\s+(?:AS\s+)?([A-Za-z_][\\w]*))?"
+        )
+        join_pattern = (
+            r"JOIN\s+([\"']?)([A-Za-z_][\\w]*)\1"
+            r"(?:\s+(?:AS\s+)?([A-Za-z_][\\w]*))?"
+        )
+        reserved_aliases = {
+            "where",
+            "join",
+            "on",
+            "group",
+            "order",
+            "limit",
+            "having",
+            "union",
+            "left",
+            "right",
+            "inner",
+            "outer",
+        }
 
-        from_tables = re.findall(from_pattern, sql, re.IGNORECASE)
-        join_tables = re.findall(join_pattern, sql, re.IGNORECASE)
+        alias_map: dict[str, str] = {}
+        for _, table, alias in re.findall(from_pattern, sql, re.IGNORECASE):
+            if alias and alias.lower() not in reserved_aliases:
+                alias_map[alias] = table
+        for _, table, alias in re.findall(join_pattern, sql, re.IGNORECASE):
+            if alias and alias.lower() not in reserved_aliases:
+                alias_map[alias] = table
 
-        referenced_tables = {t[1] for t in from_tables + join_tables}
+        referenced_tables = {
+            table for _, table, _ in re.findall(from_pattern, sql, re.IGNORECASE)
+        }
+        referenced_tables.update(
+            table for _, table, _ in re.findall(join_pattern, sql, re.IGNORECASE)
+        )
 
         available_tables_lower = {t.lower() for t in available_tables}
         for table in referenced_tables:
             if table.lower() not in available_tables_lower:
                 errors.append(f"Table '{table}' is not in the available schema")
 
+        schema_columns = self._parse_schema_columns(table_schemas)
+        column_refs = re.findall(
+            r"([A-Za-z_][\\w]*)\s*\\.\\s*([A-Za-z_][\\w]*)",
+            sql,
+        )
+        for table_or_alias, column in column_refs:
+            table_name = alias_map.get(table_or_alias, table_or_alias)
+            columns = schema_columns.get(table_name.lower())
+            if columns is None:
+                continue
+            if column.lower() not in columns:
+                errors.append(
+                    f"Column '{column}' not found in table '{table_name}'"
+                )
+
         return errors
+
+    def _parse_schema_columns(self, table_schemas: str) -> dict[str, set[str]]:
+        """Parse table schemas into a mapping of table -> columns."""
+        table_columns: dict[str, set[str]] = {}
+        pattern = re.compile(
+            r"CREATE TABLE\s+([A-Za-z_][\\w]*)\s*\\((.*?)\\);",
+            re.IGNORECASE | re.DOTALL,
+        )
+        for match in pattern.finditer(table_schemas):
+            table_name = match.group(1)
+            column_block = match.group(2)
+            columns: set[str] = set()
+            for line in column_block.splitlines():
+                line = line.strip().rstrip(",")
+                if not line or line.startswith("--"):
+                    continue
+                col_name = line.split()[0].strip("\"'")
+                if col_name:
+                    columns.add(col_name.lower())
+            table_columns[table_name.lower()] = columns
+
+        return table_columns

@@ -16,6 +16,7 @@ from pocketflow import Node
 from src.backend.models import QueryIntent
 from src.backend.utils.call_llm import call_llm
 from src.backend.utils.logger import get_logger
+from src.backend.utils.memory import get_memory
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +66,10 @@ class ClarifyQuery(Node):
             Dictionary with question and conversation_history.
         """
         question = shared.get("question", "")
-        conversation_history = shared.get("conversation_history", [])
+        conversation_history = shared.get("conversation_history")
+        if conversation_history is None:
+            conversation_history = get_memory().get_context(n_turns=3).turns
+            shared["conversation_history"] = conversation_history
 
         get_logger().log_node_start(
             "ClarifyQuery",
@@ -288,9 +292,16 @@ class AskUser(Node):
             shared["question"] = clarified_question
             shared["execution_error"] = None
             shared["total_retries"] = 0
+            shared["grader_retries"] = 0
             shared.pop("grader_feedback", None)
             shared.pop("sql_query", None)
             shared.pop("query_result", None)
+            shared.pop("generation_attempts", None)
+            shared.pop("query_plan", None)
+            shared.pop("sub_query_results", None)
+            shared.pop("sub_query_sqls", None)
+            shared.pop("sub_query_tables", None)
+            shared.pop("sub_query_errors", None)
 
             logger.info("Re-analyzing with clarified question: %s", clarified_question)
             return "clarified"

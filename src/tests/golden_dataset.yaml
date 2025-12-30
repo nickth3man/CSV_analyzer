@@ -1,0 +1,6 @@
+- question: "Who led the league in points in 2023?"
+  expected_sql_contains: ["SELECT", "points", "2023", "ORDER BY", "LIMIT"]
+
+- question: "Compare Lakers and Celtics win percentage"
+  complexity: complex
+  expected_sub_queries: 2

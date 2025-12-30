@@ -67,7 +67,10 @@ class QueryRewriter(Node):
             Dictionary with question and conversation_history.
         """
         question = shared.get("question", "")
-        conversation_history = shared.get("conversation_history", [])
+        conversation_history = shared.get("conversation_history")
+        if conversation_history is None:
+            conversation_history = get_memory().get_context(n_turns=5).turns
+            shared["conversation_history"] = conversation_history
 
         get_logger().log_node_start(
             "QueryRewriter",

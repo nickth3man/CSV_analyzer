@@ -119,87 +119,65 @@ def mock_llm_response():
         """Generate deterministic mock responses based on prompt content."""
         prompt_lower = prompt.lower()
 
-        # Schema inference
-        if "infer the schema" in prompt_lower or "data types" in prompt_lower:
+        if "analyzing if a user's nba question" in prompt_lower:
             return """```yaml
-tables:
-  employees:
-    columns:
-      - name: name
-        type: string
-      - name: age
-        type: integer
-      - name: salary
-        type: float
-      - name: department
-        type: string
+intent: clear
+reasoning: "Query is specific enough"
+clarification_questions: []
 ```"""
 
-        # Entity resolution
-        if "extract entities" in prompt_lower or "identify entities" in prompt_lower:
+        if "rewriting a user's nba question" in prompt_lower:
             return """```yaml
-entities:
-  - text: "salary"
-    type: "column"
-    table: "employees"
-    column: "salary"
+rewritten_query: "Who led the league in points in 2023?"
+resolved_entities: {}
+reasoning: "No changes needed"
 ```"""
 
-        # Query clarification
-        if "ambiguous" in prompt_lower or "clarify" in prompt_lower:
+        if "determine if the question is simple" in prompt_lower:
             return """```yaml
-is_ambiguous: false
-reason: "Query is clear and specific"
+complexity: simple
+combination_strategy: synthesize
+sub_queries: []
 ```"""
 
-        # Planning
-        if "create a plan" in prompt_lower or "analysis plan" in prompt_lower:
+        if "select the most relevant tables" in prompt_lower:
             return """```yaml
-plan: |
-  1. Load the employees table
-  2. Calculate average of salary column
-  3. Return the result
+selected_tables:
+  - table_name: player
+    reason: "Contains player information"
+  - table_name: game
+    reason: "Contains game stats"
 ```"""
 
-        # Code generation
-        if "generate python code" in prompt_lower or "write code" in prompt_lower:
-            return """```python
-# Calculate average salary
-final_result = dfs['employees']['salary'].mean()
-```"""
-
-        # Safety check (should be done via AST, but for fallback)
-        if "safety" in prompt_lower:
-            return "The code appears safe."
-
-        # Result validation
-        if "validate" in prompt_lower or "verify" in prompt_lower:
+        if "duckdb sql expert" in prompt_lower:
             return """```yaml
-is_valid: true
-reason: "Result correctly answers the question"
+thinking: |
+  Use a simple aggregation on the game table.
+sql: |
+  SELECT player_name, SUM(points) AS total_points
+  FROM player_game_stats
+  WHERE season = '2022-23'
+  GROUP BY player_name
+  ORDER BY total_points DESC
+  LIMIT 1;
 ```"""
 
-        # Deep analysis
-        if "deep analysis" in prompt_lower or "statistical analysis" in prompt_lower:
+        if "quality assurance reviewer" in prompt_lower:
             return """```yaml
-insights:
-  - The average salary is $84,000
-  - Engineering has higher average salary than Marketing
-distribution: "Salaries range from $75,000 to $95,000"
+status: pass
+confidence: 0.9
+issues: []
+suggestions: []
 ```"""
 
-        # Response synthesis
-        if "synthesize" in prompt_lower or "narrative" in prompt_lower:
-            return "The average salary across all employees is $84,000, with Engineering having a higher average compared to Marketing."
-
-        # Error fixing
-        if "fix the error" in prompt_lower or "debug" in prompt_lower:
-            return """```python
-# Fixed code
-final_result = dfs['employees']['salary'].mean()
+        if "nba data analyst explaining query results" in prompt_lower:
+            return """```yaml
+answer: |
+  The top scorer in 2023 was Player X with 2,000 points.
+transparency_note: |
+  I summed points by player for the 2022-23 season and sorted the totals.
 ```"""
 
-        # Default response
         return "Mock LLM response for testing purposes."
 
     return _mock_response
@@ -236,16 +214,22 @@ def mock_call_llm_in_nodes(mock_llm_response):
         mock: A mock object that replaces call_llm in node modules.
     """
     with (
-        patch("backend.nodes.entity.call_llm") as entity_mock,
-        patch("backend.nodes.code_generation.call_llm") as codegen_mock,
+        patch("backend.nodes.query.call_llm") as query_mock,
+        patch("backend.nodes.query_rewriter.call_llm") as rewriter_mock,
         patch("backend.nodes.planning.call_llm") as planning_mock,
+        patch("backend.nodes.table_selector.call_llm") as table_selector_mock,
+        patch("backend.nodes.sql_generator.call_llm") as sql_generator_mock,
+        patch("backend.nodes.response_grader.call_llm") as grader_mock,
         patch("backend.nodes.analysis.call_llm") as analysis_mock,
     ):
         # Set default return values
         default_response = "Mock LLM response for testing purposes."
-        entity_mock.return_value = default_response
-        codegen_mock.return_value = default_response
+        query_mock.return_value = default_response
+        rewriter_mock.return_value = default_response
         planning_mock.return_value = default_response
+        table_selector_mock.return_value = default_response
+        sql_generator_mock.return_value = default_response
+        grader_mock.return_value = default_response
         analysis_mock.return_value = default_response
 
         # Return the entity mock for backward compatibility (tests can set return_value on it)
@@ -281,7 +265,17 @@ def mock_call_llm_in_nodes(mock_llm_response):
                 call_count = sum(m.call_count for m in self._mocks)
                 assert call_count == 1
 
-        yield MultiMock([entity_mock, codegen_mock, planning_mock, analysis_mock])
+        yield MultiMock(
+            [
+                query_mock,
+                rewriter_mock,
+                planning_mock,
+                table_selector_mock,
+                sql_generator_mock,
+                grader_mock,
+                analysis_mock,
+            ]
+        )
 
 
 # ============================================================================

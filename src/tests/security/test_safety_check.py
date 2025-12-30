@@ -1,4 +1,8 @@
 """Security tests for SafetyCheck node - CRITICAL for preventing code injection."""
+import pytest
+
+pytest.skip("Legacy CSV/codegen flow removed in SQL redesign.", allow_module_level=True)
+
 
 from src.backend.nodes import SafetyCheck
 

@@ -1,158 +1,112 @@
-"""Flow module for the NBA Expert data analyst workflow.
+"""Flow definition for the NBA Data Analyst Agent."""
 
-This module creates and configures the main analyst flow by wiring together
-all the processing nodes for data ingestion, query clarification, code
-generation, execution, and response synthesis.
-
-# TODO (Architecture): Migrate to AsyncFlow for better performance
-# Current flow is synchronous, blocking on each node execution.
-# PocketFlow supports AsyncFlow which would enable:
-#   1. Parallel data loading (CSV + NBA API simultaneously)
-#   2. Non-blocking LLM calls
-#   3. Streaming responses to the frontend
-# Migration steps:
-#   1. Convert nodes to async: implement prep_async, exec_async, post_async
-#   2. Change Flow to AsyncFlow
-#   3. Update main.py and handlers.py to use asyncio.run() or await
-# Example:
-#   class LoadData(AsyncNode):
-#       async def exec_async(self, prep_res):
-#           return await load_csvs_async(prep_res)
-#   flow = AsyncFlow(start=load)
-#   await flow.run_async(shared)
-
-# TODO (Architecture): Add parallel data loading sub-flow
-# LoadData and NBAApiDataLoader could run in parallel:
-#   from pocketflow import AsyncParallelBatchFlow
-#   class ParallelDataLoader(AsyncParallelBatchFlow):
-#       async def prep_async(self, shared):
-#           return [
-#               {"type": "csv", "path": shared["data_dir"]},
-#               {"type": "api", "question": shared["question"]}
-#           ]
-# This would reduce initial loading time significantly.
-
-# TODO (Feature): Add batch question processing
-# Enable processing multiple questions in a single flow run:
-#   class BatchQuestionFlow(BatchFlow):
-#       def prep(self, shared):
-#           return [{"question": q} for q in shared["questions"]]
-# Useful for automated analysis or API endpoints.
-
-# TODO (Reliability): Add flow-level timeout
-# Currently only individual executors have timeouts. Add flow-level:
-#   FLOW_TIMEOUT = 300  # 5 minutes max for entire flow
-#   async def run_with_timeout(flow, shared):
-#       return await asyncio.wait_for(flow.run_async(shared), FLOW_TIMEOUT)
-
-# TODO (Observability): Add tracing and metrics
-# Instrument the flow for observability:
-#   - Trace each node execution with OpenTelemetry
-#   - Record timing, success/failure, and payload sizes
-#   - Enable distributed tracing for debugging
-# Example with OpenTelemetry:
-#   from opentelemetry import trace
-#   tracer = trace.get_tracer("nba_expert")
-#   with tracer.start_as_current_span("flow.run"):
-#       flow.run(shared)
-"""
+from __future__ import annotations
 
 import logging
+from typing import Any
 
-from pocketflow import Flow
+from pocketflow import BatchFlow, Flow
 
-from backend.nodes import (
+from src.backend.nodes import (
     AskUser,
     ClarifyQuery,
-    CodeGenerator,
-    ContextAggregator,
-    CrossValidator,
-    DataMerger,
-    DataProfiler,
-    DeepAnalyzer,
-    EntityResolver,
-    ErrorFixer,
-    Executor,
-    LoadData,
-    NBAApiCodeGenerator,
-    NBAApiDataLoader,
-    Planner,
-    ResponseSynthesizer,
-    ResultValidator,
-    SafetyCheck,
-    SchemaInference,
-    SearchExpander,
-    Visualizer,
+    CombineResults,
+    DataAnalyzer,
+    QueryPlanner,
+    QueryRewriter,
+    ResponseGrader,
+    SQLExecutor,
+    SQLGenerator,
+    TableSelector,
 )
 
 
 logger = logging.getLogger(__name__)
 
 
+class SubQueryBatchFlow(BatchFlow):
+    """Batch flow for executing decomposed sub-queries."""
+
+    def prep(self, shared: dict[str, Any]) -> list[dict[str, Any]]:
+        query_plan = shared.get("query_plan")
+        if query_plan is None:
+            return []
+
+        if isinstance(query_plan, dict):
+            sub_queries = query_plan.get("sub_queries", [])
+        else:
+            sub_queries = query_plan.sub_queries
+
+        shared["sub_query_results"] = {}
+        shared["sub_query_sqls"] = {}
+        shared["sub_query_tables"] = {}
+        shared["sub_query_errors"] = {}
+
+        params_list: list[dict[str, Any]] = []
+        for idx, sub_query in enumerate(sub_queries, 1):
+            if isinstance(sub_query, dict):
+                sub_id = sub_query.get("id") or f"sub_{idx}"
+                description = sub_query.get("description") or ""
+            else:
+                sub_id = sub_query.id or f"sub_{idx}"
+                description = sub_query.description or ""
+            params_list.append(
+                {
+                    "sub_query_id": str(sub_id),
+                    "sub_query_description": str(description),
+                }
+            )
+
+        return params_list
+
+
 def create_analyst_flow() -> Flow:
-    """Create the Enhanced Relational Data Analyst Flow.
-
-    Constructs and wire together nodes for data ingestion, clarification,
-    planning, code generation, safety checks, execution, validation,
-    analysis, visualization, and response synthesis; the flow begins at
-    the initial data loader.
-
-    Returns:
-        Flow: Flow object with start node set to the initial LoadData node.
-    """
-    load = LoadData()
-    nba_loader = NBAApiDataLoader()
-    merger = DataMerger()
-    schema = SchemaInference()
-    profiler = DataProfiler()
+    """Create the NBA Data Analyst Flow aligned with design.md."""
     clarify = ClarifyQuery()
     ask_user = AskUser()
-    entity_resolver = EntityResolver()
-    search_expander = SearchExpander()
-    context_aggregator = ContextAggregator()
-    plan = Planner()
+    rewriter = QueryRewriter()
+    planner = QueryPlanner()
 
-    code_gen = CodeGenerator()
-    api_code_gen = NBAApiCodeGenerator()
-    safety = SafetyCheck()
-    executor = Executor()
-    fixer = ErrorFixer()
+    selector = TableSelector()
+    sql_gen = SQLGenerator()
+    sql_exec = SQLExecutor()
+    analyzer = DataAnalyzer()
+    grader = ResponseGrader()
+    combiner = CombineResults()
 
-    result_validator = ResultValidator()
-    cross_validator = CrossValidator()
-    deep_analyzer = DeepAnalyzer()
-    viz = Visualizer()
-    synthesizer = ResponseSynthesizer()
+    sub_selector = TableSelector()
+    sub_sql_gen = SQLGenerator()
+    sub_sql_exec = SQLExecutor()
 
-    _ = (load - "default" >> nba_loader)
-    _ = (load - "no_data" >> ask_user)
-    _ = (nba_loader >> merger >> schema)
-    _ = (schema >> profiler >> clarify)
+    sub_selector >> sub_sql_gen
+    sub_sql_gen - "valid" >> sub_sql_exec
+    sub_flow = SubQueryBatchFlow(start=sub_selector)
 
-    _ = (clarify - "ambiguous" >> ask_user)
-    _ = (clarify - "clear" >> entity_resolver)
+    clarify - "ambiguous" >> ask_user
+    clarify - "clear" >> rewriter
 
-    # AskUser can re-enter the flow with a clarified question (CLI mode)
-    _ = (ask_user - "clarified" >> entity_resolver)
-    # Other AskUser actions ("default", "quit") terminate the flow
+    ask_user - "clarified" >> rewriter
 
-    _ = (entity_resolver >> search_expander >> context_aggregator >> plan >> code_gen)
-    _ = (code_gen >> api_code_gen >> safety)
+    rewriter >> planner
+    planner - "simple" >> selector
+    planner - "complex" >> sub_flow
 
-    _ = (safety - "unsafe" >> code_gen)
-    _ = (safety - "safe" >> executor)
+    selector >> sql_gen
+    sql_gen - "valid" >> sql_exec
+    sql_gen - "fallback" >> analyzer
+    sql_exec - "success" >> analyzer
+    sql_exec - "error" >> sql_gen
 
-    _ = (executor - "error" >> fixer)
-    _ = (fixer - "fix" >> code_gen)
-    _ = (fixer - "give_up" >> synthesizer)
-    _ = (executor - "success" >> result_validator)
+    sub_flow >> combiner >> analyzer
 
-    _ = (result_validator >> cross_validator >> deep_analyzer >> viz >> synthesizer)
+    analyzer - "default" >> grader
+    grader - "fail" >> sql_gen
+    grader - "fail_complex" >> sub_flow
 
-    return Flow(start=load)
+    return Flow(start=clarify)
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     flow = create_analyst_flow()
-    logger.info("Flow created successfully.")
+    logger.info("Flow created successfully: %s", flow)

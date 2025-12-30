@@ -75,7 +75,10 @@ class TableSelector(Node):
         Returns:
             Dictionary with rewritten_query and table metadata.
         """
-        rewritten_query = shared.get("rewritten_query", shared.get("question", ""))
+        sub_query_description = self.params.get("sub_query_description")
+        rewritten_query = sub_query_description or shared.get(
+            "rewritten_query", shared.get("question", "")
+        )
 
         db_client = get_duckdb_client()
         available_tables = shared.get("available_tables")
@@ -159,6 +162,12 @@ class TableSelector(Node):
         shared["candidate_tables"] = exec_res["candidate_tables"]
         shared["selected_tables"] = exec_res["selected_tables"]
         shared["table_schemas"] = exec_res["table_schemas"]
+
+        sub_query_id = self.params.get("sub_query_id")
+        if sub_query_id:
+            shared.setdefault("sub_query_tables", {})[sub_query_id] = exec_res[
+                "selected_tables"
+            ]
 
         get_logger().log_node_end(
             "TableSelector",

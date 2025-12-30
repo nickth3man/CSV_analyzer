@@ -1,4 +1,8 @@
 """Security tests for Executor node - sandboxed code execution."""
+import pytest
+
+pytest.skip("Legacy CSV/codegen flow removed in SQL redesign.", allow_module_level=True)
+
 
 import pandas as pd
 from typing import Any, Iterable, cast

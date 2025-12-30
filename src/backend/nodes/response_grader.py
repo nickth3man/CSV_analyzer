@@ -90,9 +90,11 @@ class ResponseGrader(Node):
             "question": shared.get("question", ""),
             "rewritten_query": shared.get("rewritten_query", ""),
             "sql_query": shared.get("sql_query", ""),
+            "sub_query_sqls": shared.get("sub_query_sqls", {}),
             "query_result": shared.get("query_result"),
             "final_answer": shared.get("final_answer", ""),
-            "total_retries": shared.get("total_retries", 0),
+            "query_plan": shared.get("query_plan"),
+            "grader_retries": shared.get("grader_retries", 0),
         }
 
     def exec(self, prep_res: dict[str, Any]) -> GraderFeedback:
@@ -107,15 +109,17 @@ class ResponseGrader(Node):
         question = prep_res["question"]
         rewritten_query = prep_res["rewritten_query"]
         sql_query = prep_res["sql_query"]
+        sub_query_sqls = prep_res["sub_query_sqls"]
         query_result = prep_res["query_result"]
         final_answer = prep_res["final_answer"]
 
         result_str = self._format_query_result(query_result)
+        sql_block = self._format_sql_block(sql_query, sub_query_sqls)
 
         prompt = GRADER_PROMPT.format(
             question=question,
             rewritten_query=rewritten_query,
-            sql_query=sql_query,
+            sql_query=sql_block,
             query_result=result_str,
             final_answer=final_answer,
         )
@@ -158,13 +162,17 @@ class ResponseGrader(Node):
             )
             return "pass"
 
-        total_retries = prep_res["total_retries"]
+        grader_retries = prep_res.get("grader_retries", 0) + 1
+        shared["grader_retries"] = grader_retries
 
-        if total_retries < self.max_retries_allowed:
+        if grader_retries <= self.max_retries_allowed:
+            complexity = self._get_complexity(prep_res.get("query_plan"))
             logger.warning(
                 "Response failed quality check, triggering retry. Issues: %s",
                 exec_res.issues,
             )
+            if complexity == "complex":
+                return "fail_complex"
             return "fail"
 
         logger.warning(
@@ -204,6 +212,28 @@ class ResponseGrader(Node):
             logger.warning("Failed to format result: %s", e)
 
         return str(result)[:2000]
+
+    def _format_sql_block(
+        self, sql_query: str, sub_query_sqls: dict[str, str]
+    ) -> str:
+        """Format SQL block for grading."""
+        if sub_query_sqls:
+            lines = []
+            for sub_id, sql in sub_query_sqls.items():
+                lines.append(f"-- {sub_id}")
+                lines.append(sql.strip())
+            return "\n".join(lines)
+        return sql_query.strip() if sql_query else "No SQL query available."
+
+    def _get_complexity(self, query_plan: Any) -> str:
+        """Extract complexity from query plan."""
+        if query_plan is None:
+            return "simple"
+        if isinstance(query_plan, dict):
+            return str(query_plan.get("complexity", "simple")).lower()
+        if hasattr(query_plan, "complexity"):
+            return str(query_plan.complexity.value).lower()
+        return "simple"
 
     def _parse_grader_response(self, response: str) -> GraderFeedback:
         """Parse YAML response from LLM.

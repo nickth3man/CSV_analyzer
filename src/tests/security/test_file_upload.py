@@ -1,4 +1,8 @@
 """Security tests for file upload functionality."""
+import pytest
+
+pytest.skip("Legacy CSV/codegen flow removed in SQL redesign.", allow_module_level=True)
+
 
 import os
 from typing import cast

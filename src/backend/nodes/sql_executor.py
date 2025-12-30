@@ -37,10 +37,11 @@ class SQLExecutor(Node):
             SQL query string.
         """
         sql_query = shared.get("sql_query", "")
+        sub_query_id = self.params.get("sub_query_id")
 
         get_logger().log_node_start(
             "SQLExecutor",
-            {"sql_length": len(sql_query)},
+            {"sql_length": len(sql_query), "sub_query_id": sub_query_id},
         )
 
         return sql_query
@@ -109,9 +110,18 @@ class SQLExecutor(Node):
         Returns:
             Action string: "success" or "error".
         """
+        sub_query_id = self.params.get("sub_query_id")
+
         if exec_res["success"]:
-            shared["query_result"] = exec_res["result"]
-            shared["execution_error"] = None
+            if sub_query_id:
+                shared.setdefault("sub_query_results", {})[sub_query_id] = exec_res[
+                    "result"
+                ]
+                sub_errors = shared.setdefault("sub_query_errors", {})
+                sub_errors.pop(sub_query_id, None)
+            else:
+                shared["query_result"] = exec_res["result"]
+                shared["execution_error"] = None
 
             get_logger().log_node_end(
                 "SQLExecutor",
@@ -125,8 +135,11 @@ class SQLExecutor(Node):
             )
             return "success"
 
-        shared["execution_error"] = exec_res["error"]
-        shared["total_retries"] = shared.get("total_retries", 0) + 1
+        if sub_query_id:
+            shared.setdefault("sub_query_errors", {})[sub_query_id] = exec_res["error"]
+        else:
+            shared["execution_error"] = exec_res["error"]
+            shared["total_retries"] = shared.get("total_retries", 0) + 1
 
         get_logger().log_node_end(
             "SQLExecutor",
@@ -134,11 +147,18 @@ class SQLExecutor(Node):
             "error",
         )
 
-        logger.warning(
-            "SQL execution failed (retry %d): %s",
-            shared["total_retries"],
-            exec_res["error"],
-        )
+        if sub_query_id:
+            logger.warning(
+                "SQL execution failed for sub-query %s: %s",
+                sub_query_id,
+                exec_res["error"],
+            )
+        else:
+            logger.warning(
+                "SQL execution failed (retry %d): %s",
+                shared["total_retries"],
+                exec_res["error"],
+            )
         return "error"
 
     def _format_error_message(self, raw_error: str) -> str:

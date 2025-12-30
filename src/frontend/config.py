@@ -77,41 +77,36 @@ DEFAULT_MODELS = [
 ]
 
 EXAMPLE_QUESTIONS = [
-    "Compare the careers of LeBron James and Tracy McGrady",
-    "Which team has the most draft picks?",
+    "Who led the league in points in 2023?",
+    "Compare Lakers and Celtics win percentage in 2024",
     "Show me the top 10 players by games played",
-    "What are the statistics for Chicago Bulls?",
+    "Show Warriors offensive stats for 2023",
     "Find all players drafted in 2003",
 ]
 
-HELP_TEXT = """## How to Use the Data Analyst Agent
+HELP_TEXT = """## How to Use the NBA Data Analyst Agent
 
 ### Getting Started
-1. **Upload your data**: Click the 📁 button or type `/upload` to upload CSV files
-2. **Ask questions**: Type your question in plain English
-3. **Get insights**: The agent will analyze your data and provide detailed responses
+1. **Ask a question**: Type your NBA question in plain English
+2. **Review results**: The agent returns an answer plus SQL and methodology
+3. **Explore schema**: Use commands to view tables and schemas
 
 ### Commands
-- `/upload` - Upload CSV files
-- `/tables` - List loaded tables
-- `/preview <table_name>` - Preview a table
-- `/delete <table_name>` - Delete a table
-- `/schema` - View data schema
-- `/schema <table_name>` - View schema for a specific table
-- `/profile` - View data profile summary
-- `/knowledge` - View learned patterns
-- `/clear_knowledge` - Clear learned patterns
+- `/tables` - List available tables in DuckDB
+- `/preview <table_name>` - Preview a table (first rows)
+- `/schema` - View database schema summary
+- `/schema <table_name>` - View table DDL
 - `/help` - Show this help
 
 ### Example Questions
-- "Compare the careers of LeBron James and Tracy McGrady"
-- "Which team has the most draft picks?"
+- "Who led the league in points in 2023?"
+- "Compare Lakers and Celtics win percentage in 2024"
 - "Show me the top 10 players by games played"
 
 ### Tips for Better Results
-- **Be specific**: Instead of "show me data", ask "What are the top 10 players by points scored?"
-- **Name entities clearly**: "Compare LeBron James and Kobe Bryant" works better than "compare the best players"
-- **Use comparisons**: The agent excels at comparing entities across tables
+- **Be specific**: Include metrics (points, FG%, rebounds) and timeframes
+- **Name entities clearly**: "Compare LeBron James and Kobe Bryant" works best
+- **Use comparisons**: The agent excels at side-by-side comparisons
 """
 
 

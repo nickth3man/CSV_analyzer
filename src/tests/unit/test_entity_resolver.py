@@ -1,4 +1,8 @@
 """Tests for EntityResolver node - entity extraction and table matching."""
+import pytest
+
+pytest.skip("Legacy CSV/codegen flow removed in SQL redesign.", allow_module_level=True)
+
 
 import pandas as pd
 from typing import Any, cast

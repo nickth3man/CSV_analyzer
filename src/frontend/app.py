@@ -21,8 +21,6 @@ from frontend import (  # noqa: E402, F401
     on_message,
     on_settings_update,
     on_show_help,
-    on_upload_action,
-    on_view_profile,
     on_view_schema,
     set_starters,
 )

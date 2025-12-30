@@ -7,6 +7,10 @@ This module tests advanced metrics calculation and view creation including:
 - Four Factors calculations
 - League averages
 """
+import pytest
+
+pytest.skip("Legacy CSV/codegen flow removed in SQL redesign.", allow_module_level=True)
+
 
 from unittest.mock import MagicMock, Mock, call, patch
 

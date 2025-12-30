@@ -1,4 +1,8 @@
 """Tests for ErrorFixer node - retry logic and error handling."""
+import pytest
+
+pytest.skip("Legacy CSV/codegen flow removed in SQL redesign.", allow_module_level=True)
+
 
 from backend.nodes import ErrorFixer
 
