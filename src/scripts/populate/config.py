@@ -51,16 +51,25 @@ class NBAAPIConfig:
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
             "Accept": "application/json, text/plain, */*",
             "Accept-Language": "en-US,en;q=0.5",
-            "Accept-Encoding": "gzip, deflate, br",
+            "Accept-Encoding": "gzip, deflate",
             "Connection": "keep-alive",
             "Referer": "https://stats.nba.com/",
+            "Origin": "https://stats.nba.com",
+            "x-nba-stats-origin": "stats",
+            "x-nba-stats-token": "true",
             "Pragma": "no-cache",
             "Cache-Control": "no-cache",
+            "Sec-Ch-Ua": '"Chromium";v="140", "Google Chrome";v="140", "Not;A=Brand";v="24"',
+            "Sec-Ch-Ua-Mobile": "?0",
+            "Sec-Ch-Ua-Platform": '"Windows"',
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-origin",
         },
     )
 
     # Request timeout in seconds
-    timeout: int = 30
+    timeout: float | tuple[float, float] = 30.0
 
     # Proxy settings (None = no proxy)
     proxy: str | None = None
@@ -542,14 +551,26 @@ def get_api_config() -> NBAAPIConfig:
     """Get NBA API configuration with environment overrides.
 
     Environment variables:
-        NBA_API_TIMEOUT: Request timeout in seconds
+        NBA_API_TIMEOUT: Request timeout in seconds (or "connect,read")
         NBA_API_DELAY: Delay between requests in seconds
+        NBA_API_MAX_RETRIES: Max retry attempts for transient errors
+        NBA_API_RETRY_BACKOFF: Backoff multiplier for retries
         NBA_API_PROXY: Proxy URL
     """
     config = NBAAPIConfig()
 
     if timeout := os.environ.get("NBA_API_TIMEOUT"):
-        config.timeout = int(timeout)
+        parts = [p.strip() for p in timeout.split(",") if p.strip()]
+        if len(parts) == 2:
+            config.timeout = (float(parts[0]), float(parts[1]))
+        else:
+            config.timeout = float(timeout)
+
+    if max_retries := os.environ.get("NBA_API_MAX_RETRIES"):
+        config.max_retries = int(max_retries)
+
+    if backoff := os.environ.get("NBA_API_RETRY_BACKOFF"):
+        config.retry_backoff_factor = float(backoff)
 
     if delay := os.environ.get("NBA_API_DELAY"):
         config.request_delay = float(delay)

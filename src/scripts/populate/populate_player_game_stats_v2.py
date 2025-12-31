@@ -180,22 +180,12 @@ class PlayerGameStatsPopulator(BasePopulator):
             Exception: Propagates errors from the underlying API call.
         """
         try:
-            from nba_api.stats.endpoints import PlayerGameLogs
-
             # Map season type to API parameter
             api_season_type = SEASON_TYPE_MAP.get(season_type, season_type)
-
-            response = PlayerGameLogs(
-                season_nullable=season,
-                season_type_nullable=api_season_type,
-                timeout=60,
+            return self.client.get_player_game_logs(
+                season=season,
+                season_type=api_season_type,
             )
-
-            return response.player_game_logs.get_data_frame()
-
-        except ImportError:
-            logger.warning("nba_api not installed, using mock data for testing")
-            return None
         except Exception as e:
             logger.exception(f"API error: {e}")
             raise

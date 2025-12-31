@@ -14,6 +14,7 @@ Based on nba_api patterns from:
 """
 
 import logging
+import random
 import time
 from collections.abc import Callable
 from functools import wraps
@@ -55,30 +56,47 @@ def with_retry(
         @wraps(func)
         def wrapper(*args, **kwargs):
             last_exception = None
+            config = None
+            if args and hasattr(args[0], "config"):
+                config = args[0].config
 
-            for attempt in range(max_retries):
+            effective_max_retries = (
+                config.max_retries if config is not None else max_retries
+            )
+            effective_backoff = (
+                config.retry_backoff_factor if config is not None else backoff_factor
+            )
+            effective_delay = (
+                config.request_delay if config is not None else base_delay
+            )
+
+            for attempt in range(effective_max_retries):
                 try:
                     # Rate limiting delay
                     if attempt > 0:
-                        wait_time = base_delay * (backoff_factor**attempt)
+                        wait_time = (effective_delay * (effective_backoff**attempt)) + random.uniform(
+                            0, effective_delay,
+                        )
                         logger.debug(
-                            f"Retry {attempt}/{max_retries}, waiting {wait_time:.1f}s",
+                            f"Retry {attempt}/{effective_max_retries}, waiting {wait_time:.1f}s",
                         )
                         time.sleep(wait_time)
                     else:
-                        time.sleep(base_delay)
+                        time.sleep(effective_delay)
 
                     return func(*args, **kwargs)
 
                 except retry_exceptions as e:
                     last_exception = e
                     error_str = str(e).lower()
+                    status_code = getattr(getattr(e, "response", None), "status_code", None)
 
                     # Check for rate limiting
                     if (
                         "rate" in error_str
                         or "429" in error_str
                         or "timeout" in error_str
+                        or status_code in {429, 500, 502, 503, 504}
                     ):
                         logger.warning(f"Rate limited on attempt {attempt + 1}")
                         continue
@@ -92,8 +110,8 @@ def with_retry(
                     logger.warning(f"Attempt {attempt + 1} failed: {e}")
 
                     # Don't retry on final attempt
-                    if attempt >= max_retries - 1:
-                        logger.exception(f"All {max_retries} attempts failed")
+                    if attempt >= effective_max_retries - 1:
+                        logger.exception(f"All {effective_max_retries} attempts failed")
                         raise
 
             # Should not reach here, but just in case

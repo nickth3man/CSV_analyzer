@@ -314,6 +314,33 @@ SCHEMA_DEFINITIONS = {
     """,
 }
 
+PLAY_BY_PLAY_COLUMNS = [
+    "game_id",
+    "action_number",
+    "clock",
+    "period",
+    "team_id",
+    "team_tricode",
+    "person_id",
+    "player_name",
+    "player_name_i",
+    "x_legacy",
+    "y_legacy",
+    "shot_distance",
+    "shot_result",
+    "is_field_goal",
+    "score_home",
+    "score_away",
+    "points_total",
+    "location",
+    "description",
+    "action_type",
+    "sub_type",
+    "video_available",
+    "shot_value",
+    "action_id",
+]
+
 
 # Indexes to create for performance
 INDEX_DEFINITIONS = [
@@ -400,6 +427,11 @@ def init_database(
             logger.exception(f"Error with table {table_name}: {e}")
             results[table_name] = f"error: {e}"
 
+    if "play_by_play" in tables_to_create:
+        pbp_status = ensure_play_by_play_schema(conn, force=force)
+        if pbp_status:
+            results["play_by_play"] = pbp_status
+
     # Create indexes
     logger.info("\nCreating indexes...")
     for idx_sql in INDEX_DEFINITIONS:
@@ -418,6 +450,38 @@ def init_database(
         logger.info(f"  {table}: {status}")
 
     return results
+
+
+def ensure_play_by_play_schema(
+    conn: duckdb.DuckDBPyConnection,
+    force: bool = False,
+) -> str | None:
+    """Ensure play_by_play matches the V3 schema, recreating when safe."""
+    try:
+        existing_cols = [
+            row[1] for row in conn.execute("PRAGMA table_info('play_by_play')").fetchall()
+        ]
+    except duckdb.CatalogException:
+        existing_cols = []
+
+    if not existing_cols:
+        conn.execute(SCHEMA_DEFINITIONS["play_by_play"])
+        return "created"
+
+    if existing_cols == PLAY_BY_PLAY_COLUMNS:
+        return "ok"
+
+    row_count = conn.execute("SELECT COUNT(*) FROM play_by_play").fetchone()[0]
+    if row_count == 0 or force:
+        logger.info("Recreating play_by_play to match PlayByPlayV3 schema.")
+        conn.execute("DROP TABLE IF EXISTS play_by_play")
+        conn.execute(SCHEMA_DEFINITIONS["play_by_play"])
+        return "recreated"
+
+    logger.warning(
+        "play_by_play schema mismatch with existing data; skipping auto-migration.",
+    )
+    return "mismatch"
 
 
 def get_database_info(db_path: str | None = None) -> dict[str, Any]:

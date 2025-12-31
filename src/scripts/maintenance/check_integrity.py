@@ -89,6 +89,9 @@ def check_integrity() -> None:
         ("game_silver", "team_id_home", "team_silver", "id"),
         ("game_silver", "team_id_away", "team_silver", "id"),
         ("common_player_info_silver", "person_id", "player_silver", "id"),
+        ("player_game_stats", "player_id", "player_silver", "id"),
+        ("player_game_stats", "team_id", "team_silver", "id"),
+        ("player_game_stats", "game_id", "game_gold", "game_id"),
     ]
 
     for child_table, child_col, parent_table, parent_col in fk_checks:
