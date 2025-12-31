@@ -184,6 +184,17 @@ class SQLGenerator(Node):
                 continue
 
             validation = db_client.validate_sql_syntax(current_sql)
+            if not isinstance(validation, ValidationResult):
+                if hasattr(validation, "model_dump"):
+                    validation = ValidationResult(**validation.model_dump())
+                elif isinstance(validation, dict):
+                    validation = ValidationResult(**validation)
+                else:
+                    validation = ValidationResult(
+                        is_valid=bool(getattr(validation, "is_valid", False)),
+                        errors=list(getattr(validation, "errors", [])),
+                        warnings=list(getattr(validation, "warnings", [])),
+                    )
 
             schema_errors = self._validate_schema_references(
                 current_sql, table_schemas
@@ -387,16 +398,16 @@ class SQLGenerator(Node):
         """Validate that SQL references only tables/columns in the schema."""
         errors: list[str] = []
 
-        table_pattern = r"CREATE TABLE\s+([A-Za-z_][\\w]*)\s*\\("
+        table_pattern = r"CREATE TABLE\s+([A-Za-z_][\w]*)\s*\("
         available_tables = set(re.findall(table_pattern, table_schemas, re.IGNORECASE))
 
         from_pattern = (
-            r"FROM\s+([\"']?)([A-Za-z_][\\w]*)\1"
-            r"(?:\s+(?:AS\s+)?([A-Za-z_][\\w]*))?"
+            r"FROM\s+([\"']?)([A-Za-z_][\w]*)\1"
+            r"(?:\s+(?:AS\s+)?([A-Za-z_][\w]*))?"
         )
         join_pattern = (
-            r"JOIN\s+([\"']?)([A-Za-z_][\\w]*)\1"
-            r"(?:\s+(?:AS\s+)?([A-Za-z_][\\w]*))?"
+            r"JOIN\s+([\"']?)([A-Za-z_][\w]*)\1"
+            r"(?:\s+(?:AS\s+)?([A-Za-z_][\w]*))?"
         )
         reserved_aliases = {
             "where",
@@ -435,7 +446,7 @@ class SQLGenerator(Node):
 
         schema_columns = self._parse_schema_columns(table_schemas)
         column_refs = re.findall(
-            r"([A-Za-z_][\\w]*)\s*\\.\\s*([A-Za-z_][\\w]*)",
+            r"([A-Za-z_][\w]*)\s*\.\s*([A-Za-z_][\w]*)",
             sql,
         )
         for table_or_alias, column in column_refs:
@@ -454,7 +465,7 @@ class SQLGenerator(Node):
         """Parse table schemas into a mapping of table -> columns."""
         table_columns: dict[str, set[str]] = {}
         pattern = re.compile(
-            r"CREATE TABLE\s+([A-Za-z_][\\w]*)\s*\\((.*?)\\);",
+            r"CREATE TABLE\s+([A-Za-z_][\w]*)\s*\((.*?)\);",
             re.IGNORECASE | re.DOTALL,
         )
         for match in pattern.finditer(table_schemas):

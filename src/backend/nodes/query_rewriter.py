@@ -116,6 +116,11 @@ class QueryRewriter(Node):
             for ref, resolved in rule_based_resolution.resolved_entities.items():
                 if ref not in resolved_entities:
                     resolved_entities[ref] = resolved
+        resolved_entities = {
+            str(ref): str(value)
+            for ref, value in resolved_entities.items()
+            if value is not None
+        }
 
         return {
             "rewritten_query": final_query,

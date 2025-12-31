@@ -7,10 +7,12 @@ Run with: chainlit run src/frontend/app.py
 import sys
 from pathlib import Path
 
-# Add src directory to Python path so imports like "from backend.xxx" work
-src_path = Path(__file__).resolve().parents[1]
-if str(src_path) not in sys.path:
-    sys.path.insert(0, str(src_path))
+# Add project root + src so "src.*" and "backend.*" imports resolve in Chainlit.
+project_root = Path(__file__).resolve().parents[2]
+src_path = project_root / "src"
+for path in (project_root, src_path):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
 
 # Import and register all Chainlit handlers
 # These decorators register themselves with Chainlit when imported

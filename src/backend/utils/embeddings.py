@@ -21,28 +21,34 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 CACHE_DIR = Path(__file__).parent.parent / "data" / "embeddings_cache"
-EMBEDDING_DIM = 1536  # OpenAI text-embedding-3-small dimension
+EMBEDDING_DIM = 1536  # openai/text-embedding-3-small dimension (OpenRouter)
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+DEFAULT_EMBEDDING_MODEL = "openai/text-embedding-3-small"
 
 
 class EmbeddingService:
     """Service for generating and searching embeddings.
 
-    Supports OpenAI embeddings with local caching for efficiency.
+    Supports OpenRouter embeddings with local caching for efficiency.
     Falls back to simple TF-IDF-like embeddings when API is unavailable.
     """
 
     def __init__(
         self,
-        model: str = "text-embedding-3-small",
+        model: str | None = None,
         use_cache: bool = True,
     ) -> None:
         """Initialize the embedding service.
 
         Args:
-            model: OpenAI embedding model name.
+            model: OpenRouter embedding model name.
             use_cache: Whether to cache embeddings locally.
         """
-        self.model = model
+        self.model = (
+            model
+            or os.environ.get("OPENROUTER_EMBEDDING_MODEL")
+            or DEFAULT_EMBEDDING_MODEL
+        )
         self.use_cache = use_cache
         self._cache: dict[str, list[float]] = {}
         self._openai_client = None
@@ -52,17 +58,20 @@ class EmbeddingService:
             self._load_cache()
 
     def _get_openai_client(self):
-        """Lazy-load OpenAI client."""
+        """Lazy-load OpenRouter OpenAI-compatible client."""
         if self._openai_client is None:
             try:
                 from openai import OpenAI
 
-                api_key = os.environ.get("OPENAI_API_KEY")
+                api_key = os.environ.get("OPENROUTER_API_KEY")
                 if api_key:
-                    self._openai_client = OpenAI(api_key=api_key)
+                    self._openai_client = OpenAI(
+                        api_key=api_key,
+                        base_url=OPENROUTER_BASE_URL,
+                    )
                 else:
                     logger.warning(
-                        "OPENAI_API_KEY not set, using fallback embeddings"
+                        "OPENROUTER_API_KEY not set, using fallback embeddings"
                     )
             except ImportError:
                 logger.warning("OpenAI package not available, using fallback embeddings")
@@ -125,7 +134,7 @@ class EmbeddingService:
 
                 return embedding
             except Exception as e:
-                logger.warning(f"OpenAI embedding failed, using fallback: {e}")
+                logger.warning(f"OpenRouter embedding failed, using fallback: {e}")
 
         return self._fallback_embedding(text)
 
@@ -177,7 +186,7 @@ class EmbeddingService:
                         self._save_cache()
 
                 except Exception as e:
-                    logger.warning(f"OpenAI batch embedding failed: {e}")
+                    logger.warning(f"OpenRouter batch embedding failed: {e}")
                     for j, text in enumerate(uncached_texts):
                         idx = uncached_indices[j]
                         embedding = self._fallback_embedding(text)
@@ -200,7 +209,7 @@ class EmbeddingService:
     def _fallback_embedding(self, text: str) -> list[float]:
         """Generate a simple fallback embedding using hash-based approach.
 
-        This is a deterministic fallback when OpenAI is unavailable.
+        This is a deterministic fallback when the OpenRouter client is unavailable.
         Not suitable for production semantic search but allows basic operation.
 
         Args:

@@ -8,11 +8,6 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-# Default API key for testing (limited access, short expiration)
-DEFAULT_API_KEY = (
-    "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"
-)
-
 # Models hosted by Chutes provider (base model IDs without variant suffixes)
 # These models have Chutes as one of their available providers
 CHUTES_HOSTED_MODELS = {
@@ -152,9 +147,8 @@ def fetch_openrouter_models(api_key=None, filter_models=True):
     """Fetch available models from OpenRouter API.
 
     Args:
-        api_key: OpenRouter API key. If None, uses environment variable or default.
+        api_key: OpenRouter API key. If None, uses environment variable.
         filter_models: If True, filter to only show free models and MistralAI models.
-                      This is used when the default API key is in use.
 
     Returns:
         List of model IDs.
@@ -162,15 +156,8 @@ def fetch_openrouter_models(api_key=None, filter_models=True):
     if not api_key:
         api_key = os.environ.get("OPENROUTER_API_KEY", "")
 
-    # Use default API key if none provided
     if not api_key:
-        api_key = DEFAULT_API_KEY
-        filter_models = True  # Always filter when using default key
-
-    # Check if we're using the default API key
-    using_default_key = api_key == DEFAULT_API_KEY
-    if using_default_key:
-        filter_models = True
+        return DEFAULT_MODELS
 
     try:
         response = requests.get(
@@ -186,7 +173,7 @@ def fetch_openrouter_models(api_key=None, filter_models=True):
                 if not model_id:
                     continue
 
-                # Apply filtering if using default key or filter requested
+                # Apply filtering if requested
                 if filter_models:
                     if is_allowed_model(model):
                         models.append(model_id)

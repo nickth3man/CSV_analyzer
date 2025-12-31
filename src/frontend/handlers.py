@@ -9,7 +9,7 @@ import chainlit as cl
 from chainlit.input_widget import Select, TextInput
 
 from .commands import handle_command
-from .config import DEFAULT_API_KEY, EXAMPLE_QUESTIONS, fetch_openrouter_models
+from .config import EXAMPLE_QUESTIONS, fetch_openrouter_models
 from .data_utils import get_table_names
 from .steps import display_result_with_streaming, step_load_data, step_run_analysis, step_schema
 
@@ -66,11 +66,11 @@ async def chat_profile():
 @cl.on_chat_start
 async def on_chat_start() -> None:
     """Initialize the chat session."""
-    current_api_key = os.environ.get("OPENROUTER_API_KEY", "") or DEFAULT_API_KEY
-    os.environ["OPENROUTER_API_KEY"] = current_api_key
-
-    using_default_key = current_api_key == DEFAULT_API_KEY
-    models = fetch_openrouter_models(current_api_key, filter_models=using_default_key)
+    current_api_key = os.environ.get("OPENROUTER_API_KEY", "")
+    models = fetch_openrouter_models(
+        current_api_key,
+        filter_models=not bool(current_api_key),
+    )
 
     settings = await cl.ChatSettings(
         [
@@ -121,11 +121,11 @@ async def on_settings_update(settings) -> None:
     """Handle settings updates."""
     cl.user_session.set("settings", settings)
 
-    api_key = settings.get("api_key", "") or DEFAULT_API_KEY
-    os.environ["OPENROUTER_API_KEY"] = api_key
+    api_key = settings.get("api_key", "") or ""
+    if api_key:
+        os.environ["OPENROUTER_API_KEY"] = api_key
 
-    using_default_key = api_key == DEFAULT_API_KEY
-    models = fetch_openrouter_models(api_key, filter_models=using_default_key)
+    models = fetch_openrouter_models(api_key, filter_models=not bool(api_key))
 
     model = settings.get("model", "")
     initial_index = 0
@@ -154,7 +154,7 @@ async def on_settings_update(settings) -> None:
         ],
     ).send()
 
-    notice = "Settings updated! Using default API key - limited models shown." if using_default_key else "Settings updated!"
+    notice = "Settings updated!" if api_key else "Settings updated! Add an API key to enable full model access."
     await cl.Message(content=notice).send()
 
 
