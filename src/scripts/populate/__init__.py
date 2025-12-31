@@ -65,9 +65,14 @@ from src.scripts.populate.populate_nba_data import PopulationManager
 from src.scripts.populate.populate_play_by_play import populate_play_by_play
 
 # Population functions
+from src.scripts.populate.populate_common_player_info import populate_common_player_info
+from src.scripts.populate.populate_draft_combine_stats import populate_draft_combine_stats
+from src.scripts.populate.populate_draft_history import populate_draft_history
 from src.scripts.populate.populate_player_game_stats import populate_player_game_stats
 from src.scripts.populate.populate_player_game_stats_v2 import populate_player_game_stats_v2
 from src.scripts.populate.populate_player_season_stats import populate_player_season_stats
+from src.scripts.populate.populate_team_details import populate_team_details
+from src.scripts.populate.populate_team_info_common import populate_team_info_common
 from src.scripts.populate.validation import DataValidator
 
 
@@ -97,7 +102,12 @@ __all__ = [
     "init_database",
     "populate_play_by_play",
     # Population functions
+    "populate_common_player_info",
+    "populate_draft_combine_stats",
+    "populate_draft_history",
     "populate_player_game_stats",
     "populate_player_game_stats_v2",
     "populate_player_season_stats",
+    "populate_team_details",
+    "populate_team_info_common",
 ]

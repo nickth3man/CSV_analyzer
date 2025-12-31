@@ -11,7 +11,12 @@ from chainlit.input_widget import Select, TextInput
 from .commands import handle_command
 from .config import EXAMPLE_QUESTIONS, fetch_openrouter_models
 from .data_utils import get_table_names
-from .steps import display_result_with_streaming, step_load_data, step_run_analysis, step_schema
+from .steps import (
+    display_result_with_streaming,
+    step_load_data,
+    step_run_analysis,
+    step_schema,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -95,8 +100,12 @@ async def on_chat_start() -> None:
         table_info = "**No tables found** in `src/backend/data/nba.duckdb`."
 
     actions = [
-        cl.Action(name="list_tables", payload={"action": "tables"}, label="List Tables"),
-        cl.Action(name="view_schema", payload={"action": "schema"}, label="View Schema"),
+        cl.Action(
+            name="list_tables", payload={"action": "tables"}, label="List Tables"
+        ),
+        cl.Action(
+            name="view_schema", payload={"action": "schema"}, label="View Schema"
+        ),
         cl.Action(name="show_help", payload={"action": "help"}, label="Help"),
     ]
 
@@ -154,7 +163,11 @@ async def on_settings_update(settings) -> None:
         ],
     ).send()
 
-    notice = "Settings updated!" if api_key else "Settings updated! Add an API key to enable full model access."
+    notice = (
+        "Settings updated!"
+        if api_key
+        else "Settings updated! Add an API key to enable full model access."
+    )
     await cl.Message(content=notice).send()
 
 
@@ -187,21 +200,26 @@ async def on_message(message: cl.Message) -> None:
     progress_msg = await cl.Message(content="Starting analysis...").send()
 
     try:
-        await progress_msg.update(content="Loading tables...")
+        progress_msg.content = "Loading tables..."
+        await progress_msg.update()
         await step_load_data()
 
-        await progress_msg.update(content="Analyzing schema...")
+        progress_msg.content = "Analyzing schema..."
+        await progress_msg.update()
         await step_schema()
 
-        await progress_msg.update(content="Running analysis...")
-        shared = await step_run_analysis(question, settings)
+        progress_msg.content = "Running analysis..."
+        await progress_msg.update()
+        shared = await step_run_analysis(question, settings or {})
 
         if not shared:
-            await progress_msg.update(content="Analysis failed.")
+            progress_msg.content = "Analysis failed."
+            await progress_msg.update()
             await cl.Message(content="No response was generated.").send()
             return
 
-        await progress_msg.update(content="Analysis complete.")
+        progress_msg.content = "Analysis complete."
+        await progress_msg.update()
 
         answer = shared.get("final_answer") or shared.get("final_text") or ""
         transparency_note = shared.get("transparency_note")
@@ -211,7 +229,10 @@ async def on_message(message: cl.Message) -> None:
         sql_block = ""
         if sub_query_sqls:
             sql_block = "\n".join(
-                [f"-- {sub_id}\n{sql.strip()}" for sub_id, sql in sub_query_sqls.items()]
+                [
+                    f"-- {sub_id}\n{sql.strip()}"
+                    for sub_id, sql in sub_query_sqls.items()
+                ]
             )
         elif sql_query:
             sql_block = sql_query.strip()
@@ -227,5 +248,6 @@ async def on_message(message: cl.Message) -> None:
 
     except Exception as exc:
         logger.exception("Analysis failed with unexpected error")
-        await progress_msg.update(content="Analysis failed.")
+        progress_msg.content = "Analysis failed."
+        await progress_msg.update()
         await cl.Message(content=f"Unexpected error: {exc!s}").send()

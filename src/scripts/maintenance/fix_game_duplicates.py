@@ -7,47 +7,76 @@ DATABASE = "src/backend/data/nba.duckdb"
 def fix_duplicates() -> None:
     con = duckdb.connect(DATABASE)
 
-    # Check duplicate counts
-    row = con.sql("SELECT count(*) FROM game_silver").fetchone()
-    total = row[0] if row else 0
-    row = con.sql("SELECT count(DISTINCT game_id) FROM game_silver").fetchone()
-    unique = row[0] if row else 0
-
-    if total > unique:
-        # Simple deduplication: keep one row per game_id.
-        # If rows are identical, DISTINCT works. If they differ, we need arbitrary choice.
-        # Let's check if they are identical using DISTINCT *
-        row = con.sql(
-            "SELECT count(*) FROM (SELECT DISTINCT * FROM game_silver)",
-        ).fetchone()
-        distinct_rows = row[0] if row else 0
-
-        if distinct_rows == unique:
-            con.sql(
-                "CREATE OR REPLACE TABLE game_gold AS SELECT DISTINCT * FROM game_silver",
-            )
-        else:
-            # Pick the one with most data? or just arbitrary. Let's use arbitrary row_number.
-            con.sql("""
-                CREATE OR REPLACE TABLE game_gold AS
-                SELECT * FROM game_silver
-                QUALIFY ROW_NUMBER() OVER (PARTITION BY game_id ORDER BY game_date DESC) = 1
-             """)
-
-        # Verify
-        row = con.sql("SELECT count(*) FROM game_gold").fetchone()
-        new_total = row[0] if row else 0
-
-        # Verify PK
-        row = con.sql(
-            "SELECT count(DISTINCT game_id) FROM game_gold",
-        ).fetchone()
-        new_unique = row[0] if row else 0
-        if new_total == new_unique:
-            pass
-            # Create View for cleaner access? Or just leave as table.
-        else:
-            pass
+    try:
+        # Normalize season_type and de-duplicate per game_id
+        con.sql("""
+            CREATE OR REPLACE TABLE game_gold AS
+            SELECT
+                game_id,
+                season_id,
+                game_date,
+                team_id_home,
+                team_abbreviation_home,
+                team_name_home,
+                matchup_home,
+                wl_home,
+                min,
+                fgm_home,
+                fga_home,
+                fg_pct_home,
+                fg3m_home,
+                fg3a_home,
+                fg3_pct_home,
+                ftm_home,
+                fta_home,
+                ft_pct_home,
+                oreb_home,
+                dreb_home,
+                reb_home,
+                ast_home,
+                stl_home,
+                blk_home,
+                tov_home,
+                pf_home,
+                pts_home,
+                plus_minus_home,
+                video_available_home,
+                team_id_away,
+                team_abbreviation_away,
+                team_name_away,
+                matchup_away,
+                wl_away,
+                fgm_away,
+                fga_away,
+                fg_pct_away,
+                fg3m_away,
+                fg3a_away,
+                fg3_pct_away,
+                ftm_away,
+                fta_away,
+                ft_pct_away,
+                oreb_away,
+                dreb_away,
+                reb_away,
+                ast_away,
+                stl_away,
+                blk_away,
+                tov_away,
+                pf_away,
+                pts_away,
+                plus_minus_away,
+                video_available_away,
+                CASE
+                    WHEN season_type IS NULL THEN NULL
+                    ELSE REPLACE(season_type, '-', ' ')
+                END AS season_type,
+                filename
+            FROM game_silver
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY game_id ORDER BY game_date DESC) = 1
+        """)
+    except Exception:
+        con.close()
+        return
 
     con.close()
 

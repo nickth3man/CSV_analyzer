@@ -78,30 +78,30 @@ def create_analyst_flow() -> Flow:
     sub_sql_gen = SQLGenerator()
     sub_sql_exec = SQLExecutor()
 
-    sub_selector >> sub_sql_gen
-    sub_sql_gen - "valid" >> sub_sql_exec
+    _ = sub_selector >> sub_sql_gen
+    _ = sub_sql_gen - "valid" >> sub_sql_exec
     sub_flow = SubQueryBatchFlow(start=sub_selector)
 
-    clarify - "ambiguous" >> ask_user
-    clarify - "clear" >> rewriter
+    _ = clarify - "ambiguous" >> ask_user
+    _ = clarify - "clear" >> rewriter
 
-    ask_user - "clarified" >> rewriter
+    _ = ask_user - "clarified" >> rewriter
 
-    rewriter >> planner
-    planner - "simple" >> selector
-    planner - "complex" >> sub_flow
+    _ = rewriter >> planner
+    _ = planner - "simple" >> selector
+    _ = planner - "complex" >> sub_flow
 
-    selector >> sql_gen
-    sql_gen - "valid" >> sql_exec
-    sql_gen - "fallback" >> analyzer
-    sql_exec - "success" >> analyzer
-    sql_exec - "error" >> sql_gen
+    _ = selector >> sql_gen
+    _ = sql_gen - "valid" >> sql_exec
+    _ = sql_gen - "fallback" >> analyzer
+    _ = sql_exec - "success" >> analyzer
+    _ = sql_exec - "error" >> sql_gen
 
-    sub_flow >> combiner >> analyzer
+    _ = sub_flow >> combiner >> analyzer
 
-    analyzer - "default" >> grader
-    grader - "fail" >> sql_gen
-    grader - "fail_complex" >> sub_flow
+    _ = analyzer - "default" >> grader
+    _ = grader - "fail" >> sql_gen
+    _ = grader - "fail_complex" >> sub_flow
 
     return Flow(start=clarify)
 

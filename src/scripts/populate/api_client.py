@@ -477,6 +477,50 @@ class NBAClient:
         return df
 
     @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
+    def get_team_info_common(
+        self,
+        team_id: int,
+        season: str | None = None,
+        season_type: str | None = None,
+    ) -> dict[str, pd.DataFrame]:
+        """Get team info and season ranks for a team/season."""
+        from nba_api.stats.endpoints import teaminfocommon
+
+        info = teaminfocommon.TeamInfoCommon(
+            team_id=team_id,
+            league_id="00",
+            season_nullable=season or "",
+            season_type_nullable=season_type or "",
+            proxy=self.config.proxy,
+            headers=self.config.headers,
+            timeout=self.config.timeout,
+        )
+
+        return {
+            "team_info_common": info.team_info_common.get_data_frame(),
+            "team_season_ranks": info.team_season_ranks.get_data_frame(),
+        }
+
+    @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
+    def get_team_details(self, team_id: int) -> dict[str, pd.DataFrame]:
+        """Get team details, history, and social links."""
+        from nba_api.stats.endpoints import teamdetails
+
+        details = teamdetails.TeamDetails(
+            team_id=team_id,
+            proxy=self.config.proxy,
+            headers=self.config.headers,
+            timeout=self.config.timeout,
+        )
+
+        frames = details.get_data_frames()
+        return {
+            "team_details": frames[0] if len(frames) > 0 else pd.DataFrame(),
+            "team_history": frames[1] if len(frames) > 1 else pd.DataFrame(),
+            "team_social": frames[2] if len(frames) > 2 else pd.DataFrame(),
+        }
+
+    @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
     def get_team_game_log(
         self,
         team_id: int,
@@ -512,6 +556,57 @@ class NBAClient:
         if df.empty:
             return None
 
+        return df
+
+    @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
+    def get_draft_history(
+        self,
+        season: str | None = None,
+        team_id: int | None = None,
+        round_num: int | None = None,
+        round_pick: int | None = None,
+        overall_pick: int | None = None,
+        college: str | None = None,
+        topx: int | None = None,
+    ) -> pd.DataFrame | None:
+        """Get draft history records."""
+        from nba_api.stats.endpoints import drafthistory
+
+        history = drafthistory.DraftHistory(
+            league_id="00",
+            season_year_nullable=season or "",
+            team_id_nullable=str(team_id) if team_id else "",
+            round_num_nullable=str(round_num) if round_num else "",
+            round_pick_nullable=str(round_pick) if round_pick else "",
+            overall_pick_nullable=str(overall_pick) if overall_pick else "",
+            college_nullable=college or "",
+            topx_nullable=str(topx) if topx else "",
+            proxy=self.config.proxy,
+            headers=self.config.headers,
+            timeout=self.config.timeout,
+        )
+
+        df = history.draft_history.get_data_frame()
+        if df.empty:
+            return None
+        return df
+
+    @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
+    def get_draft_combine_stats(self, season: str) -> pd.DataFrame | None:
+        """Get draft combine stats for a season (season_all_time format)."""
+        from nba_api.stats.endpoints import draftcombinestats
+
+        stats = draftcombinestats.DraftCombineStats(
+            league_id="00",
+            season_all_time=season,
+            proxy=self.config.proxy,
+            headers=self.config.headers,
+            timeout=self.config.timeout,
+        )
+
+        df = stats.draft_combine_stats.get_data_frame()
+        if df.empty:
+            return None
         return df
 
     @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)

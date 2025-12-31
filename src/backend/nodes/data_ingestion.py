@@ -65,6 +65,7 @@
 
 import logging
 import os
+from typing import Any
 
 import pandas as pd
 from pocketflow import Node
@@ -232,9 +233,10 @@ class NBAApiDataLoader(Node):
                     player_id = entity_ids.get(ent, {}).get("player_id")
                     if not player_id:
                         continue
-                    career = nba_client.get_player_career_stats(player_id)
-                    for key, df in career.items():
-                        api_dfs[f"{ent}_career_{key}"] = df
+                    career_data: Any = nba_client.get_player_career_stats(player_id)
+                    if isinstance(career_data, dict):
+                        for key, df in career_data.items():
+                            api_dfs[f"{ent}_career_{key}"] = df
                 elif name == "league_leaders":
                     season = NBA_DEFAULT_SEASON
                     leaders = nba_client.get_league_leaders(

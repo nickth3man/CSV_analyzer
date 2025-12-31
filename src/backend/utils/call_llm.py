@@ -133,7 +133,7 @@ except Exception as e:
             )
             # Exponential backoff: 2s, 4s, 8s
             time.sleep(2 ** (attempt + 1))
-    return None
+    return ""
 
 
 if __name__ == "__main__":

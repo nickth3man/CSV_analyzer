@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Populate play_by_play table from NBA API.
+"""Populate play_by_play table from NBA API (PlayByPlayV3).
 
-This script fetches play-by-play data for games and populates the play_by_play table.
-Play-by-play data includes every event that happens during a game (shots, rebounds, turnovers, etc.)
+This script fetches play-by-play data for games and populates the play_by_play table
+using the PlayByPlayV3 endpoint schema.
 
 TODO: ROADMAP Phase 3.1 - Resolve NBA API issues blocking play-by-play population
 - Current Status: Script implemented but blocked by NBA API access issues
@@ -73,33 +73,104 @@ logger = logging.getLogger(__name__)
 
 PROGRESS_FILE = CACHE_DIR / "play_by_play_progress.json"
 
-# Column mapping from NBA API (v2) to our schema
+PLAY_BY_PLAY_COLUMNS = [
+    "game_id",
+    "action_number",
+    "clock",
+    "period",
+    "team_id",
+    "team_tricode",
+    "person_id",
+    "player_name",
+    "player_name_i",
+    "x_legacy",
+    "y_legacy",
+    "shot_distance",
+    "shot_result",
+    "is_field_goal",
+    "score_home",
+    "score_away",
+    "points_total",
+    "location",
+    "description",
+    "action_type",
+    "sub_type",
+    "video_available",
+    "shot_value",
+    "action_id",
+]
+
+# Column mapping from NBA API (v3) to our schema
 COLUMN_MAPPING = {
-    "GAME_ID": "game_id",
-    "EVENTNUM": "event_num",
-    "EVENTMSGTYPE": "event_msg_type",
-    "EVENTMSGACTIONTYPE": "event_msg_action_type",
-    "PERIOD": "period",
-    "WCTIMESTRING": "wctimestring",
-    "PCTIMESTRING": "pctimestring",
-    "HOMEDESCRIPTION": "home_description",
-    "NEUTRALDESCRIPTION": "neutral_description",
-    "VISITORDESCRIPTION": "visitor_description",
-    "SCORE": "score",
-    "SCOREMARGIN": "score_margin",
-    "PERSON1TYPE": "person1type",
-    "PLAYER1_ID": "player1_id",
-    "PLAYER1_NAME": "player1_name",
-    "PLAYER1_TEAM_ID": "player1_team_id",
-    "PERSON2TYPE": "person2type",
-    "PLAYER2_ID": "player2_id",
-    "PLAYER2_NAME": "player2_name",
-    "PLAYER2_TEAM_ID": "player2_team_id",
-    "PERSON3TYPE": "person3type",
-    "PLAYER3_ID": "player3_id",
-    "PLAYER3_NAME": "player3_name",
-    "PLAYER3_TEAM_ID": "player3_team_id",
+    "gameId": "game_id",
+    "actionNumber": "action_number",
+    "clock": "clock",
+    "period": "period",
+    "teamId": "team_id",
+    "teamTricode": "team_tricode",
+    "personId": "person_id",
+    "playerName": "player_name",
+    "playerNameI": "player_name_i",
+    "xLegacy": "x_legacy",
+    "yLegacy": "y_legacy",
+    "shotDistance": "shot_distance",
+    "shotResult": "shot_result",
+    "isFieldGoal": "is_field_goal",
+    "scoreHome": "score_home",
+    "scoreAway": "score_away",
+    "pointsTotal": "points_total",
+    "location": "location",
+    "description": "description",
+    "actionType": "action_type",
+    "subType": "sub_type",
+    "videoAvailable": "video_available",
+    "shotValue": "shot_value",
+    "actionId": "action_id",
 }
+
+
+def ensure_play_by_play_schema(conn: duckdb.DuckDBPyConnection) -> None:
+    """Ensure play_by_play table matches the PlayByPlayV3 schema."""
+    expected = PLAY_BY_PLAY_COLUMNS
+    try:
+        cols = conn.execute("PRAGMA table_info('play_by_play')").fetchall()
+        existing = [col[1] for col in cols]
+    except Exception:
+        existing = []
+
+    if existing != expected:
+        conn.execute("DROP TABLE IF EXISTS play_by_play")
+        conn.execute(
+            """
+            CREATE TABLE play_by_play (
+                game_id BIGINT NOT NULL,
+                action_number BIGINT NOT NULL,
+                clock VARCHAR,
+                period INTEGER,
+                team_id BIGINT,
+                team_tricode VARCHAR,
+                person_id BIGINT,
+                player_name VARCHAR,
+                player_name_i VARCHAR,
+                x_legacy DOUBLE,
+                y_legacy DOUBLE,
+                shot_distance DOUBLE,
+                shot_result VARCHAR,
+                is_field_goal INTEGER,
+                score_home VARCHAR,
+                score_away VARCHAR,
+                points_total INTEGER,
+                location VARCHAR,
+                description VARCHAR,
+                action_type VARCHAR,
+                sub_type VARCHAR,
+                video_available INTEGER,
+                shot_value INTEGER,
+                action_id INTEGER,
+                PRIMARY KEY (game_id, action_number)
+            )
+        """,
+        )
 
 
 # =============================================================================
@@ -138,7 +209,7 @@ def save_progress(progress: dict[str, Any]) -> None:
         json.dump(progress, f, indent=2)
 
 
-def process_play_by_play_data(df: pd.DataFrame, game_id: str) -> pd.DataFrame:
+def process_play_by_play_data(df: pd.DataFrame, game_id: int | None) -> pd.DataFrame:
     """Normalize a raw NBA play-by-play DataFrame to the play_by_play table schema.
 
     Ensures all expected NBA API columns are present (filling missing columns with None), renames columns according to the internal COLUMN_MAPPING, injects the provided game_id, and returns the DataFrame with columns ordered for insertion.
@@ -167,17 +238,12 @@ def process_play_by_play_data(df: pd.DataFrame, game_id: str) -> pd.DataFrame:
     processed_df = processed_df.rename(columns=COLUMN_MAPPING)
     processed_df["game_id"] = game_id
 
-    # Select only the columns we need in the right order
-    output_columns = ["game_id"] + [
-        COLUMN_MAPPING[col] for col in required_columns if col != "GAME_ID"
-    ]
-
     # Ensure all output columns exist
-    for col in output_columns:
+    for col in PLAY_BY_PLAY_COLUMNS:
         if col not in processed_df.columns:
             processed_df[col] = None
 
-    return cast(pd.DataFrame, processed_df[output_columns])
+    return cast(pd.DataFrame, processed_df[PLAY_BY_PLAY_COLUMNS])
 
 
 def insert_play_by_play(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame) -> int:
@@ -198,12 +264,11 @@ def insert_play_by_play(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame) -> in
 
         conn.execute("""
             INSERT INTO play_by_play (
-                game_id, event_num, event_msg_type, event_msg_action_type,
-                period, wctimestring, pctimestring, home_description,
-                neutral_description, visitor_description, score, score_margin,
-                person1type, player1_id, player1_name, player1_team_id,
-                person2type, player2_id, player2_name, player2_team_id,
-                person3type, player3_id, player3_name, player3_team_id
+                game_id, action_number, clock, period, team_id, team_tricode,
+                person_id, player_name, player_name_i, x_legacy, y_legacy,
+                shot_distance, shot_result, is_field_goal, score_home, score_away,
+                points_total, location, description, action_type, sub_type,
+                video_available, shot_value, action_id
             )
             SELECT * FROM temp_pbp
         """)
@@ -267,6 +332,8 @@ def populate_play_by_play(
     logger.info("Connecting to database...")
     conn = duckdb.connect(db_path)
 
+    ensure_play_by_play_schema(conn)
+
     # Get initial count
     try:
         initial_count = conn.execute("SELECT COUNT(*) FROM play_by_play").fetchone()[0]
@@ -278,24 +345,47 @@ def populate_play_by_play(
     if games:
         games_to_process = games
     else:
-        # Get games from game_gold table
-        query = "SELECT DISTINCT game_id FROM game_gold ORDER BY game_id"
+        base_table = "game_gold"
+        try:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM game_gold",
+            ).fetchone()
+            if row and row[0] == 0:
+                base_table = "game_silver"
+        except Exception:
+            base_table = "game_silver"
+
+        query = f"SELECT DISTINCT game_id FROM {base_table}"
         if seasons:
-            # Filter by season - need to extract season from game_id
-            season_conditions = " OR ".join(
-                [f"game_id LIKE '{season.replace('-', '')}%'" for season in seasons],
-            )
-            query = f"""
-                SELECT DISTINCT game_id FROM game_gold
-                WHERE {season_conditions}
-                ORDER BY game_id
-            """
+            years = [season.split('-')[0] for season in seasons]
+            cols = [
+                col[1]
+                for col in conn.execute(f"PRAGMA table_info('{base_table}')").fetchall()
+            ]
+            if "season_id" in cols:
+                year_list = ", ".join([f"'{year}'" for year in years])
+                query = f"""
+                    SELECT DISTINCT game_id
+                    FROM {base_table}
+                    WHERE RIGHT(CAST(season_id AS VARCHAR), 4) IN ({year_list})
+                    ORDER BY game_id
+                """
+            elif "game_date" in cols:
+                year_list = ", ".join([f"'{year}'" for year in years])
+                query = f"""
+                    SELECT DISTINCT game_id
+                    FROM {base_table}
+                    WHERE CAST(EXTRACT(year FROM game_date) AS VARCHAR) IN ({year_list})
+                    ORDER BY game_id
+                """
+            else:
+                query = f"SELECT DISTINCT game_id FROM {base_table} ORDER BY game_id"
 
         try:
             result = conn.execute(query).fetchall()
             games_to_process = [row[0] for row in result]
         except Exception as e:
-            logger.warning(f"Could not query game_gold table: {e}")
+            logger.warning(f"Could not query {base_table} table: {e}")
             games_to_process = []
 
     if limit:
@@ -339,17 +429,26 @@ def populate_play_by_play(
     try:
         for i, game_id in enumerate(remaining_games, 1):
             try:
-                logger.info(f"[{i}/{len(remaining_games)}] Processing game {game_id}")
+                game_id_str = str(game_id)
+                if game_id_str.isdigit():
+                    game_id_str = game_id_str.zfill(10)
+                logger.info(
+                    "[%s/%s] Processing game %s",
+                    i,
+                    len(remaining_games),
+                    game_id_str,
+                )
 
                 # Fetch play-by-play data using API client
-                df = client.get_play_by_play(game_id)
+                df = client.get_play_by_play(game_id_str)
 
                 if df is None or df.empty:
                     logger.info(f"      No data for game {game_id}")
                     continue
 
                 # Process the data
-                processed_df = process_play_by_play_data(df, game_id)
+                game_id_int = int(game_id_str) if game_id_str.isdigit() else None
+                processed_df = process_play_by_play_data(df, game_id_int)
 
                 if processed_df.empty:
                     logger.info(

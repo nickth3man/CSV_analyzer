@@ -448,14 +448,13 @@ class BasePopulator(ABC):
                 WHEN NOT MATCHED THEN
                     INSERT ({col_names}) VALUES ({val_names})
             """
-            
+
             conn.execute(merge_query)
-            
-            # Since DuckDB doesn't return separate counts for MERGE easily via changes()
-            # we'll approximate or just log total affected
-            total_affected = conn.execute("SELECT changes()").fetchone()[0]
-            logger.info(f"Upserted {len(df)} records into {table} (Total changes: {total_affected})")
-            
+
+            # Since DuckDB doesn't return separate counts for MERGE easily
+            # we'll just log that we processed the batch
+            logger.info(f"Upserted {len(df)} records into {table}")
+
             conn.unregister("source_df")
             return len(df), 0  # Simplified return
 

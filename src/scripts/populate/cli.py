@@ -112,6 +112,85 @@ def cmd_normalize(args) -> None:
     if result.returncode != 0:
         sys.exit(1)
 
+def cmd_game_gold(args) -> None:
+    """Create game_gold table by deduplicating game_silver."""
+    import subprocess
+
+    logger.info("Creating game_gold table...")
+    result = subprocess.run(
+        [sys.executable, "src/scripts/maintenance/fix_game_duplicates.py"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        sys.exit(1)
+
+
+def cmd_common_player_info(args):
+    """Populate common_player_info using NBA API."""
+    from src.scripts.populate.populate_common_player_info import (
+        populate_common_player_info,
+    )
+
+    return populate_common_player_info(
+        db_path=args.db,
+        active_only=getattr(args, "active_only", False),
+        limit=getattr(args, "limit", None),
+        reset_progress=args.reset,
+        dry_run=args.dry_run,
+    )
+
+
+def cmd_draft_history(args):
+    """Populate draft_history using NBA API."""
+    from src.scripts.populate.populate_draft_history import populate_draft_history
+
+    return populate_draft_history(
+        db_path=args.db,
+        season=getattr(args, "season", None),
+        reset_progress=args.reset,
+        dry_run=args.dry_run,
+    )
+
+
+def cmd_draft_combine(args):
+    """Populate draft_combine_stats using NBA API."""
+    from src.scripts.populate.populate_draft_combine_stats import (
+        populate_draft_combine_stats,
+    )
+
+    return populate_draft_combine_stats(
+        db_path=args.db,
+        seasons=args.seasons,
+        reset_progress=args.reset,
+        dry_run=args.dry_run,
+    )
+
+
+def cmd_team_info_common(args):
+    """Populate team_info_common using NBA API."""
+    from src.scripts.populate.populate_team_info_common import populate_team_info_common
+
+    return populate_team_info_common(
+        db_path=args.db,
+        seasons=args.seasons,
+        season_type=getattr(args, "season_type", None),
+        reset_progress=args.reset,
+        dry_run=args.dry_run,
+    )
+
+
+def cmd_team_details(args):
+    """Populate team_details using NBA API."""
+    from src.scripts.populate.populate_team_details import populate_team_details
+
+    return populate_team_details(
+        db_path=args.db,
+        reset_progress=args.reset,
+        dry_run=args.dry_run,
+    )
+
 
 def cmd_player_games(args):
     """Run the bulk player game stats population step for the specified seasons and season types.
@@ -190,6 +269,21 @@ def cmd_play_by_play(args):
     )
 
 
+def cmd_validate(args) -> None:
+    """Run integrity checks against the database."""
+    import subprocess
+
+    logger.info("Running integrity checks...")
+    result = subprocess.run(
+        [sys.executable, "src/scripts/maintenance/check_integrity.py"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        sys.exit(1)
+
+
 def cmd_season_stats(args):
     """Create player season stats (aggregated)."""
     from src.scripts.populate.populate_player_season_stats import (
@@ -211,6 +305,11 @@ def cmd_all(args) -> None:
             - continue_on_error (bool): If true, continue executing remaining steps when a step raises an exception.
             - Any other flags (seasons, delay, force, tables, reset, dry_run, etc.) are forwarded to the individual step handlers.
     """
+    from src.scripts.populate.config import ALL_SEASONS
+
+    if not args.seasons:
+        args.seasons = ALL_SEASONS
+
     logger.info("=" * 70)
     logger.info("FULL NBA DATABASE POPULATION PIPELINE")
     logger.info("=" * 70)
@@ -218,17 +317,36 @@ def cmd_all(args) -> None:
     steps = [
         ("Initialize database", lambda: cmd_init(args)),
         ("Load CSV files", lambda: cmd_load_csv(args)),
-        ("Normalize tables", lambda: cmd_normalize(args)),
     ]
 
     if not args.skip_api:
         steps.extend(
             [
+                ("Populate draft history", lambda: cmd_draft_history(args)),
+                ("Populate draft combine stats", lambda: cmd_draft_combine(args)),
+                ("Populate team details", lambda: cmd_team_details(args)),
+                ("Populate team info common", lambda: cmd_team_info_common(args)),
+                ("Populate common player info", lambda: cmd_common_player_info(args)),
+            ],
+        )
+
+    steps.extend(
+        [
+            ("Normalize tables", lambda: cmd_normalize(args)),
+            ("Create game_gold", lambda: cmd_game_gold(args)),
+        ],
+    )
+
+    if not args.skip_api:
+        steps.extend(
+            [
                 ("Fetch player game stats", lambda: cmd_player_games(args)),
+                ("Fetch play-by-play", lambda: cmd_play_by_play(args)),
             ],
         )
 
     steps.append(("Create season stats", lambda: cmd_season_stats(args)))
+    steps.append(("Validate database", lambda: cmd_validate(args)))
 
     for step_name, step_func in steps:
         logger.info(f"\n{'=' * 60}")
@@ -290,6 +408,59 @@ def main() -> None:
     # normalize command
     subparsers.add_parser("normalize", help="Normalize database tables")
 
+    # game-gold command
+    subparsers.add_parser("game-gold", help="Create game_gold from game_silver")
+
+    # common-player-info command
+    cpi_parser = subparsers.add_parser(
+        "common-player-info",
+        help="Fetch CommonPlayerInfo for all players",
+    )
+    cpi_parser.add_argument(
+        "--active-only", action="store_true", help="Only active players",
+    )
+    cpi_parser.add_argument("--limit", type=int, help="Limit number of players")
+    cpi_parser.add_argument("--reset", action="store_true", help="Reset progress")
+    cpi_parser.add_argument(
+        "--dry-run", action="store_true", help="Don't write to database",
+    )
+
+    # draft-history command
+    dh_parser = subparsers.add_parser("draft-history", help="Fetch draft history")
+    dh_parser.add_argument("--season", help="Draft season year (YYYY)")
+    dh_parser.add_argument("--reset", action="store_true", help="Reset progress")
+    dh_parser.add_argument(
+        "--dry-run", action="store_true", help="Don't write to database",
+    )
+
+    # draft-combine command
+    dc_parser = subparsers.add_parser(
+        "draft-combine", help="Fetch draft combine stats",
+    )
+    dc_parser.add_argument("--seasons", nargs="+", help="Season list (YYYY-YY)")
+    dc_parser.add_argument("--reset", action="store_true", help="Reset progress")
+    dc_parser.add_argument(
+        "--dry-run", action="store_true", help="Don't write to database",
+    )
+
+    # team-info-common command
+    tic_parser = subparsers.add_parser(
+        "team-info-common", help="Fetch team info common",
+    )
+    tic_parser.add_argument("--seasons", nargs="+", help="Season list (YYYY-YY)")
+    tic_parser.add_argument("--season-type", help="Season type (Regular Season)")
+    tic_parser.add_argument("--reset", action="store_true", help="Reset progress")
+    tic_parser.add_argument(
+        "--dry-run", action="store_true", help="Don't write to database",
+    )
+
+    # team-details command
+    td_parser = subparsers.add_parser("team-details", help="Fetch team details")
+    td_parser.add_argument("--reset", action="store_true", help="Reset progress")
+    td_parser.add_argument(
+        "--dry-run", action="store_true", help="Don't write to database",
+    )
+
     # player-games command
     pg_parser = subparsers.add_parser(
         "player-games",
@@ -335,6 +506,9 @@ def main() -> None:
     ss_parser = subparsers.add_parser("season-stats", help="Create player season stats")
     ss_parser.add_argument("--seasons", nargs="+", help="Specific seasons")
 
+    # validate command
+    subparsers.add_parser("validate", help="Run integrity checks")
+
     # all command
     all_parser = subparsers.add_parser("all", help="Run full population pipeline")
     all_parser.add_argument("--skip-api", action="store_true", help="Skip API fetching")
@@ -367,10 +541,17 @@ def main() -> None:
         "info": cmd_info,
         "load-csv": cmd_load_csv,
         "normalize": cmd_normalize,
+        "game-gold": cmd_game_gold,
+        "common-player-info": cmd_common_player_info,
+        "draft-history": cmd_draft_history,
+        "draft-combine": cmd_draft_combine,
+        "team-info-common": cmd_team_info_common,
+        "team-details": cmd_team_details,
         "player-games": cmd_player_games,
         "player-games-legacy": cmd_player_games_legacy,
         "play-by-play": cmd_play_by_play,
         "season-stats": cmd_season_stats,
+        "validate": cmd_validate,
         "all": cmd_all,
     }
 
