@@ -42,6 +42,8 @@ EXPECTED_COLUMNS = [
 
 
 class TeamDetailsPopulator(BasePopulator):
+    """Populate team details data from the NBA API."""
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self._fetched_keys: list[str] = []
@@ -57,13 +59,14 @@ class TeamDetailsPopulator(BasePopulator):
 
     def _load_team_ids(self) -> list[int]:
         conn = self.connect()
-        try:
-            rows = conn.execute("SELECT DISTINCT id FROM team").fetchall()
-            team_ids = [int(row[0]) for row in rows if row and row[0] is not None]
-            if team_ids:
-                return team_ids
-        except duckdb.CatalogException:
-            pass
+        for table_name in ("team_gold", "team_silver", "team_raw", "team"):
+            try:
+                rows = conn.execute(f"SELECT DISTINCT id FROM {table_name}").fetchall()
+                team_ids = [int(row[0]) for row in rows if row and row[0] is not None]
+                if team_ids:
+                    return team_ids
+            except Exception:
+                continue
 
         teams = self.client.get_all_teams()
         return [team["id"] for team in teams if "id" in team]
@@ -131,7 +134,9 @@ def populate_team_details(
     dry_run: bool = False,
 ) -> dict[str, Any]:
     client = get_client()
-    populator = TeamDetailsPopulator(db_path=db_path or str(get_db_path()), client=client)
+    populator = TeamDetailsPopulator(
+        db_path=db_path or str(get_db_path()), client=client
+    )
     return populator.run(
         reset_progress=reset_progress,
         dry_run=dry_run,

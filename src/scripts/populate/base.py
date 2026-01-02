@@ -38,9 +38,11 @@ from typing import Any
 import duckdb
 import pandas as pd
 
-from .api_client import NBAClient, get_client
-from .config import CACHE_DIR, ensure_cache_dir, get_db_path
-from .validation import DataValidator
+from src.scripts.maintenance.check_integrity import check_integrity
+from src.scripts.populate.api_client import NBAClient, get_client
+from src.scripts.populate.config import CACHE_DIR, ensure_cache_dir, get_db_path
+from src.scripts.populate.database import DatabaseManager
+from src.scripts.populate.validation import DataValidator
 
 
 logger = logging.getLogger(__name__)
@@ -301,6 +303,7 @@ class BasePopulator(ABC):
         - a PopulationMetrics instance at self.metrics.
         - a DataValidator instance at self.validator.
         - self._conn initialized to None.
+        - a DatabaseManager instance at self._db_manager for bulk operations.
         - a ProgressTracker named after the class (lowercased) at self.progress.
         """
         self.db_path = db_path or str(get_db_path())
@@ -309,6 +312,7 @@ class BasePopulator(ABC):
         self.metrics = PopulationMetrics()
         self.validator = DataValidator()
         self._conn: duckdb.DuckDBPyConnection | None = None
+        self._db_manager: DatabaseManager | None = None
 
         # Initialize progress tracker with class name
         self.progress = ProgressTracker(self.__class__.__name__.lower())
@@ -328,6 +332,13 @@ class BasePopulator(ABC):
         Returns:
             key_columns (List[str]): List of column names that uniquely identify a row in the target table.
         """
+
+    def get_data_type(self) -> str:
+        """Return the type of data being populated (e.g., 'players', 'games').
+
+        Used for validation logic. Defaults to 'generic'.
+        """
+        return "generic"
 
     @abstractmethod
     def fetch_data(self, **kwargs) -> pd.DataFrame | None:
@@ -386,6 +397,32 @@ class BasePopulator(ABC):
         if self._conn:
             self._conn.close()
             self._conn = None
+        if self._db_manager:
+            self._db_manager.close()
+            self._db_manager = None
+
+    def _get_db_manager(self) -> DatabaseManager:
+        """Lazily initialize and return the DatabaseManager for bulk operations.
+
+        Returns:
+            DatabaseManager: The database manager instance.
+        """
+        if self._db_manager is None:
+            from pathlib import Path
+
+            self._db_manager = DatabaseManager(db_path=Path(self.db_path))
+        return self._db_manager
+
+    def get_raw_table_name(self) -> str:
+        """Get the raw table name with '_raw' suffix.
+
+        Returns:
+            str: Table name with '_raw' suffix.
+        """
+        name = self.get_table_name()
+        if not name.endswith("_raw"):
+            return f"{name}_raw"
+        return name
 
     def get_existing_keys(self) -> set[tuple]:
         """Return the set of existing primary key tuples for the populator's target table.
@@ -396,7 +433,7 @@ class BasePopulator(ABC):
             existing_keys (Set[Tuple]): A set of tuples where each tuple contains the primary key values of an existing row.
         """
         conn = self.connect()
-        table = self.get_table_name()
+        table = self.get_raw_table_name()
         keys = self.get_key_columns()
 
         try:
@@ -410,6 +447,8 @@ class BasePopulator(ABC):
     def upsert_batch(self, df: pd.DataFrame) -> tuple[int, int]:
         """Insert new rows from the provided DataFrame into the target table and update existing ones using MERGE.
 
+        Delegates to DatabaseManager.bulk_upsert() for the actual MERGE operation.
+
         Parameters:
             df: DataFrame containing rows to upsert; must include the columns returned by get_key_columns().
 
@@ -419,44 +458,18 @@ class BasePopulator(ABC):
         if df.empty:
             return 0, 0
 
-        conn = self.connect()
-        table = self.get_table_name()
+        table = self.get_raw_table_name()
         keys = self.get_key_columns()
-        all_cols = [c for c in df.columns if c not in keys]
 
         try:
-            # Register the dataframe as a temporary view
-            conn.register("source_df", df)
+            db_manager = self._get_db_manager()
+            rows_affected = db_manager.bulk_upsert(df, table, keys)
 
-            # Construct the ON condition for the keys
-            on_condition = " AND ".join([f"t.{k} = s.{k}" for k in keys])
-
-            # Construct the UPDATE SET clause for non-key columns
-            update_set = ", ".join([f"{c} = s.{c}" for c in all_cols])
-
-            # Construct the INSERT columns and values
-            col_names = ", ".join(df.columns)
-            val_names = ", ".join([f"s.{c}" for c in df.columns])
-
-            # Use DuckDB's MERGE INTO for actual upsert behavior
-            merge_query = f"""
-                MERGE INTO {table} AS t
-                USING source_df AS s
-                ON {on_condition}
-                WHEN MATCHED THEN
-                    UPDATE SET {update_set}
-                WHEN NOT MATCHED THEN
-                    INSERT ({col_names}) VALUES ({val_names})
-            """
-
-            conn.execute(merge_query)
-
-            # Since DuckDB doesn't return separate counts for MERGE easily
-            # we'll just log that we processed the batch
-            logger.info(f"Upserted {len(df)} records into {table}")
-
-            conn.unregister("source_df")
-            return len(df), 0  # Simplified return
+            logger.info(f"Upserted {rows_affected} records into {table}")
+            return (
+                rows_affected,
+                0,
+            )  # Simplified return (bulk_upsert doesn't distinguish insert vs update)
 
         except Exception as e:
             logger.exception(f"Upsert error for {table}: {e}")
@@ -464,23 +477,36 @@ class BasePopulator(ABC):
             return 0, 0
 
     def validate_data(self, df: pd.DataFrame, **kwargs) -> bool:
-        """Validate that the DataFrame contains the expected columns and record any issues in metrics.
+        """Validate the DataFrame using the DataValidator.
 
         Parameters:
-            df (pd.DataFrame): Data to validate against the expected column set returned by get_expected_columns().
+            df (pd.DataFrame): Data to validate.
+            **kwargs: Additional validation parameters.
 
         Returns:
-            True if the DataFrame meets expected column completeness, `False` otherwise.
+            True if the data is valid, False otherwise.
         """
+        data_type = self.get_data_type()
         expected_cols = self.get_expected_columns()
+
+        validation_kwargs = kwargs.copy()
         if expected_cols:
-            result = self.validator.validate_data_completeness(df, expected_cols)
-            if not result["valid"]:
-                for error in result.get("errors", []):
-                    self.metrics.add_error(error)
-                return False
-            for warning in result.get("warnings", []):
-                self.metrics.warnings.append(warning)
+            validation_kwargs["expected_fields"] = expected_cols
+
+        report = self.validator.generate_validation_report(
+            data_type=data_type,
+            df=df,
+            **validation_kwargs,
+        )
+
+        if not report["overall_valid"]:
+            for error in report.get("errors", []):
+                self.metrics.add_error(f"Validation Error: {error}")
+            return False
+
+        for warning in report.get("warnings", []):
+            self.metrics.warnings.append(f"Validation Warning: {warning}")
+
         return True
 
     def run(
@@ -503,7 +529,7 @@ class BasePopulator(ABC):
         """
         logger.info(f"Starting {self.__class__.__name__}")
         logger.info(f"Database: {self.db_path}")
-        logger.info(f"Table: {self.get_table_name()}")
+        logger.info(f"Table: {self.get_raw_table_name()}")
 
         if reset_progress:
             self.progress.reset()
@@ -511,13 +537,15 @@ class BasePopulator(ABC):
 
         self.metrics.start()
 
+        run_kwargs = {**kwargs, "resume": resume, "dry_run": dry_run}
+
         try:
             # Pre-run hook
-            self.pre_run_hook(**kwargs)
+            self.pre_run_hook(**run_kwargs)
 
             # Fetch data
             logger.info("Fetching data from API...")
-            df = self.fetch_data(**kwargs)
+            df = self.fetch_data(**run_kwargs)
             # API calls are counted within fetch_data for bulk operations
 
             if df is None or df.empty:
@@ -533,7 +561,7 @@ class BasePopulator(ABC):
             logger.info(f"Transformed to {len(df):,} records")
 
             # Validate data
-            if not self.validate_data(df, **kwargs):
+            if not self.validate_data(df, **run_kwargs):
                 logger.error("Data validation failed")
                 return self.metrics.to_dict()
 
@@ -546,17 +574,27 @@ class BasePopulator(ABC):
             total_inserted = 0
             total_updated = 0
 
-            for i in range(0, len(df), self.batch_size):
-                batch = df.iloc[i : i + self.batch_size]
-                inserted, updated = self.upsert_batch(batch)
-                total_inserted += inserted
-                total_updated += updated
+            from src.scripts.utils.ui import create_progress_bar
 
-                if (i + self.batch_size) % 5000 == 0:
-                    self.connect().commit()
-                    logger.info(
-                        f"Progress: {i + self.batch_size:,}/{len(df):,} records",
-                    )
+            with create_progress_bar() as progress:
+                task = progress.add_task(
+                    f"Inserting into {self.get_raw_table_name()}",
+                    total=len(df),
+                )
+
+                for i in range(0, len(df), self.batch_size):
+                    batch = df.iloc[i : i + self.batch_size]
+                    inserted, updated = self.upsert_batch(batch)
+                    total_inserted += inserted
+                    total_updated += updated
+
+                    progress.update(task, advance=len(batch))
+
+                    if (i + self.batch_size) % 5000 == 0:
+                        self.connect().commit()
+                        logger.info(
+                            f"Progress: {i + self.batch_size:,}/{len(df):,} records",
+                        )
 
             # Final commit
             self.connect().commit()
@@ -565,7 +603,12 @@ class BasePopulator(ABC):
             self.metrics.records_updated = total_updated
 
             # Post-run hook
-            self.post_run_hook(**kwargs)
+            self.post_run_hook(**run_kwargs)
+
+            # Run integrity checks
+            if not dry_run:
+                logger.info("Running database integrity checks...")
+                check_integrity(db_path=self.db_path)
 
         except KeyboardInterrupt:
             logger.info("Interrupted by user")

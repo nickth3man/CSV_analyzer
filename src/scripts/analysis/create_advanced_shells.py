@@ -3,6 +3,7 @@ import sys
 
 import duckdb
 
+
 # Set up logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -202,7 +203,7 @@ def create_advanced_schema() -> None:
                 logging.debug(f"Sample from {t}: {sample}")
         except Exception as e:
             error_msg = f"Validation failed for table {t}: {e}"
-            logging.error(error_msg)
+            logging.exception(error_msg)
             validation_errors.append(error_msg)
 
     con.close()

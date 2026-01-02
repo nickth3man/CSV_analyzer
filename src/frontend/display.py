@@ -6,7 +6,7 @@ import logging
 
 import chainlit as cl
 
-from .data_utils import get_schema_summary_data, get_table_preview_data
+from src.frontend.data_utils import get_schema_summary_data, get_table_preview_data
 
 
 logger = logging.getLogger(__name__)
@@ -50,8 +50,7 @@ async def display_schema_summary() -> bool:
         return False
 
     overview = (
-        f"## Data Schema Overview\n\n"
-        f"**{data['table_count']} tables available:**\n\n"
+        f"## Data Schema Overview\n\n**{data['table_count']} tables available:**\n\n"
     )
     for table in data["tables"]:
         overview += (

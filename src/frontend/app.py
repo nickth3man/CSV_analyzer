@@ -7,6 +7,7 @@ Run with: chainlit run src/frontend/app.py
 import sys
 from pathlib import Path
 
+
 # Add project root + src so "src.*" and "backend.*" imports resolve in Chainlit.
 project_root = Path(__file__).resolve().parents[2]
 src_path = project_root / "src"
@@ -16,7 +17,7 @@ for path in (project_root, src_path):
 
 # Import and register all Chainlit handlers
 # These decorators register themselves with Chainlit when imported
-from frontend import (  # noqa: E402, F401
+from frontend import (  # noqa: F401
     chat_profile,
     on_chat_start,
     on_list_tables,

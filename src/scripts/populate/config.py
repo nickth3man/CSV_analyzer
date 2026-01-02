@@ -6,14 +6,15 @@ This module centralizes all configuration settings for:
 - Database paths
 - Season and season type definitions
 - Column mappings from API to database schema
-
-Based on nba_api documentation:
-https://github.com/swar/nba_api
 """
 
-import os
-from dataclasses import dataclass, field
+import json
+import logging
 from pathlib import Path
+from typing import Any
+
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 # =============================================================================
@@ -36,17 +37,66 @@ PROGRESS_FILE = CACHE_DIR / "population_progress.json"
 # =============================================================================
 
 
-@dataclass
-class NBAAPIConfig:
-    """Configuration for NBA API requests.
+logger = logging.getLogger(__name__)
 
-    Based on nba_api library configuration from:
-    reference/nba_api/src/nba_api/stats/library/http.py
+
+class NBAAPIConfig(BaseSettings):
+    """Configuration for NBA API requests using pydantic-settings.
+
+    Settings can be overridden via environment variables prefixed with NBA_API_.
+    Example: NBA_API_TIMEOUT=60 will set the timeout to 60 seconds.
     """
 
-    # Request headers (matching nba_api defaults)
-    headers: dict[str, str] = field(
-        default_factory=lambda: {
+    model_config = SettingsConfigDict(
+        env_prefix="NBA_API_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    # Request timeout in seconds (can be single value or "connect,read" format)
+    # NBA.com can be slow - use higher timeout (100+ recommended in docs)
+    timeout: float = Field(default=120.0, description="Request timeout in seconds")
+
+    @field_validator("timeout", mode="before")
+    @classmethod
+    def parse_timeout(cls, v: Any) -> float:
+        """Parse timeout value, handling comma-separated 'connect,read' format."""
+        if isinstance(v, str):
+            # Handle "connect,read" format - use the first (connect) value
+            parts = [p.strip() for p in v.split(",") if p.strip()]
+            if parts:
+                return float(parts[0])
+        return float(v) if v is not None else 30.0
+
+    # Proxy settings (None = no proxy)
+    proxy: str | None = Field(default=None, description="Proxy URL for requests")
+
+    # Rate limiting - NBA.com recommends 2+ seconds between requests
+    request_delay: float = Field(
+        default=0.6, ge=0.0, description="Seconds between requests"
+    )
+
+    # Retry settings
+    max_retries: int = Field(default=3, ge=1, le=10, description="Max retry attempts")
+    retry_backoff_factor: float = Field(
+        default=2.0, ge=1.0, description="Exponential backoff multiplier"
+    )
+
+    # User agent override
+    user_agent: str | None = Field(
+        default=None, description="Override User-Agent header"
+    )
+
+    # Extra headers as JSON string
+    headers_json: str | None = Field(
+        default=None, description="JSON object of extra headers"
+    )
+
+    @property
+    def headers(self) -> dict[str, str]:
+        """Build request headers with defaults and overrides."""
+        base_headers = {
             "Host": "stats.nba.com",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
             "Accept": "application/json, text/plain, */*",
@@ -65,21 +115,51 @@ class NBAAPIConfig:
             "Sec-Fetch-Dest": "empty",
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "same-origin",
-        },
+        }
+
+        # Apply user agent override
+        if self.user_agent:
+            base_headers["User-Agent"] = self.user_agent
+
+        # Apply extra headers from JSON
+        if self.headers_json:
+            try:
+                parsed = json.loads(self.headers_json)
+                if isinstance(parsed, dict):
+                    for key, value in parsed.items():
+                        base_headers[str(key)] = str(value)
+            except json.JSONDecodeError:
+                logger.warning("NBA_API_HEADERS_JSON is not valid JSON.")
+
+        return base_headers
+
+
+class DatabaseConfig(BaseSettings):
+    """Database configuration using pydantic-settings."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="NBA_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
     )
 
-    # Request timeout in seconds
-    timeout: float | tuple[float, float] = 30.0
+    db_path: Path = Field(
+        default=Path(__file__).parent.parent.parent.parent
+        / "src"
+        / "backend"
+        / "data"
+        / "nba.duckdb",
+        description="Path to DuckDB database",
+    )
 
-    # Proxy settings (None = no proxy)
-    proxy: str | None = None
-
-    # Rate limiting
-    request_delay: float = 0.6  # Seconds between requests
-
-    # Retry settings
-    max_retries: int = 3
-    retry_backoff_factor: float = 2.0  # Exponential backoff multiplier
+    @field_validator("db_path", mode="before")
+    @classmethod
+    def validate_db_path(cls, v: Any) -> Path:
+        """Convert string paths to Path objects."""
+        if isinstance(v, str):
+            return Path(v)
+        return v
 
 
 # =============================================================================
@@ -131,7 +211,6 @@ DEFAULT_SEASONS: list[str] = ALL_SEASONS[:10]  # Last 10 seasons
 RECENT_SEASONS: list[str] = ALL_SEASONS[:5]  # Last 5 seasons
 
 # Season types from nba_api
-# From: reference/nba_api/src/nba_api/stats/library/parameters.py
 SEASON_TYPES = {
     "regular": "Regular Season",
     "playoffs": "Playoffs",
@@ -147,7 +226,6 @@ DEFAULT_SEASON_TYPES: list[str] = ["Regular Season", "Playoffs"]
 # =============================================================================
 
 # PlayerGameLog endpoint expected fields
-# From: reference/nba_api/src/nba_api/stats/endpoints/playergamelog.py
 PLAYER_GAME_LOG_FIELDS = [
     "SEASON_ID",
     "Player_ID",
@@ -179,7 +257,7 @@ PLAYER_GAME_LOG_FIELDS = [
 ]
 
 # PlayerGameLogs endpoint expected fields (bulk query)
-# From: reference/nba_api/src/nba_api/stats/endpoints/playergamelogs.py
+
 PLAYER_GAME_LOGS_FIELDS = [
     "SEASON_YEAR",
     "PLAYER_ID",
@@ -219,7 +297,6 @@ PLAYER_GAME_LOGS_FIELDS = [
 ]
 
 # LeagueGameLog endpoint expected fields
-# From: reference/nba_api/src/nba_api/stats/endpoints/leaguegamelog.py
 LEAGUE_GAME_LOG_FIELDS = [
     "SEASON_ID",
     "TEAM_ID",
@@ -550,35 +627,16 @@ HUSTLE_FIELDS = [
 def get_api_config() -> NBAAPIConfig:
     """Get NBA API configuration with environment overrides.
 
-    Environment variables:
-        NBA_API_TIMEOUT: Request timeout in seconds (or "connect,read")
-        NBA_API_DELAY: Delay between requests in seconds
+    Environment variables (automatically loaded via pydantic-settings):
+        NBA_API_TIMEOUT: Request timeout in seconds
+        NBA_API_REQUEST_DELAY: Delay between requests in seconds
+        NBA_API_USER_AGENT: Override User-Agent header
+        NBA_API_HEADERS_JSON: JSON object merged into request headers
         NBA_API_MAX_RETRIES: Max retry attempts for transient errors
-        NBA_API_RETRY_BACKOFF: Backoff multiplier for retries
+        NBA_API_RETRY_BACKOFF_FACTOR: Backoff multiplier for retries
         NBA_API_PROXY: Proxy URL
     """
-    config = NBAAPIConfig()
-
-    if timeout := os.environ.get("NBA_API_TIMEOUT"):
-        parts = [p.strip() for p in timeout.split(",") if p.strip()]
-        if len(parts) == 2:
-            config.timeout = (float(parts[0]), float(parts[1]))
-        else:
-            config.timeout = float(timeout)
-
-    if max_retries := os.environ.get("NBA_API_MAX_RETRIES"):
-        config.max_retries = int(max_retries)
-
-    if backoff := os.environ.get("NBA_API_RETRY_BACKOFF"):
-        config.retry_backoff_factor = float(backoff)
-
-    if delay := os.environ.get("NBA_API_DELAY"):
-        config.request_delay = float(delay)
-
-    if proxy := os.environ.get("NBA_API_PROXY"):
-        config.proxy = proxy
-
-    return config
+    return NBAAPIConfig()
 
 
 def get_db_path() -> Path:
@@ -587,9 +645,7 @@ def get_db_path() -> Path:
     Environment variables:
         NBA_DB_PATH: Path to DuckDB database
     """
-    if db_path := os.environ.get("NBA_DB_PATH"):
-        return Path(db_path)
-    return DEFAULT_DB_PATH
+    return DatabaseConfig().db_path
 
 
 def ensure_cache_dir() -> None:

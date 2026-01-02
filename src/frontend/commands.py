@@ -2,9 +2,14 @@
 
 import chainlit as cl
 
-from .config import HELP_TEXT
-from .data_utils import get_schema_info, get_table_names, get_table_schema, preview_table
-from .display import display_table_preview
+from src.frontend.config import HELP_TEXT
+from src.frontend.data_utils import (
+    get_schema_info,
+    get_table_names,
+    get_table_schema,
+    preview_table,
+)
+from src.frontend.display import display_table_preview
 
 
 async def handle_command(message_content: str) -> bool:

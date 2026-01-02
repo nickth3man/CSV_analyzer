@@ -71,11 +71,10 @@ logger = logging.getLogger(__name__)
 
 
 def populate_injury_data(*args, **kwargs):
-    """
-    Placeholder for populating NBA player injury and availability data.
-    
+    """Placeholder for populating NBA player injury and availability data.
+
     This function is not yet implemented and serves as a stub for the planned Phase 3.5 feature to ingest and track player injuries, timelines, and games missed. Calling this function will raise a NotImplementedError directing to docs/roadmap.md Phase 3.5.
-    
+
     Raises:
         NotImplementedError: Indicates the injury data population feature is not implemented; see docs/roadmap.md Phase 3.5 for requirements.
     """
@@ -88,9 +87,8 @@ def populate_injury_data(*args, **kwargs):
 
 
 def main():
-    """
-    CLI entry point that prints placeholder warnings about unimplemented injury data population and then exits.
-    
+    """CLI entry point that prints placeholder warnings about unimplemented injury data population and then exits.
+
     Logs a series of warning messages describing that the feature is not yet implemented and lists key decisions required (see docs/roadmap.md Phase 3.5), then terminates the process with exit code 1.
     """
     parser = argparse.ArgumentParser(
@@ -99,7 +97,9 @@ def main():
     parser.add_argument("--seasons", nargs="+", help="Seasons to process")
     parser.add_argument("--teams", nargs="+", help="Specific team abbreviations")
     parser.add_argument("--player-id", type=int, help="Specific player ID")
-    parser.add_argument("--all-seasons", action="store_true", help="All available seasons")
+    parser.add_argument(
+        "--all-seasons", action="store_true", help="All available seasons"
+    )
 
     _args = parser.parse_args()
 

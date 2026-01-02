@@ -37,9 +37,6 @@ Usage:
     populate_player_game_stats_v2(seasons=['2025-26'])
     populate_play_by_play(seasons=['2025-26'], limit=10)
     populate_player_season_stats()
-
-Based on nba_api library documentation:
-    reference/nba_api/
 """
 
 __version__ = "1.2.0"
@@ -61,16 +58,25 @@ from src.scripts.populate.config import (
 )
 from src.scripts.populate.database import DatabaseManager
 from src.scripts.populate.init_db import get_database_info, init_database
-from src.scripts.populate.populate_nba_data import PopulationManager
-from src.scripts.populate.populate_play_by_play import populate_play_by_play
 
 # Population functions
 from src.scripts.populate.populate_common_player_info import populate_common_player_info
-from src.scripts.populate.populate_draft_combine_stats import populate_draft_combine_stats
+from src.scripts.populate.populate_draft_combine_stats import (
+    populate_draft_combine_stats,
+)
 from src.scripts.populate.populate_draft_history import populate_draft_history
+from src.scripts.populate.populate_league_game_logs import (
+    populate_league_game_logs,
+)
+from src.scripts.populate.populate_nba_data import PopulationManager
+from src.scripts.populate.populate_play_by_play import populate_play_by_play
 from src.scripts.populate.populate_player_game_stats import populate_player_game_stats
-from src.scripts.populate.populate_player_game_stats_v2 import populate_player_game_stats_v2
-from src.scripts.populate.populate_player_season_stats import populate_player_season_stats
+from src.scripts.populate.populate_player_game_stats_v2 import (
+    populate_player_game_stats_v2,
+)
+from src.scripts.populate.populate_player_season_stats import (
+    populate_player_season_stats,
+)
 from src.scripts.populate.populate_team_details import populate_team_details
 from src.scripts.populate.populate_team_info_common import populate_team_info_common
 from src.scripts.populate.validation import DataValidator
@@ -84,11 +90,9 @@ __all__ = [
     "DEFAULT_SEASON_TYPES",
     "RECENT_SEASONS",
     "SEASON_TYPES",
-    # Base classes
     "BasePopulator",
     "DataValidator",
     "DatabaseManager",
-    # Core components
     "NBAClient",
     "PopulationManager",
     "PopulationMetrics",
@@ -98,13 +102,12 @@ __all__ = [
     "get_client",
     "get_database_info",
     "get_db_path",
-    # Database utilities
     "init_database",
-    "populate_play_by_play",
-    # Population functions
     "populate_common_player_info",
     "populate_draft_combine_stats",
     "populate_draft_history",
+    "populate_league_game_logs",
+    "populate_play_by_play",
     "populate_player_game_stats",
     "populate_player_game_stats_v2",
     "populate_player_season_stats",

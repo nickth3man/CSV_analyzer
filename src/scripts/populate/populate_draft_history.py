@@ -5,14 +5,15 @@ from __future__ import annotations
 
 import argparse
 import logging
-from typing import Any
-
-import pandas as pd
+from typing import TYPE_CHECKING, Any
 
 from src.scripts.populate.api_client import get_client
 from src.scripts.populate.base import BasePopulator
 from src.scripts.populate.config import get_db_path
 
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 logging.basicConfig(
     level=logging.INFO,
@@ -41,6 +42,8 @@ EXPECTED_COLUMNS = [
 
 
 class DraftHistoryPopulator(BasePopulator):
+    """Populate draft history data from the NBA API."""
+
     def get_table_name(self) -> str:
         return "draft_history"
 
@@ -52,8 +55,7 @@ class DraftHistoryPopulator(BasePopulator):
 
     def fetch_data(self, **kwargs) -> pd.DataFrame | None:
         season = kwargs.get("season")
-        df = self.client.get_draft_history(season=season)
-        return df
+        return self.client.get_draft_history(season=season)
 
     def transform_data(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         if df.empty:
@@ -77,7 +79,9 @@ def populate_draft_history(
     dry_run: bool = False,
 ) -> dict[str, Any]:
     client = get_client()
-    populator = DraftHistoryPopulator(db_path=db_path or str(get_db_path()), client=client)
+    populator = DraftHistoryPopulator(
+        db_path=db_path or str(get_db_path()), client=client
+    )
     return populator.run(
         season=season,
         reset_progress=reset_progress,

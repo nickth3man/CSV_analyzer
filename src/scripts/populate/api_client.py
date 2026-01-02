@@ -8,9 +8,6 @@ built on top of the nba_api package. It includes:
 - Proper error handling and logging
 - Static data access (players, teams)
 
-Based on nba_api patterns from:
-- reference/nba_api/src/nba_api/stats/endpoints/
-- reference/nba_api/src/nba_api/stats/static/
 """
 
 import logging
@@ -66,16 +63,17 @@ def with_retry(
             effective_backoff = (
                 config.retry_backoff_factor if config is not None else backoff_factor
             )
-            effective_delay = (
-                config.request_delay if config is not None else base_delay
-            )
+            effective_delay = config.request_delay if config is not None else base_delay
 
             for attempt in range(effective_max_retries):
                 try:
                     # Rate limiting delay
                     if attempt > 0:
-                        wait_time = (effective_delay * (effective_backoff**attempt)) + random.uniform(
-                            0, effective_delay,
+                        wait_time = (
+                            effective_delay * (effective_backoff**attempt)
+                        ) + random.uniform(
+                            0,
+                            effective_delay,
                         )
                         logger.debug(
                             f"Retry {attempt}/{effective_max_retries}, waiting {wait_time:.1f}s",
@@ -89,7 +87,9 @@ def with_retry(
                 except retry_exceptions as e:
                     last_exception = e
                     error_str = str(e).lower()
-                    status_code = getattr(getattr(e, "response", None), "status_code", None)
+                    status_code = getattr(
+                        getattr(e, "response", None), "status_code", None
+                    )
 
                     # Check for rate limiting
                     if (
@@ -1026,11 +1026,15 @@ class NBAClient:
         # ScoreboardV3 naming in nba_api is often scoreboardv3.ScoreboardV3
         # Use getattr to be safe if naming varies across versions
         try:
-            sb_class = getattr(scoreboardv3, "ScoreboardV3", None) or getattr(scoreboardv3, "ScoreBoardV3", None)
+            sb_class = getattr(scoreboardv3, "ScoreboardV3", None) or getattr(
+                scoreboardv3, "ScoreBoardV3", None
+            )
             if not sb_class:
-                logger.error("Neither ScoreboardV3 nor ScoreBoardV3 found in scoreboardv3 module")
+                logger.error(
+                    "Neither ScoreboardV3 nor ScoreBoardV3 found in scoreboardv3 module"
+                )
                 return None
-            
+
             scoreboard = sb_class(**params)
             dfs = scoreboard.get_data_frames()
             if not dfs:

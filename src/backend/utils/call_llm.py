@@ -1,15 +1,9 @@
 """LLM wrapper for OpenRouter API with retry logic and provider routing.
 
 # TODO (Code Quality): Separate mock responses from production code
-# The mock responses embedded in call_llm() (lines 136-171) should be extracted
-# to a separate module or test fixtures. Production code should fail gracefully
-# with a clear error message instead of returning mock data. This creates a
-# testing dependency in production code and can mask real API issues.
-# Recommended approach:
-#   1. Create a MockLLMProvider class in tests/fixtures/mock_llm.py
-#   2. Use dependency injection or environment variable to switch providers
-#   3. In production, raise a clear exception on auth failure
-#   4. Example: if os.environ.get("USE_MOCK_LLM"): return MockLLMProvider()
+# The mock responses embedded in call_llm() should be extracted to a separate
+# module or test fixtures. Mocking is now gated behind USE_MOCK_LLM to avoid
+# masking real API issues in production.
 
 # TODO (Performance): Implement async LLM calls
 # Current synchronous calls block the main thread during LLM inference.
@@ -43,9 +37,130 @@ logger = logging.getLogger(__name__)
 DEFAULT_MODEL = "meta-llama/llama-3.3-70b-instruct"
 DEFAULT_TEMPERATURE = 0.1
 DEFAULT_MAX_TOKENS = 2000
+MOCK_LLM_ENV = "USE_MOCK_LLM"
 
 
-def call_llm(prompt, max_retries=3):
+def _mock_enabled() -> bool:
+    value = os.environ.get(MOCK_LLM_ENV, "")
+    return value.strip().lower() in {"1", "true", "yes", "y"}
+
+
+def _is_auth_error(error_message: str) -> bool:
+    lower = error_message.lower()
+    return (
+        "401" in lower
+        or "user not found" in lower
+        or "invalid api key" in lower
+        or "authentication" in lower
+    )
+
+
+def _mock_response(prompt: str) -> str:
+    # Table Selection Mock
+    if "select the most relevant tables" in prompt:
+        if "rolling" in prompt.lower() or "trend" in prompt.lower():
+            return """
+```yaml
+selected_tables:
+  - table_name: team_rolling_metrics
+    reason: Contains rolling averages for team performance.
+  - table_name: team_gold
+    reason: Canonical team information.
+```"""
+        if "season" in prompt.lower() and "average" in prompt.lower():
+            return """
+```yaml
+selected_tables:
+  - table_name: player_season_averages
+    reason: Contains pre-calculated season averages for players.
+  - table_name: player_gold
+    reason: Canonical player information.
+```"""
+        if "standing" in prompt.lower() or "rank" in prompt.lower():
+            return """
+```yaml
+selected_tables:
+  - table_name: team_standings
+    reason: Contains current league standings and win percentages.
+```"""
+        return """
+```yaml
+selected_tables:
+  - table_name: player_gold
+    reason: Basic player info.
+  - table_name: team_gold
+    reason: Basic team info.
+```"""
+
+    # SQL Generation Mock
+    if "Generate a DuckDB SQL query" in prompt:
+        if "team_rolling_metrics" in prompt:
+            return """
+```sql
+SELECT team_name, rolling_win_pct
+FROM team_rolling_metrics
+WHERE rolling_window = 10
+ORDER BY rolling_win_pct DESC
+LIMIT 5;
+```"""
+        if "player_season_averages" in prompt:
+            return """
+```sql
+SELECT player_name, pts_avg
+FROM player_season_averages
+WHERE season_id = '2023-24'
+ORDER BY pts_avg DESC
+LIMIT 5;
+```"""
+        if "team_standings" in prompt:
+            return """
+```sql
+SELECT team_name, wins, losses, win_pct
+FROM team_standings
+ORDER BY win_pct DESC;
+```"""
+        return "```sql\nSELECT * FROM player_gold LIMIT 5;\n```"
+
+    if "Extract all named entities" in prompt:
+        return '["LeBron James", "Tracy McGrady"]'
+    if "create a comprehensive analysis plan" in prompt:
+        return """1. Query the 'stats' table for LeBron James and Tracy McGrady.
+2. Filter for relevant years.
+3. Compare points.
+4. Generate insights."""
+    if "Write comprehensive code" in prompt or "Fix it" in prompt:
+        return """
+final_result = {}
+try:
+    df = dfs['stats']
+    lebron = df[df['player_name'] == 'LeBron James']
+    tracy = df[df['player_name'] == 'Tracy McGrady']
+    final_result['LeBron James'] = lebron.to_dict('records')
+    final_result['Tracy McGrady'] = tracy.to_dict('records')
+except Exception as e:
+    final_result['error'] = str(e)
+"""
+    if "Analyze the following data" in prompt:
+        return """
+```json
+{
+"key_stats": {"LeBron Points": 30000, "Tracy Points": 18000},
+"comparison": "LeBron has more points.",
+"insights": ["LeBron played longer."],
+"data_gaps": [],
+"narrative_points": ["LeBron is great", "Tracy was good"]
+}
+```"""
+    if "writing a response to a user's question" in prompt:
+        return "LeBron James scored 30000 points and Tracy McGrady scored 18000 points. LeBron had a longer career."
+    return "Mock response"
+
+
+def call_llm(prompt: str, max_retries: int = 3) -> str:
+    if _mock_enabled():
+        logger.info("Mocking LLM response as requested by USE_MOCK_LLM")
+        return _mock_response(prompt)
+
     api_key = os.environ.get("OPENROUTER_API_KEY", "")
     if not api_key:
         raise RuntimeError(
@@ -84,44 +199,17 @@ def call_llm(prompt, max_retries=3):
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
-            return r.choices[0].message.content
+            return r.choices[0].message.content or ""
         except Exception as e:
-            if "User not found" in str(e) or "401" in str(e):
-                # Mock response for testing when API key is invalid
-                logger.warning(f"Mocking LLM response due to auth error: {e}")
-                if "Extract all named entities" in prompt:
-                    return '["LeBron James", "Tracy McGrady"]'
-                if "create a comprehensive analysis plan" in prompt:
-                    return """1. Query the 'stats' table for LeBron James and Tracy McGrady.
-2. Filter for relevant years.
-3. Compare points.
-4. Generate insights."""
-                if "Write comprehensive code" in prompt or "Fix it" in prompt:
-                    return """
-final_result = {}
-try:
-    df = dfs['stats']
-    lebron = df[df['player_name'] == 'LeBron James']
-    tracy = df[df['player_name'] == 'Tracy McGrady']
-    final_result['LeBron James'] = lebron.to_dict('records')
-    final_result['Tracy McGrady'] = tracy.to_dict('records')
-except Exception as e:
-    final_result['error'] = str(e)
-"""
-                if "Analyze the following data" in prompt:
-                    return """
-```json
-{
-"key_stats": {"LeBron Points": 30000, "Tracy Points": 18000},
-"comparison": "LeBron has more points.",
-"insights": ["LeBron played longer."],
-"data_gaps": [],
-"narrative_points": ["LeBron is great", "Tracy was good"]
-}
-```"""
-                if "writing a response to a user's question" in prompt:
-                    return "LeBron James scored 30000 points and Tracy McGrady scored 18000 points. LeBron had a longer career."
-                return "Mock response"
+            error_text = str(e)
+            if _is_auth_error(error_text):
+                if _mock_enabled():
+                    logger.warning("Mocking LLM response due to auth error: %s", e)
+                    return _mock_response(prompt)
+                raise RuntimeError(
+                    "OpenRouter authentication failed. Set OPENROUTER_API_KEY "
+                    "or enable USE_MOCK_LLM for testing.",
+                ) from e
 
             if attempt == max_retries - 1:
                 # Re-raise on last attempt

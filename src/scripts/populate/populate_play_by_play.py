@@ -32,16 +32,13 @@ Usage:
 
     # With custom delay for rate limiting
     python scripts/populate/populate_play_by_play.py --delay 1.0 --limit 5
-
-Based on nba_api documentation:
-- reference/nba_api/src/nba_api/stats/endpoints/playbyplayv2.py
-- reference/nba_api/src/nba_api/stats/endpoints/playbyplayv3.py
 """
 
 import argparse
 import json
 import logging
 import sys
+import time
 import traceback
 from datetime import datetime
 from typing import Any, cast
@@ -135,10 +132,18 @@ def ensure_play_by_play_schema(conn: duckdb.DuckDBPyConnection) -> None:
     try:
         cols = conn.execute("PRAGMA table_info('play_by_play')").fetchall()
         existing = [col[1] for col in cols]
+        pk_cols = [
+            col[1]
+            for col in sorted(
+                ((col[5], col[1]) for col in cols if col[5]),
+                key=lambda item: item[0],
+            )
+        ]
     except Exception:
         existing = []
+        pk_cols = []
 
-    if existing != expected:
+    if existing != expected or pk_cols != ["game_id", "action_number"]:
         conn.execute("DROP TABLE IF EXISTS play_by_play")
         conn.execute(
             """
@@ -186,13 +191,19 @@ def load_progress() -> dict[str, Any]:
     Returns:
         progress (dict): Progress dictionary with keys:
             - completed_games (List[str]): game IDs that have been completed.
+            - no_data_games (List[str]): game IDs that returned no data.
             - last_game_id (Optional[str]): the most recently processed game ID or None.
             - errors (List[Any]): recorded errors encountered during processing.
     """
     if PROGRESS_FILE.exists():
         with open(PROGRESS_FILE) as f:
             return json.load(f)
-    return {"completed_games": [], "last_game_id": None, "errors": []}
+    return {
+        "completed_games": [],
+        "no_data_games": [],
+        "last_game_id": None,
+        "errors": [],
+    }
 
 
 def save_progress(progress: dict[str, Any]) -> None:
@@ -207,6 +218,15 @@ def save_progress(progress: dict[str, Any]) -> None:
     ensure_cache_dir()
     with open(PROGRESS_FILE, "w") as f:
         json.dump(progress, f, indent=2)
+
+
+def _format_duration(seconds: float) -> str:
+    total_seconds = max(0, int(seconds))
+    minutes, secs = divmod(total_seconds, 60)
+    if minutes < 60:
+        return f"{minutes}m{secs:02d}s" if minutes else f"{secs}s"
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}h{minutes:02d}m{secs:02d}s"
 
 
 def process_play_by_play_data(df: pd.DataFrame, game_id: int | None) -> pd.DataFrame:
@@ -237,13 +257,14 @@ def process_play_by_play_data(df: pd.DataFrame, game_id: int | None) -> pd.DataF
     # Rename columns to lowercase schema names
     processed_df = processed_df.rename(columns=COLUMN_MAPPING)
     processed_df["game_id"] = game_id
+    processed_df = processed_df.drop_duplicates(subset=["game_id", "action_number"])
 
     # Ensure all output columns exist
     for col in PLAY_BY_PLAY_COLUMNS:
         if col not in processed_df.columns:
             processed_df[col] = None
 
-    return cast(pd.DataFrame, processed_df[PLAY_BY_PLAY_COLUMNS])
+    return cast("pd.DataFrame", processed_df[PLAY_BY_PLAY_COLUMNS])
 
 
 def insert_play_by_play(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame) -> int:
@@ -263,7 +284,7 @@ def insert_play_by_play(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame) -> in
         conn.register("temp_pbp", df)
 
         conn.execute("""
-            INSERT INTO play_by_play (
+            INSERT OR IGNORE INTO play_by_play (
                 game_id, action_number, clock, period, team_id, team_tricode,
                 person_id, player_name, player_name_i, x_legacy, y_legacy,
                 shot_distance, shot_result, is_field_goal, score_home, score_away,
@@ -293,6 +314,7 @@ def populate_play_by_play(
     limit: int | None = None,
     delay: float = 0.6,
     resume_from: str | None = None,
+    log_every: int = 10,
     client: NBAClient | None = None,
 ) -> dict[str, Any]:
     """Populate the play_by_play table in the DuckDB database with play-by-play data fetched from the NBA API.
@@ -322,6 +344,8 @@ def populate_play_by_play(
     # Update client delay
     client.config.request_delay = delay
 
+    log_every = max(1, int(log_every))
+
     logger.info("=" * 70)
     logger.info("NBA PLAY-BY-PLAY POPULATION SCRIPT")
     logger.info("=" * 70)
@@ -345,48 +369,67 @@ def populate_play_by_play(
     if games:
         games_to_process = games
     else:
-        base_table = "game_gold"
-        try:
-            row = conn.execute(
-                "SELECT COUNT(*) FROM game_gold",
-            ).fetchone()
-            if row and row[0] == 0:
-                base_table = "game_silver"
-        except Exception:
-            base_table = "game_silver"
+        candidates = []
+        for table_name in (
+            "games",
+            "game_gold",
+            "game_silver",
+            "game_raw",
+            "game",
+        ):
+            try:
+                row = conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()
+                if row:
+                    candidates.append((row[0], table_name))
+            except Exception:
+                logger.exception(
+                    "Failed to inspect table %s for play-by-play candidates",
+                    table_name,
+                )
+                continue
 
-        query = f"SELECT DISTINCT game_id FROM {base_table}"
-        if seasons:
-            years = [season.split('-')[0] for season in seasons]
-            cols = [
-                col[1]
-                for col in conn.execute(f"PRAGMA table_info('{base_table}')").fetchall()
-            ]
-            if "season_id" in cols:
-                year_list = ", ".join([f"'{year}'" for year in years])
-                query = f"""
-                    SELECT DISTINCT game_id
-                    FROM {base_table}
-                    WHERE RIGHT(CAST(season_id AS VARCHAR), 4) IN ({year_list})
-                    ORDER BY game_id
-                """
-            elif "game_date" in cols:
-                year_list = ", ".join([f"'{year}'" for year in years])
-                query = f"""
-                    SELECT DISTINCT game_id
-                    FROM {base_table}
-                    WHERE CAST(EXTRACT(year FROM game_date) AS VARCHAR) IN ({year_list})
-                    ORDER BY game_id
-                """
-            else:
-                query = f"SELECT DISTINCT game_id FROM {base_table} ORDER BY game_id"
-
-        try:
-            result = conn.execute(query).fetchall()
-            games_to_process = [row[0] for row in result]
-        except Exception as e:
-            logger.warning(f"Could not query {base_table} table: {e}")
+        if not candidates:
+            logger.warning("No game tables found to source game IDs.")
             games_to_process = []
+        else:
+            base_table = max(candidates, key=lambda item: item[0])[1]
+            logger.info("Using %s as game source table", base_table)
+            query = f"SELECT DISTINCT game_id FROM {base_table}"
+            if seasons:
+                years = [season.split("-")[0] for season in seasons]
+                cols = [
+                    col[1]
+                    for col in conn.execute(
+                        f"PRAGMA table_info('{base_table}')"
+                    ).fetchall()
+                ]
+                if "season_id" in cols:
+                    year_list = ", ".join([f"'{year}'" for year in years])
+                    query = f"""
+                        SELECT DISTINCT game_id
+                        FROM {base_table}
+                        WHERE RIGHT(CAST(season_id AS VARCHAR), 4) IN ({year_list})
+                        ORDER BY game_id
+                    """
+                elif "game_date" in cols:
+                    year_list = ", ".join([f"'{year}'" for year in years])
+                    query = f"""
+                        SELECT DISTINCT game_id
+                        FROM {base_table}
+                        WHERE CAST(EXTRACT(year FROM game_date) AS VARCHAR) IN ({year_list})
+                        ORDER BY game_id
+                    """
+                else:
+                    query = (
+                        f"SELECT DISTINCT game_id FROM {base_table} ORDER BY game_id"
+                    )
+
+            try:
+                result = conn.execute(query).fetchall()
+                games_to_process = [row[0] for row in result]
+            except Exception as e:
+                logger.warning(f"Could not query {base_table} table: {e}")
+                games_to_process = []
 
     if limit:
         games_to_process = games_to_process[:limit]
@@ -396,9 +439,39 @@ def populate_play_by_play(
     # Load progress
     progress = load_progress()
     completed_games = set(progress.get("completed_games", []))
+    no_data_games = set(progress.get("no_data_games", []))
+
+    # Check already populated games in the database (guard against missing progress)
+    try:
+        existing_rows = conn.execute(
+            "SELECT DISTINCT game_id FROM play_by_play"
+        ).fetchall()
+        existing_games = {row[0] for row in existing_rows}
+    except Exception:
+        existing_games = set()
+
+    # Only trust completed games if they exist in the database
+    completed_games &= existing_games
 
     # Filter out already completed games
-    remaining_games = [g for g in games_to_process if g not in completed_games]
+    games_set = set(games_to_process)
+    completed_games &= games_set
+    no_data_games &= games_set
+    existing_games &= games_set
+    remaining_games = [
+        g
+        for g in games_to_process
+        if g not in completed_games
+        and g not in no_data_games
+        and g not in existing_games
+    ]
+
+    logger.info(
+        "Skipped games: completed=%s no_data=%s existing=%s",
+        len(completed_games),
+        len(no_data_games),
+        len(existing_games),
+    )
 
     if resume_from:
         # Resume from specific game
@@ -418,6 +491,7 @@ def populate_play_by_play(
     stats: dict[str, Any] = {
         "start_time": datetime.now().isoformat(),
         "games_processed": 0,
+        "games_no_data": 0,
         "events_added": 0,
         "errors": [],
     }
@@ -426,7 +500,30 @@ def populate_play_by_play(
     logger.info("STARTING POPULATION")
     logger.info("=" * 70)
 
+    start_time = time.monotonic()
+    total_games = 0
+
+    def log_progress(processed: int, total: int, force: bool = False) -> None:
+        if not force and processed % log_every != 0:
+            return
+        elapsed = time.monotonic() - start_time
+        avg = elapsed / processed if processed else 0
+        remaining = (total - processed) * avg
+        pct = (processed / total) * 100 if total else 0.0
+        logger.info(
+            "Progress: %s/%s (%.1f%%) | games_with_data=%s no_data=%s errors=%s | elapsed=%s eta=%s",
+            processed,
+            total,
+            pct,
+            stats["games_processed"],
+            stats["games_no_data"],
+            len(stats["errors"]),
+            _format_duration(elapsed),
+            _format_duration(remaining),
+        )
+
     try:
+        total_games = len(remaining_games)
         for i, game_id in enumerate(remaining_games, 1):
             try:
                 game_id_str = str(game_id)
@@ -444,6 +541,11 @@ def populate_play_by_play(
 
                 if df is None or df.empty:
                     logger.info(f"      No data for game {game_id}")
+                    no_data_games.add(game_id)
+                    stats["games_no_data"] += 1
+                    progress["no_data_games"] = list(no_data_games)
+                    progress["last_game_id"] = game_id
+                    log_progress(i, total_games)
                     continue
 
                 # Process the data
@@ -459,6 +561,22 @@ def populate_play_by_play(
                 # Insert into database
                 events_added = insert_play_by_play(conn, processed_df)
 
+                if events_added == 0:
+                    warn_msg = f"No events inserted for game {game_id}"
+                    logger.warning(f"      {warn_msg}")
+                    stats["errors"].append(warn_msg)
+                    if "errors" not in progress:
+                        progress["errors"] = []
+                    progress["errors"].append(
+                        {
+                            "game_id": game_id,
+                            "error": warn_msg,
+                            "timestamp": datetime.now().isoformat(),
+                        },
+                    )
+                    log_progress(i, total_games)
+                    continue
+
                 stats["events_added"] += events_added
                 stats["games_processed"] += 1
 
@@ -467,6 +585,7 @@ def populate_play_by_play(
                 # Update progress
                 completed_games.add(game_id)
                 progress["completed_games"] = list(completed_games)
+                progress["no_data_games"] = list(no_data_games)
                 progress["last_game_id"] = game_id
 
                 # Save progress periodically
@@ -474,11 +593,13 @@ def populate_play_by_play(
                     save_progress(progress)
                     conn.commit()
                     logger.info(f"  [Progress: {i}/{len(remaining_games)} games]")
+                log_progress(i, total_games)
 
             except Exception as e:
                 error_msg = f"Error processing game {game_id}: {e!s}"
                 logger.exception(f"      ERROR: {error_msg}")
                 stats["errors"].append(error_msg)
+                log_progress(i, total_games)
 
                 # Save error to progress
                 if "errors" not in progress:
@@ -519,6 +640,8 @@ def populate_play_by_play(
         conn.close()
 
     # Update stats
+    log_progress(total_games, total_games, force=True)
+
     stats["end_time"] = datetime.now().isoformat()
     stats["final_count"] = final_count
     stats["net_added"] = final_count - initial_count
@@ -528,6 +651,7 @@ def populate_play_by_play(
     logger.info("PLAY-BY-PLAY POPULATION COMPLETE")
     logger.info("=" * 70)
     logger.info(f"Games processed: {stats['games_processed']}")
+    logger.info(f"Games with no data: {stats['games_no_data']}")
     logger.info(f"Total events added: {stats['events_added']}")
     logger.info(f"Final count: {final_count}")
     logger.info(f"Net rows added: {stats['net_added']}")
@@ -569,11 +693,22 @@ Examples:
     parser.add_argument("--db", default=None, help="Database path")
     parser.add_argument("--games", nargs="+", help="Specific game IDs to process")
     parser.add_argument(
-        "--seasons", nargs="+", help="Seasons to process (e.g., 2022-23)",
+        "--seasons",
+        nargs="+",
+        help="Seasons to process (e.g., 2022-23)",
     )
     parser.add_argument("--limit", type=int, help="Limit number of games to process")
     parser.add_argument(
-        "--delay", type=float, default=0.6, help="Delay between API calls",
+        "--delay",
+        type=float,
+        default=0.6,
+        help="Delay between API calls",
+    )
+    parser.add_argument(
+        "--log-every",
+        type=int,
+        default=10,
+        help="Log progress every N games (default: 10)",
     )
     parser.add_argument("--resume-from", help="Resume from specific game ID")
 
@@ -587,6 +722,7 @@ Examples:
             limit=args.limit,
             delay=args.delay,
             resume_from=args.resume_from,
+            log_every=args.log_every,
         )
 
         if result["errors"]:

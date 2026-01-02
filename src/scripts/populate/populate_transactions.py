@@ -63,11 +63,10 @@ logger = logging.getLogger(__name__)
 
 
 def populate_transactions(*args, **kwargs):
-    """
-    Populate the transactions table with NBA player transaction records.
-    
+    """Populate the transactions table with NBA player transaction records.
+
     This placeholder outlines planned behavior — ingest transaction data, parse transaction types (including multi-player trades), associate players and teams, and record draft picks — but is not implemented. See docs/roadmap.md Phase 3.4 for requirements.
-    
+
     Raises:
         NotImplementedError: always raised until the function is implemented.
     """
@@ -80,9 +79,8 @@ def populate_transactions(*args, **kwargs):
 
 
 def main():
-    """
-    CLI entry point that reports the transactions-population feature is not implemented and terminates the process.
-    
+    """CLI entry point that reports the transactions-population feature is not implemented and terminates the process.
+
     Parses the supported command-line options (`--seasons`, `--teams`, `--player-id`, `--all-seasons`), logs warnings describing required design decisions and refers to ROADMAP Phase 3.4, and exits the process with status code 1.
     """
     parser = argparse.ArgumentParser(
@@ -91,7 +89,9 @@ def main():
     parser.add_argument("--seasons", nargs="+", help="Seasons to process")
     parser.add_argument("--teams", nargs="+", help="Specific team abbreviations")
     parser.add_argument("--player-id", type=int, help="Specific player ID")
-    parser.add_argument("--all-seasons", action="store_true", help="All available seasons")
+    parser.add_argument(
+        "--all-seasons", action="store_true", help="All available seasons"
+    )
 
     _args = parser.parse_args()
 

@@ -5,7 +5,7 @@
     "python.analysis.extraPaths": [
         "./src"
     ],
-    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.typeCheckingMode": "standard",
     "python.analysis.diagnosticSeverityOverrides": {
         "reportOptionalMemberAccess": "none",
         "reportOptionalSubscript": "none",
@@ -13,30 +13,29 @@
         "reportOptionalCall": "none",
         "reportOptionalOperand": "none"
     },
+    "python.analysis.exclude": [
+        "**/reference/**",
+        "**/tests/**",
+        "**/scripts/**",
+        "**/.venv/**"
+    ],
     "ruff.importStrategy": "fromEnvironment",
+    "ruff.configuration": "pyproject.toml",
     "mypy-type-checker.importStrategy": "fromEnvironment",
     "mypy-type-checker.args": [
         "--config-file=pyproject.toml"
     ],
+    "mypy-type-checker.reportingScope": "workspace",
     "[python]": {
         "editor.defaultFormatter": "charliermarsh.ruff",
         "editor.formatOnSave": true,
+        "editor.formatOnSaveMode": "file",
+        "editor.rulers": [
+            88
+        ],
         "editor.codeActionsOnSave": {
             "source.fixAll.ruff": "always",
             "source.organizeImports.ruff": "always"
         }
-    },
-    "cursorpyright.analysis.autoImportCompletions": true,
-    "cursorpyright.analysis.diagnosticMode": "workspace",
-    "cursorpyright.analysis.diagnosticSeverityOverrides": {
-        "reportOptionalMemberAccess": "none",
-        "reportOptionalSubscript": "none",
-        "reportOptionalIterable": "none",
-        "reportOptionalCall": "none",
-        "reportOptionalOperand": "none"
-    },
-    "cursorpyright.analysis.extraPaths": [
-        "./src"
-    ],
-    "cursorpyright.analysis.typeCheckingMode": "basic"
+    }
 }

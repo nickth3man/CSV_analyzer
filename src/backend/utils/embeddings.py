@@ -10,13 +10,12 @@ import hashlib
 import json
 import logging
 import os
+from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +23,9 @@ CACHE_DIR = Path(__file__).parent.parent / "data" / "embeddings_cache"
 EMBEDDING_DIM = 1536  # openai/text-embedding-3-small dimension (OpenRouter)
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_EMBEDDING_MODEL = "openai/text-embedding-3-small"
+
+if TYPE_CHECKING:
+    from openai import OpenAI
 
 
 class EmbeddingService:
@@ -51,13 +53,13 @@ class EmbeddingService:
         )
         self.use_cache = use_cache
         self._cache: dict[str, list[float]] = {}
-        self._openai_client = None
+        self._openai_client: OpenAI | None = None
 
         if use_cache:
             CACHE_DIR.mkdir(parents=True, exist_ok=True)
             self._load_cache()
 
-    def _get_openai_client(self):
+    def _get_openai_client(self) -> OpenAI | None:
         """Lazy-load OpenRouter OpenAI-compatible client."""
         if self._openai_client is None:
             try:
@@ -74,7 +76,9 @@ class EmbeddingService:
                         "OPENROUTER_API_KEY not set, using fallback embeddings"
                     )
             except ImportError:
-                logger.warning("OpenAI package not available, using fallback embeddings")
+                logger.warning(
+                    "OpenAI package not available, using fallback embeddings"
+                )
         return self._openai_client
 
     def _load_cache(self) -> None:
@@ -102,7 +106,12 @@ class EmbeddingService:
 
     def _get_cache_key(self, text: str) -> str:
         """Generate a cache key for text."""
-        return hashlib.md5(text.encode()).hexdigest()
+        return hashlib.sha256(text.encode()).hexdigest()
+
+    @staticmethod
+    def _normalize_embedding(embedding: list[float] | Any) -> list[float]:
+        """Normalize embeddings into a list of floats."""
+        return [float(value) for value in embedding]
 
     def embed_text(self, text: str) -> list[float]:
         """Generate embedding vector for text.
@@ -126,7 +135,7 @@ class EmbeddingService:
                     input=text,
                     model=self.model,
                 )
-                embedding = response.data[0].embedding
+                embedding = self._normalize_embedding(response.data[0].embedding)
 
                 if self.use_cache:
                     self._cache[cache_key] = embedding
@@ -171,7 +180,7 @@ class EmbeddingService:
                     )
                     for j, embedding_data in enumerate(response.data):
                         idx = uncached_indices[j]
-                        embedding = embedding_data.embedding
+                        embedding = self._normalize_embedding(embedding_data.embedding)
 
                         for k, (result_idx, _) in enumerate(results):
                             if result_idx == idx:
@@ -224,7 +233,7 @@ class EmbeddingService:
         embedding = [0.0] * EMBEDDING_DIM
 
         for i, word in enumerate(words):
-            word_hash = int(hashlib.md5(word.encode()).hexdigest(), 16)
+            word_hash = int(hashlib.sha256(word.encode()).hexdigest(), 16)
             for j in range(min(10, EMBEDDING_DIM)):
                 idx = (word_hash + j * 97) % EMBEDDING_DIM
                 embedding[idx] += 1.0 / (i + 1)
@@ -298,19 +307,14 @@ class EmbeddingService:
         return float(np.dot(arr1, arr2) / (norm1 * norm2))
 
 
-_embedding_service: EmbeddingService | None = None
-
-
+@lru_cache(maxsize=1)
 def get_embedding_service() -> EmbeddingService:
     """Get the global embedding service instance.
 
     Returns:
         Embedding service instance.
     """
-    global _embedding_service
-    if _embedding_service is None:
-        _embedding_service = EmbeddingService()
-    return _embedding_service
+    return EmbeddingService()
 
 
 def embed_text(text: str) -> list[float]:

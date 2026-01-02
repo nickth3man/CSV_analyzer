@@ -8,9 +8,9 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any
+from typing import Any, cast
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 from pocketflow import Node
 
 from src.backend.models import QueryComplexity, QueryPlan, SubQuery
@@ -77,7 +77,7 @@ class QueryPlanner(Node):
         exec_res: dict[str, Any],
     ) -> str:
         """Store query plan and return action."""
-        query_plan = exec_res["query_plan"]
+        query_plan = cast("QueryPlan", exec_res["query_plan"])
         shared["query_plan"] = query_plan
 
         if query_plan.complexity == QueryComplexity.COMPLEX:
@@ -118,9 +118,9 @@ class QueryPlanner(Node):
             else QueryComplexity.SIMPLE
         )
 
-        combination_strategy = parsed.get("combination_strategy") or self._infer_strategy(
-            query, complexity
-        )
+        combination_strategy = parsed.get(
+            "combination_strategy"
+        ) or self._infer_strategy(query, complexity)
 
         sub_queries_data = parsed.get("sub_queries", [])
         sub_queries: list[SubQuery] = []

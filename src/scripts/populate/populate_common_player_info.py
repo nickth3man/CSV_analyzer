@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import time
 from typing import Any
 
 import duckdb
@@ -60,6 +61,15 @@ EXPECTED_COLUMNS = [
 ]
 
 
+def _format_duration(seconds: float) -> str:
+    total_seconds = max(0, int(seconds))
+    minutes, secs = divmod(total_seconds, 60)
+    if minutes < 60:
+        return f"{minutes}m{secs:02d}s" if minutes else f"{secs}s"
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}h{minutes:02d}m{secs:02d}s"
+
+
 class CommonPlayerInfoPopulator(BasePopulator):
     """Populate common_player_info with per-player API calls."""
 
@@ -84,12 +94,16 @@ class CommonPlayerInfoPopulator(BasePopulator):
         conn = self.connect()
         player_ids: list[int] = []
 
-        try:
-            rows = conn.execute(
-                "SELECT id, is_active FROM player",
-            ).fetchall()
-        except duckdb.CatalogException:
-            rows = []
+        rows = []
+        for table_name in ("player_gold", "player_silver", "player_raw", "player"):
+            try:
+                rows = conn.execute(
+                    f"SELECT id, is_active FROM {table_name}",
+                ).fetchall()
+                if rows:
+                    break
+            except Exception:
+                rows = []
 
         if rows:
             active_values = {"true", "t", "1", "yes", "y"}
@@ -103,7 +117,11 @@ class CommonPlayerInfoPopulator(BasePopulator):
                 except (TypeError, ValueError):
                     continue
         else:
-            players = self.client.get_active_players() if active_only else self.client.get_all_players()
+            players = (
+                self.client.get_active_players()
+                if active_only
+                else self.client.get_all_players()
+            )
             player_ids = [p["id"] for p in players if "id" in p]
 
         if limit:
@@ -112,18 +130,21 @@ class CommonPlayerInfoPopulator(BasePopulator):
 
     def _load_existing_ids(self) -> set[int]:
         conn = self.connect()
-        try:
-            rows = conn.execute(
-                "SELECT DISTINCT person_id FROM common_player_info",
-            ).fetchall()
-            return {int(row[0]) for row in rows if row and row[0] is not None}
-        except duckdb.CatalogException:
-            return set()
+        for table_name in ("common_player_info_raw", "common_player_info"):
+            try:
+                rows = conn.execute(
+                    f"SELECT DISTINCT person_id FROM {table_name}",
+                ).fetchall()
+                return {int(row[0]) for row in rows if row and row[0] is not None}
+            except Exception:
+                continue
+        return set()
 
     def fetch_data(self, **kwargs) -> pd.DataFrame | None:
         active_only = kwargs.get("active_only", False)
         limit = kwargs.get("limit")
         resume = kwargs.get("resume", True)
+        log_every = max(1, int(kwargs.get("log_every", 100)))
 
         player_ids = self._load_player_ids(active_only=active_only, limit=limit)
         if not player_ids:
@@ -131,26 +152,114 @@ class CommonPlayerInfoPopulator(BasePopulator):
             return None
 
         existing_ids = self._load_existing_ids()
+        if existing_ids:
+            player_ids = [pid for pid in player_ids if pid not in existing_ids]
         data_frames: list[pd.DataFrame] = []
 
+        total_requests = len(player_ids)
+        logger.info(
+            "Fetching common_player_info for %s players (active_only=%s, limit=%s)",
+            total_requests,
+            active_only,
+            limit,
+        )
+        logger.info(
+            "timeout=%s | delay=%s | max_retries=%s",
+            self.client.config.timeout,
+            self.client.config.request_delay,
+            self.client.config.max_retries,
+        )
+        logger.info(
+            "Estimated minimum runtime (delay only): %s",
+            _format_duration(total_requests * self.client.config.request_delay),
+        )
+
+        start_time = time.monotonic()
+        processed = 0
+        fetched = 0
+        skipped = 0
+        errors = 0
+
+        def log_progress(force: bool = False) -> None:
+            if not force and processed % log_every != 0:
+                return
+            elapsed = time.monotonic() - start_time
+            avg = elapsed / processed if processed else 0
+            remaining = (total_requests - processed) * avg
+            pct = (processed / total_requests) * 100 if total_requests else 0.0
+            logger.info(
+                "Progress: %s/%s (%.1f%%) | fetched=%s skipped=%s errors=%s | elapsed=%s eta=%s",
+                processed,
+                total_requests,
+                pct,
+                fetched,
+                skipped,
+                errors,
+                _format_duration(elapsed),
+                _format_duration(remaining),
+            )
+
         for idx, player_id in enumerate(player_ids, start=1):
+            processed += 1
             if player_id in existing_ids:
+                skipped += 1
+                log_progress()
                 continue
             if resume and self.progress.is_completed(str(player_id)):
+                skipped += 1
+                log_progress()
                 continue
 
-            df = self.client.get_common_player_info(player_id)
+            logger.info(
+                "[%s/%s] Fetching player_id=%s", processed, total_requests, player_id
+            )
+            call_start = time.monotonic()
+            self.metrics.api_calls += 1
+            try:
+                df = self.client.get_common_player_info(player_id)
+            except Exception as exc:
+                errors += 1
+                self.progress.add_error(str(player_id), str(exc))
+                logger.warning(
+                    "[%s/%s] Failed player_id=%s after %.1fs: %s",
+                    processed,
+                    total_requests,
+                    player_id,
+                    time.monotonic() - call_start,
+                    exc,
+                )
+                log_progress()
+                continue
             if df is None or df.empty:
+                logger.info(
+                    "[%s/%s] No data for player_id=%s (%.1fs)",
+                    processed,
+                    total_requests,
+                    player_id,
+                    time.monotonic() - call_start,
+                )
+                log_progress()
                 continue
 
             data_frames.append(df)
             self._fetched_keys.append(str(player_id))
+            fetched += 1
+            logger.info(
+                "[%s/%s] Added player_id=%s (%.1fs)",
+                processed,
+                total_requests,
+                player_id,
+                time.monotonic() - call_start,
+            )
+            log_progress()
 
             if idx % 100 == 0:
                 logger.info("Fetched %s/%s players", idx, len(player_ids))
 
         if not data_frames:
             return None
+
+        log_progress(force=True)
 
         return pd.concat(data_frames, ignore_index=True)
 
@@ -187,7 +296,9 @@ def populate_common_player_info(
     dry_run: bool = False,
 ) -> dict[str, Any]:
     client = get_client()
-    populator = CommonPlayerInfoPopulator(db_path=db_path or str(get_db_path()), client=client)
+    populator = CommonPlayerInfoPopulator(
+        db_path=db_path or str(get_db_path()), client=client
+    )
     return populator.run(
         active_only=active_only,
         limit=limit,
@@ -201,7 +312,9 @@ def main() -> None:
         description="Populate common_player_info from NBA API",
     )
     parser.add_argument("--db", default=None, help="Database path")
-    parser.add_argument("--active-only", action="store_true", help="Only active players")
+    parser.add_argument(
+        "--active-only", action="store_true", help="Only active players"
+    )
     parser.add_argument("--limit", type=int, help="Limit number of players")
     parser.add_argument("--reset-progress", action="store_true", help="Reset progress")
     parser.add_argument("--dry-run", action="store_true", help="Skip database writes")

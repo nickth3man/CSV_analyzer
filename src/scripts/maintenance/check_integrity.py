@@ -21,6 +21,7 @@ Reference: docs/roadmap.md Phase 4.5
 """
 
 import contextlib
+from typing import Any
 
 import duckdb
 
@@ -28,7 +29,7 @@ import duckdb
 DATABASE = "src/backend/data/nba.duckdb"
 
 
-def check_integrity() -> None:
+def check_integrity(db_path: str | None = None) -> dict[str, Any]:
     """Validate and enforce primary key and foreign key integrity for tables in the DuckDB database.
 
     Checks a set of primary-key candidates and, when every row has a unique, non-null key,
@@ -39,17 +40,30 @@ def check_integrity() -> None:
     but errors are suppressed. The function opens a DuckDB connection to DATABASE and
     closes it before returning.
     """
-    con = duckdb.connect(DATABASE)
+    db_path = db_path or DATABASE
+    con = duckdb.connect(db_path)
+
+    results = {"pk_checks": [], "fk_checks": [], "error_count": 0}
 
     # 1. Check Primary Keys
     pk_candidates = [
-        ("team_silver", "id"),
-        ("player_silver", "id"),
-        ("game_silver", "game_id"),
+        ("team_gold", "id"),
+        ("player_gold", "id"),
+        ("games", "game_id"),
     ]
 
     for table, pk in pk_candidates:
         try:
+            # Check if table exists first
+            table_exists = (
+                con.sql(
+                    f"SELECT count(*) FROM information_schema.tables WHERE table_name = '{table}'"
+                ).fetchone()[0]
+                > 0
+            )
+            if not table_exists:
+                continue
+
             row = con.sql(f"SELECT count(*) FROM {table}").fetchone()
             total = row[0] if row else 0
             row = con.sql(f"SELECT count(DISTINCT {pk}) FROM {table}").fetchone()
@@ -59,43 +73,70 @@ def check_integrity() -> None:
             ).fetchone()
             nulls = row[0] if row else 0
 
-            if total == unique and nulls == 0:
+            status = "Passed"
+            if total != unique or nulls > 0:
+                status = "Failed"
+                results["error_count"] += 1
+
+            results["pk_checks"].append(
+                {
+                    "table": table,
+                    "column": pk,
+                    "total": total,
+                    "unique": unique,
+                    "nulls": nulls,
+                    "status": status,
+                }
+            )
+
+            if status == "Passed":
                 # We can explicitly add the constraint in DuckDB
                 try:
                     con.sql(f"ALTER TABLE {table} ALTER {pk} SET NOT NULL")
-                    con.sql(
-                        f"CREATE UNIQUE INDEX idx_{table}_{pk} ON {table} ({pk})",
-                    )  # DuckDB PK syntax via index usually or just PK constraint
                     # DuckDB support for adding PK to existing table is limited, index works for performance.
+                    con.sql(
+                        f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{table}_{pk} ON {table} ({pk})"
+                    )
                     # Standard SQL: ALTER TABLE t ADD PRIMARY KEY (id)
+                    # Note: DuckDB might fail if PK already exists or table was created without it
                     con.sql(f"ALTER TABLE {table} ADD PRIMARY KEY ({pk})")
                 except Exception:
                     pass
-            else:
-                pass
-        except Exception:
-            pass
+        except Exception as e:
+            results["error_count"] += 1
+            results["pk_checks"].append(
+                {"table": table, "column": pk, "status": "Error", "error": str(e)}
+            )
 
     # 2. Check Foreign Keys
-    # TODO: ROADMAP Phase 1.4 - Expand FK checks to cover additional relationships
-    # Missing FK checks:
-    # - player_game_stats.player_id -> player_silver.id
-    # - player_game_stats.team_id -> team_silver.id
-    # - player_game_stats.game_id -> game_gold.game_id
-    # - team_game_stats.team_id -> team_silver.id
-    # - team_game_stats.game_id -> game_gold.game_id
-    # Reference: docs/roadmap.md Phase 1.4
     fk_checks = [
-        ("game_silver", "team_id_home", "team_silver", "id"),
-        ("game_silver", "team_id_away", "team_silver", "id"),
-        ("common_player_info_silver", "person_id", "player_silver", "id"),
-        ("player_game_stats", "player_id", "player_silver", "id"),
-        ("player_game_stats", "team_id", "team_silver", "id"),
-        ("player_game_stats", "game_id", "game_gold", "game_id"),
+        ("games", "home_team_id", "team_gold", "id"),
+        ("games", "visitor_team_id", "team_gold", "id"),
+        ("common_player_info_silver", "person_id", "player_gold", "id"),
+        ("player_game_stats", "player_id", "player_gold", "id"),
+        ("player_game_stats", "team_id", "team_gold", "id"),
+        ("player_game_stats", "game_id", "games", "game_id"),
     ]
 
     for child_table, child_col, parent_table, parent_col in fk_checks:
         try:
+            # Check if tables exist
+            child_exists = (
+                con.sql(
+                    f"SELECT count(*) FROM information_schema.tables WHERE table_name = '{child_table}'"
+                ).fetchone()[0]
+                > 0
+            )
+            parent_exists = (
+                con.sql(
+                    f"SELECT count(*) FROM information_schema.tables WHERE table_name = '{parent_table}'"
+                ).fetchone()[0]
+                > 0
+            )
+
+            if not child_exists or not parent_exists:
+                continue
+
             # count orphans
             query = f"""
                 SELECT count(DISTINCT c.{child_col})
@@ -106,27 +147,59 @@ def check_integrity() -> None:
             row = con.sql(query).fetchone()
             orphan_count = row[0] if row else 0
 
-            if orphan_count == 0:
-                # Adding FK constraint
-                with contextlib.suppress(Exception):
-                    con.sql(
-                        f"ALTER TABLE {child_table} ADD FOREIGN KEY ({child_col}) REFERENCES {parent_table}({parent_col})",
-                    )
-            else:
+            status = "Passed"
+            orphans = []
+            if orphan_count > 0:
+                status = "Failed"
+                results["error_count"] += 1
                 # Show sample orphans
-                con.sql(f"""
+                orphans = [
+                    r[0]
+                    for r in con.sql(f"""
                     SELECT DISTINCT c.{child_col}
                     FROM {child_table} c
                     LEFT JOIN {parent_table} p ON c.{child_col} = p.{parent_col}
                     WHERE p.{parent_col} IS NULL AND c.{child_col} IS NOT NULL
                     LIMIT 3
                 """).fetchall()
+                ]
 
-        except Exception:
-            pass
+            results["fk_checks"].append(
+                {
+                    "child_table": child_table,
+                    "child_col": child_col,
+                    "parent_table": parent_table,
+                    "parent_col": parent_col,
+                    "orphan_count": orphan_count,
+                    "status": status,
+                    "sample_orphans": orphans,
+                }
+            )
+
+            if status == "Passed":
+                # Adding FK constraint
+                with contextlib.suppress(Exception):
+                    con.sql(
+                        f"ALTER TABLE {child_table} ADD FOREIGN KEY ({child_col}) REFERENCES {parent_table}({parent_col})",
+                    )
+
+        except Exception as e:
+            results["error_count"] += 1
+            results["fk_checks"].append(
+                {
+                    "child_table": child_table,
+                    "child_col": child_col,
+                    "status": "Error",
+                    "error": str(e),
+                }
+            )
 
     con.close()
+    return results
 
 
 if __name__ == "__main__":
-    check_integrity()
+    import json
+
+    results = check_integrity()
+    print(json.dumps(results, indent=2))

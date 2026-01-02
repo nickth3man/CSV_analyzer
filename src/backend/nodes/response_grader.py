@@ -10,12 +10,13 @@ import logging
 import re
 from typing import Any
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 from pocketflow import Node
 
-from src.backend.models import GradeStatus, GraderFeedback
+from src.backend.models import GraderFeedback, GradeStatus
 from src.backend.utils.call_llm import call_llm
 from src.backend.utils.logger import get_logger
+
 
 logger = logging.getLogger(__name__)
 
@@ -201,10 +202,10 @@ class ResponseGrader(Node):
                     return "Empty result set"
 
                 if len(result) > 20:
-                    result_str = result.head(20).to_string()
+                    result_str = str(result.head(20).to_string())
                     result_str += f"\n... ({len(result) - 20} more rows)"
                 else:
-                    result_str = result.to_string()
+                    result_str = str(result.to_string())
 
                 return result_str
 
@@ -213,9 +214,7 @@ class ResponseGrader(Node):
 
         return str(result)[:2000]
 
-    def _format_sql_block(
-        self, sql_query: str, sub_query_sqls: dict[str, str]
-    ) -> str:
+    def _format_sql_block(self, sql_query: str, sub_query_sqls: dict[str, str]) -> str:
         """Format SQL block for grading."""
         if sub_query_sqls:
             lines = []
@@ -246,10 +245,7 @@ class ResponseGrader(Node):
         """
         try:
             yaml_match = re.search(r"```yaml\s*(.*?)\s*```", response, re.DOTALL)
-            if yaml_match:
-                yaml_str = yaml_match.group(1)
-            else:
-                yaml_str = response.strip()
+            yaml_str = yaml_match.group(1) if yaml_match else response.strip()
 
             result = yaml.safe_load(yaml_str)
 

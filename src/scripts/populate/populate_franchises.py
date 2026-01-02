@@ -67,13 +67,12 @@ logger = logging.getLogger(__name__)
 
 
 def populate_franchises(*args, **kwargs):
-    """
-    Populate the franchises table with complete franchise history and lineage data.
-    
+    """Populate the franchises table with complete franchise history and lineage data.
+
     This function is intended to ingest franchise history (relocations, name changes, eras),
     store canonical franchise timelines, and associate championships with the correct franchise eras.
     Currently unimplemented.
-    
+
     Raises:
         NotImplementedError: Always raised until the population logic required by docs/roadmap.md Phase 4.2 is implemented.
     """
@@ -86,17 +85,17 @@ def populate_franchises(*args, **kwargs):
 
 
 def main():
-    """
-    CLI entry point that reports the franchises-population feature is not implemented and exits.
-    
+    """CLI entry point that reports the franchises-population feature is not implemented and exits.
+
     Logs warning messages describing the placeholder status and required roadmap decisions, then terminates the process with exit code 1.
     """
     parser = argparse.ArgumentParser(
         description="Populate franchises data (NOT YET IMPLEMENTED)",
     )
     parser.add_argument("--teams", nargs="+", help="Specific team abbreviations")
-    parser.add_argument("--include-defunct", action="store_true",
-                        help="Include defunct franchises")
+    parser.add_argument(
+        "--include-defunct", action="store_true", help="Include defunct franchises"
+    )
 
     _args = parser.parse_args()
 

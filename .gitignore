@@ -126,3 +126,5 @@ interrogate_badge.svg
 
 # Reference documentation (cloned external repos)
 reference/nba_api/
+/.reference/basketball_reference_web_scraper-4
+/.reference/nba_api-master

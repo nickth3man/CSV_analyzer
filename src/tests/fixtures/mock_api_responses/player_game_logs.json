@@ -1,0 +1,100 @@
+{
+  "player_2544_2023-24": {
+    "description": "LeBron James game logs for 2023-24 Regular Season",
+    "data": [
+      {
+        "SEASON_ID": "22023",
+        "Player_ID": 2544,
+        "Game_ID": "0022300001",
+        "GAME_DATE": "OCT 24, 2023",
+        "MATCHUP": "LAL vs. DEN",
+        "WL": "L",
+        "MIN": "35:42",
+        "FGM": 8,
+        "FGA": 18,
+        "FG_PCT": 0.444,
+        "FG3M": 2,
+        "FG3A": 6,
+        "FG3_PCT": 0.333,
+        "FTM": 5,
+        "FTA": 6,
+        "FT_PCT": 0.833,
+        "OREB": 1,
+        "DREB": 6,
+        "REB": 7,
+        "AST": 8,
+        "STL": 1,
+        "BLK": 0,
+        "TOV": 3,
+        "PF": 2,
+        "PTS": 23,
+        "PLUS_MINUS": -5
+      },
+      {
+        "SEASON_ID": "22023",
+        "Player_ID": 2544,
+        "Game_ID": "0022300002",
+        "GAME_DATE": "OCT 26, 2023",
+        "MATCHUP": "LAL @ PHX",
+        "WL": "W",
+        "MIN": "38:15",
+        "FGM": 12,
+        "FGA": 22,
+        "FG_PCT": 0.545,
+        "FG3M": 3,
+        "FG3A": 8,
+        "FG3_PCT": 0.375,
+        "FTM": 4,
+        "FTA": 5,
+        "FT_PCT": 0.800,
+        "OREB": 2,
+        "DREB": 9,
+        "REB": 11,
+        "AST": 6,
+        "STL": 2,
+        "BLK": 1,
+        "TOV": 2,
+        "PF": 3,
+        "PTS": 31,
+        "PLUS_MINUS": 12
+      }
+    ]
+  },
+  "player_201566_2023-24": {
+    "description": "Russell Westbrook game logs for 2023-24 Regular Season",
+    "data": [
+      {
+        "SEASON_ID": "22023",
+        "Player_ID": 201566,
+        "Game_ID": "0022300001",
+        "GAME_DATE": "OCT 24, 2023",
+        "MATCHUP": "LAC vs. POR",
+        "WL": "W",
+        "MIN": "28:30",
+        "FGM": 6,
+        "FGA": 14,
+        "FG_PCT": 0.429,
+        "FG3M": 1,
+        "FG3A": 4,
+        "FG3_PCT": 0.250,
+        "FTM": 2,
+        "FTA": 3,
+        "FT_PCT": 0.667,
+        "OREB": 1,
+        "DREB": 4,
+        "REB": 5,
+        "AST": 7,
+        "STL": 2,
+        "BLK": 0,
+        "TOV": 4,
+        "PF": 3,
+        "PTS": 15,
+        "PLUS_MINUS": 8
+      }
+    ]
+  },
+  "empty_response": {
+    "description": "Empty response for player with no games",
+    "data": []
+  }
+}

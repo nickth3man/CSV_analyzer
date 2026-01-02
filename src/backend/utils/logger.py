@@ -12,8 +12,9 @@ import logging
 import threading
 import time
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import lru_cache
 from typing import Any
 
 from src.backend.models import ExecutionTrace, NodeExecution
@@ -103,9 +104,7 @@ class StructuredLogger:
         with self._lock:
             trace = self._traces.get(trace_id)
             if trace:
-                trace.total_latency_ms = int(
-                    (time.time() - context.start_time) * 1000
-                )
+                trace.total_latency_ms = int((time.time() - context.start_time) * 1000)
                 self._emit_log(
                     event="trace_end",
                     trace_id=trace_id,
@@ -203,7 +202,7 @@ class StructuredLogger:
                 if cached:
                     trace.cache_hits += 1
 
-        prompt_hash = hashlib.md5(prompt.encode()).hexdigest()[:8]
+        prompt_hash = hashlib.sha256(prompt.encode()).hexdigest()[:8]
 
         self._emit_log(
             event="llm_call",
@@ -231,7 +230,7 @@ class StructuredLogger:
             error: Error message if failed.
         """
         context = self._get_context()
-        sql_hash = hashlib.md5(sql.encode()).hexdigest()[:8]
+        sql_hash = hashlib.sha256(sql.encode()).hexdigest()[:8]
 
         self._emit_log(
             event="sql_execution",
@@ -334,7 +333,7 @@ class StructuredLogger:
         Returns:
             Truncated data.
         """
-        result = {}
+        result: dict[str, Any] = {}
         for key, value in data.items():
             if isinstance(value, str) and len(value) > max_length:
                 result[key] = value[:max_length] + "..."
@@ -347,16 +346,11 @@ class StructuredLogger:
         return result
 
 
-_logger_instance: StructuredLogger | None = None
-
-
+@lru_cache(maxsize=1)
 def get_logger() -> StructuredLogger:
     """Get the global structured logger instance.
 
     Returns:
         The structured logger.
     """
-    global _logger_instance
-    if _logger_instance is None:
-        _logger_instance = StructuredLogger()
-    return _logger_instance
+    return StructuredLogger()

@@ -12,7 +12,7 @@ from src.backend.config import get_config
 from src.backend.flow import create_analyst_flow
 from src.backend.utils.logger import get_logger
 from src.backend.utils.memory import get_memory
-from .data_utils import get_schema_info, get_table_names
+from src.frontend.data_utils import get_schema_info, get_table_names
 
 
 logger = logging.getLogger(__name__)

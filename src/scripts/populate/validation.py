@@ -234,7 +234,9 @@ class DataValidator:
         }
 
     def validate_data_completeness(
-        self, df: pd.DataFrame, expected_fields: list[str],
+        self,
+        df: pd.DataFrame,
+        expected_fields: list[str],
     ) -> dict[str, Any]:
         """Validate data completeness by checking for missing values.
 
@@ -341,7 +343,10 @@ class DataValidator:
         }
 
     def generate_validation_report(
-        self, data_type: str, df: pd.DataFrame, **kwargs,
+        self,
+        data_type: str,
+        df: pd.DataFrame,
+        **kwargs,
     ) -> dict[str, Any]:
         """Generate a comprehensive validation report.
 
@@ -377,7 +382,8 @@ class DataValidator:
         # Additional validations
         if "expected_fields" in kwargs:
             completeness_result = self.validate_data_completeness(
-                df, kwargs["expected_fields"],
+                df,
+                kwargs["expected_fields"],
             )
             report["completeness"] = completeness_result
 

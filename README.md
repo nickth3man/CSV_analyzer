@@ -160,8 +160,10 @@ uv run python -m src.scripts.populate.cli all
 # Or run individual steps:
 uv run python -m src.scripts.populate.cli init            # Initialize schema
 uv run python -m src.scripts.populate.cli load-csv        # Load CSV files
-uv run python -m src.scripts.populate.cli normalize       # Normalize data types
 uv run python -m src.scripts.populate.cli player-games --seasons 2024-25  # Fetch from API
+uv run python -m src.scripts.populate.cli normalize       # Normalize data types
+uv run python -m src.scripts.populate.cli gold-entities   # Create gold entities
+uv run python -m src.scripts.populate.cli gold-tables     # Create canonical tables
 uv run python -m src.scripts.populate.cli season-stats    # Create aggregated stats
 ```
 
@@ -173,6 +175,8 @@ uv run python -m src.scripts.populate.cli season-stats    # Create aggregated st
 | `info` | Show database information and table row counts |
 | `load-csv` | Load data from CSV files in `src/backend/data/raw/csv/` |
 | `normalize` | Normalize data types and create silver tables |
+| `gold-entities` | Create gold entity tables (player_gold, team_gold) |
+| `gold-tables` | Create canonical tables (games, team_game_stats, player_game_stats) |
 | `player-games` | Fetch player game stats from NBA API (bulk) |
 | `player-games-legacy` | Fetch player game stats (per-player, slower) |
 | `play-by-play` | Fetch play-by-play data for games |
@@ -181,21 +185,22 @@ uv run python -m src.scripts.populate.cli season-stats    # Create aggregated st
 
 ### Database Contents
 
-After running `load-csv`, the database contains:
+After running `load-csv`, the database contains raw landing tables:
 
 | Table | Source | Description |
 |-------|--------|-------------|
-| `player` | CSV | Player master data (~4,800 players) |
-| `team` | CSV | NBA team information (30 teams) |
-| `game` | CSV | Historical game records (~65,000 games) |
-| `common_player_info` | CSV | Detailed player biographical info |
-| `draft_history` | CSV | NBA draft history |
+| `player_raw` | CSV | Player master data (~4,800 players) |
+| `team_raw` | CSV | NBA team information (30 teams) |
+| `game_raw` | CSV | Historical game records (~65,000 games) |
+| `common_player_info_raw` | CSV | Detailed player biographical info |
+| `draft_history_raw` | CSV | NBA draft history |
 
-After running `player-games`:
+After running `player-games` (raw) and then `normalize` + `gold-tables`:
 
 | Table | Source | Description |
 |-------|--------|-------------|
-| `player_game_stats` | API | Player box scores per game |
+| `player_game_stats_raw` | API | Player box scores per game (raw landing) |
+| `player_game_stats` | Canonical | Player box scores per game (typed/canonical) |
 | `player_season_stats` | Aggregated | Season averages |
 
 ## Example Questions

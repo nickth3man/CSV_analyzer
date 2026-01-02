@@ -8,18 +8,21 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 from pocketflow import Node
 
-from src.backend.models import TableMeta
 from src.backend.utils.call_llm import call_llm
 from src.backend.utils.duckdb_client import get_duckdb_client
 from src.backend.utils.embeddings import embed_text, find_similar
 from src.backend.utils.logger import get_logger
 
+
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from src.backend.models import TableMeta
 
 
 TABLE_SELECTION_PROMPT = """Given a user question about NBA data, select the most relevant tables.
@@ -31,6 +34,9 @@ Candidate tables (pre-filtered by relevance):
 
 Select 3-5 tables that would be needed to answer this question.
 Consider:
+- Prefer `_gold` tables for canonical, deduplicated data.
+- Use `_silver` tables for normalized data if a `_gold` version isn't available.
+- Avoid `_raw` tables unless absolutely necessary (they are untyped landing tables).
 - Which tables contain the metrics mentioned?
 - Which tables would need to be JOINed?
 - Are there lookup/dimension tables needed?
@@ -209,9 +215,7 @@ class TableSelector(Node):
 
         return embeddings
 
-    def _llm_select_tables(
-        self, query: str, candidates: list[TableMeta]
-    ) -> list[str]:
+    def _llm_select_tables(self, query: str, candidates: list[TableMeta]) -> list[str]:
         """Use LLM to select most relevant tables from candidates.
 
         Args:
@@ -254,10 +258,7 @@ class TableSelector(Node):
         """
         try:
             yaml_match = re.search(r"```yaml\s*(.*?)\s*```", response, re.DOTALL)
-            if yaml_match:
-                yaml_str = yaml_match.group(1)
-            else:
-                yaml_str = response.strip()
+            yaml_str = yaml_match.group(1) if yaml_match else response.strip()
 
             result = yaml.safe_load(yaml_str)
 

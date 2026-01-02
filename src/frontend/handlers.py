@@ -8,10 +8,10 @@ import os
 import chainlit as cl
 from chainlit.input_widget import Select, TextInput
 
-from .commands import handle_command
-from .config import EXAMPLE_QUESTIONS, fetch_openrouter_models
-from .data_utils import get_table_names
-from .steps import (
+from src.frontend.commands import handle_command
+from src.frontend.config import EXAMPLE_QUESTIONS, fetch_openrouter_models
+from src.frontend.data_utils import get_table_names
+from src.frontend.steps import (
     display_result_with_streaming,
     step_load_data,
     step_run_analysis,

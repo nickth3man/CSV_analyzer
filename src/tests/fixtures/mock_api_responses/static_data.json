@@ -1,0 +1,92 @@
+{
+  "players": {
+    "description": "Sample player static data",
+    "data": [
+      {
+        "id": 2544,
+        "full_name": "LeBron James",
+        "first_name": "LeBron",
+        "last_name": "James",
+        "is_active": true
+      },
+      {
+        "id": 201566,
+        "full_name": "Russell Westbrook",
+        "first_name": "Russell",
+        "last_name": "Westbrook",
+        "is_active": true
+      },
+      {
+        "id": 101108,
+        "full_name": "Chris Paul",
+        "first_name": "Chris",
+        "last_name": "Paul",
+        "is_active": true
+      },
+      {
+        "id": 203507,
+        "full_name": "Giannis Antetokounmpo",
+        "first_name": "Giannis",
+        "last_name": "Antetokounmpo",
+        "is_active": true
+      },
+      {
+        "id": 203999,
+        "full_name": "Nikola Jokic",
+        "first_name": "Nikola",
+        "last_name": "Jokic",
+        "is_active": true
+      }
+    ]
+  },
+  "teams": {
+    "description": "Sample team static data",
+    "data": [
+      {
+        "id": 1610612747,
+        "full_name": "Los Angeles Lakers",
+        "abbreviation": "LAL",
+        "nickname": "Lakers",
+        "city": "Los Angeles",
+        "state": "California",
+        "year_founded": 1948
+      },
+      {
+        "id": 1610612744,
+        "full_name": "Golden State Warriors",
+        "abbreviation": "GSW",
+        "nickname": "Warriors",
+        "city": "San Francisco",
+        "state": "California",
+        "year_founded": 1946
+      },
+      {
+        "id": 1610612751,
+        "full_name": "Brooklyn Nets",
+        "abbreviation": "BKN",
+        "nickname": "Nets",
+        "city": "Brooklyn",
+        "state": "New York",
+        "year_founded": 1967
+      },
+      {
+        "id": 1610612738,
+        "full_name": "Boston Celtics",
+        "abbreviation": "BOS",
+        "nickname": "Celtics",
+        "city": "Boston",
+        "state": "Massachusetts",
+        "year_founded": 1946
+      },
+      {
+        "id": 1610612748,
+        "full_name": "Miami Heat",
+        "abbreviation": "MIA",
+        "nickname": "Heat",
+        "city": "Miami",
+        "state": "Florida",
+        "year_founded": 1988
+      }
+    ]
+  }
+}

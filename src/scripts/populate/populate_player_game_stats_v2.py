@@ -25,9 +25,6 @@ Usage:
 
     # With custom delay for rate limiting
     python scripts/populate/populate_player_game_stats_v2.py --delay 1.0
-
-Based on nba_api documentation:
-- reference/nba_api/src/nba_api/stats/endpoints/playergamelogs.py
 """
 
 import argparse
@@ -36,7 +33,6 @@ import sys
 import time
 from typing import Any, cast
 
-import duckdb
 import pandas as pd
 
 from src.scripts.populate.api_client import get_client
@@ -216,13 +212,13 @@ class PlayerGameStatsPopulator(BasePopulator):
         # PlayerGameLogs columns: GAME_ID, PLAYER_ID, PLAYER_NAME, TEAM_ID, etc.
 
         output["game_id"] = cast(
-            pd.Series, pd.to_numeric(df["GAME_ID"], errors="coerce")
+            "pd.Series", pd.to_numeric(df["GAME_ID"], errors="coerce")
         ).astype("Int64")
         output["team_id"] = cast(
-            pd.Series, pd.to_numeric(df["TEAM_ID"], errors="coerce")
+            "pd.Series", pd.to_numeric(df["TEAM_ID"], errors="coerce")
         ).astype("Int64")
         output["player_id"] = cast(
-            pd.Series, pd.to_numeric(df["PLAYER_ID"], errors="coerce")
+            "pd.Series", pd.to_numeric(df["PLAYER_ID"], errors="coerce")
         ).astype("Int64")
         output["player_name"] = df["PLAYER_NAME"].fillna("")
 
@@ -258,7 +254,7 @@ class PlayerGameStatsPopulator(BasePopulator):
         for api_col, our_col in int_cols:
             if api_col in df.columns:
                 output[our_col] = cast(
-                    pd.Series, pd.to_numeric(df[api_col], errors="coerce")
+                    "pd.Series", pd.to_numeric(df[api_col], errors="coerce")
                 ).astype("Int64")
             else:
                 output[our_col] = None
@@ -287,7 +283,7 @@ class PlayerGameStatsPopulator(BasePopulator):
             if col not in output.columns:
                 output[col] = None
 
-        return cast(pd.DataFrame, output[PLAYER_GAME_STATS_COLUMNS])
+        return cast("pd.DataFrame", output[PLAYER_GAME_STATS_COLUMNS])
 
     def _parse_minutes(self, min_val) -> str | None:
         """Convert a minutes value to a normalized string or return None for missing values.
@@ -305,58 +301,8 @@ class PlayerGameStatsPopulator(BasePopulator):
         return str(min_val)
 
     def pre_run_hook(self, **kwargs) -> None:
-        """Ensure the target table exists, creating it if missing.
-
-        Checks for the presence of the table named by get_table_name(); if the
-        table does not exist, creates it by calling _create_table. Also resets
-        the list of fetched season keys for the current run.
-        """
-        # Reset fetched keys for this run
+        """Reset fetched keys for this run."""
         self._fetched_season_keys = []
-        conn = self.connect()
-
-        # Check if table exists
-        try:
-            conn.execute(f"SELECT 1 FROM {self.get_table_name()} LIMIT 1")
-            logger.info(f"Table {self.get_table_name()} exists")
-        except duckdb.CatalogException:
-            logger.info(f"Creating table {self.get_table_name()}...")
-            self._create_table(conn)
-
-    def _create_table(self, conn: duckdb.DuckDBPyConnection) -> None:
-        """Create the player_game_stats table if it doesn't exist."""
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS player_game_stats (
-                game_id BIGINT,
-                team_id BIGINT,
-                player_id BIGINT,
-                player_name VARCHAR,
-                start_position VARCHAR,
-                comment VARCHAR,
-                min VARCHAR,
-                fgm INTEGER,
-                fga INTEGER,
-                fg_pct DOUBLE,
-                fg3m INTEGER,
-                fg3a INTEGER,
-                fg3_pct DOUBLE,
-                ftm INTEGER,
-                fta INTEGER,
-                ft_pct DOUBLE,
-                oreb INTEGER,
-                dreb INTEGER,
-                reb INTEGER,
-                ast INTEGER,
-                stl INTEGER,
-                blk INTEGER,
-                tov INTEGER,
-                pf INTEGER,
-                pts INTEGER,
-                plus_minus DOUBLE,
-                PRIMARY KEY (game_id, player_id)
-            )
-        """)
-        logger.info("Table created successfully")
 
     def post_run_hook(self, **kwargs) -> None:
         """Mark fetched seasons as completed after successful database writes.

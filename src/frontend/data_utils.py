@@ -61,9 +61,7 @@ def get_data_profile() -> str:
     lines = []
     for table in tables:
         rows = f"{table.row_count:,}" if table.row_count is not None else "unknown"
-        lines.append(
-            f"- **{table.name}**: {rows} rows, {len(table.columns)} columns"
-        )
+        lines.append(f"- **{table.name}**: {rows} rows, {len(table.columns)} columns")
 
     return "\n".join(lines)
 
@@ -72,14 +70,14 @@ def preview_table(table_name: str) -> str:
     """Get a preview of a table as markdown."""
     client = get_duckdb_client()
     try:
-        df = client.execute_query(f'SELECT * FROM "{table_name}" LIMIT 20')
+        df = client.get_sample_data(table_name, limit=20)
     except Exception as exc:
         logger.warning("Failed to preview table %s: %s", table_name, exc)
         return f"Unable to preview table '{table_name}'."
 
     if df.empty:
         return f"Table '{table_name}' has no rows."
-    return df.to_markdown(index=False)
+    return str(df.to_markdown(index=False))
 
 
 def get_table_preview_data(table_name: str, max_rows: int = 10) -> dict | None:
@@ -91,9 +89,7 @@ def get_table_preview_data(table_name: str, max_rows: int = 10) -> dict | None:
         return None
 
     try:
-        preview_df = client.execute_query(
-            f'SELECT * FROM "{table_name}" LIMIT {max_rows}'
-        )
+        preview_df = client.get_sample_data(table_name, limit=max_rows)
     except Exception as exc:
         logger.warning("Failed to load preview for %s: %s", table_name, exc)
         return None

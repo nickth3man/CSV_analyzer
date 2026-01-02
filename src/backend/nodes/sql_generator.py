@@ -10,13 +10,14 @@ import logging
 import re
 from typing import Any
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 from pocketflow import Node
 
 from src.backend.models import SQLGenerationAttempt, ValidationResult
 from src.backend.utils.call_llm import call_llm
 from src.backend.utils.duckdb_client import get_duckdb_client
 from src.backend.utils.logger import get_logger
+
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,10 @@ Available Schema:
 
 Rules:
 - Use only columns that exist in the schema above
+- Prefer analytics tables (`team_rolling_metrics`, `player_season_averages`, `team_standings`) for performance and trend questions.
+- Prefer `_gold` tables for canonical, deduplicated data.
+- Use `_silver` tables for normalized data if a `_gold` version isn't available.
+- Avoid `_raw` tables unless absolutely necessary.
 - Use DuckDB SQL syntax (not PostgreSQL or MySQL)
 - Include appropriate JOINs based on foreign key relationships
 - Use aliases for clarity
@@ -95,8 +100,8 @@ class SQLGenerator(Node):
         )
         table_schemas = shared.get("table_schemas", "")
         if sub_query_id:
-            previous_attempts = (
-                shared.get("sub_query_attempts", {}).get(sub_query_id, [])
+            previous_attempts = shared.get("sub_query_attempts", {}).get(
+                sub_query_id, []
             )
             grader_feedback = None
             execution_error = shared.get("sub_query_errors", {}).get(sub_query_id)
@@ -143,10 +148,11 @@ class SQLGenerator(Node):
         sub_query_id = prep_res.get("sub_query_id")
 
         db_client = get_duckdb_client()
-        attempts = []
+        attempts: list[SQLGenerationAttempt] = []
         current_sql = ""
         is_valid = False
         last_errors: list[str] = []
+        parsed: dict[str, str] = {}
 
         for attempt_num in range(self.max_internal_retries):
             self.internal_retries = attempt_num
@@ -196,9 +202,7 @@ class SQLGenerator(Node):
                         warnings=list(getattr(validation, "warnings", [])),
                     )
 
-            schema_errors = self._validate_schema_references(
-                current_sql, table_schemas
-            )
+            schema_errors = self._validate_schema_references(current_sql, table_schemas)
             if schema_errors:
                 validation = ValidationResult(
                     is_valid=False,
@@ -266,7 +270,9 @@ class SQLGenerator(Node):
         get_logger().log_node_end(
             "SQLGenerator",
             {
-                "sql": exec_res["sql"][:200] + "..." if len(exec_res["sql"]) > 200 else exec_res["sql"],
+                "sql": exec_res["sql"][:200] + "..."
+                if len(exec_res["sql"]) > 200
+                else exec_res["sql"],
                 "is_valid": exec_res["is_valid"],
                 "internal_attempts": len(exec_res["attempts"]),
             },
@@ -274,7 +280,9 @@ class SQLGenerator(Node):
         )
 
         if exec_res["is_valid"]:
-            logger.info("Generated valid SQL after %d attempts", len(exec_res["attempts"]))
+            logger.info(
+                "Generated valid SQL after %d attempts", len(exec_res["attempts"])
+            )
             return "valid"
 
         logger.warning("SQL generation failed after max retries")
@@ -323,7 +331,9 @@ class SQLGenerator(Node):
                 )
 
         if execution_error and not context_parts:
-            context_parts.append(f"\nExecution error from previous attempt: {execution_error}")
+            context_parts.append(
+                f"\nExecution error from previous attempt: {execution_error}"
+            )
 
         return "\n".join(context_parts)
 
@@ -342,13 +352,11 @@ class SQLGenerator(Node):
         parts = []
         if hasattr(feedback, "issues") and feedback.issues:
             parts.append("Issues identified by quality check:")
-            for issue in feedback.issues:
-                parts.append(f"  - {issue}")
+            parts.extend(f"  - {issue}" for issue in feedback.issues)
 
         if hasattr(feedback, "suggestions") and feedback.suggestions:
             parts.append("Suggestions for improvement:")
-            for suggestion in feedback.suggestions:
-                parts.append(f"  - {suggestion}")
+            parts.extend(f"  - {suggestion}" for suggestion in feedback.suggestions)
 
         return "\n".join(parts) if parts else ""
 
@@ -361,22 +369,20 @@ class SQLGenerator(Node):
         Returns:
             Dictionary with 'sql' and optionally 'thinking'.
         """
+        parsed: dict[str, Any] = {}
         try:
             yaml_match = re.search(r"```yaml\s*(.*?)\s*```", response, re.DOTALL)
-            if yaml_match:
-                yaml_str = yaml_match.group(1)
-            else:
-                yaml_str = response.strip()
+            yaml_str = yaml_match.group(1) if yaml_match else response.strip()
 
-            result = yaml.safe_load(yaml_str)
+            parsed = yaml.safe_load(yaml_str)
 
-            if isinstance(result, dict):
-                sql = result.get("sql", "")
+            if isinstance(parsed, dict):
+                sql = parsed.get("sql", "")
                 if isinstance(sql, str):
                     sql = sql.strip()
                 return {
                     "sql": sql,
-                    "thinking": result.get("thinking", ""),
+                    "thinking": str(parsed.get("thinking", "")),
                 }
 
         except yaml.YAMLError as e:
@@ -392,9 +398,7 @@ class SQLGenerator(Node):
 
         return {"sql": "", "thinking": ""}
 
-    def _validate_schema_references(
-        self, sql: str, table_schemas: str
-    ) -> list[str]:
+    def _validate_schema_references(self, sql: str, table_schemas: str) -> list[str]:
         """Validate that SQL references only tables/columns in the schema."""
         errors: list[str] = []
 
@@ -424,13 +428,18 @@ class SQLGenerator(Node):
             "outer",
         }
 
-        alias_map: dict[str, str] = {}
-        for _, table, alias in re.findall(from_pattern, sql, re.IGNORECASE):
-            if alias and alias.lower() not in reserved_aliases:
-                alias_map[alias] = table
-        for _, table, alias in re.findall(join_pattern, sql, re.IGNORECASE):
-            if alias and alias.lower() not in reserved_aliases:
-                alias_map[alias] = table
+        alias_map = {
+            alias: table
+            for _, table, alias in re.findall(from_pattern, sql, re.IGNORECASE)
+            if alias and alias.lower() not in reserved_aliases
+        }
+        alias_map.update(
+            {
+                alias: table
+                for _, table, alias in re.findall(join_pattern, sql, re.IGNORECASE)
+                if alias and alias.lower() not in reserved_aliases
+            }
+        )
 
         referenced_tables = {
             table for _, table, _ in re.findall(from_pattern, sql, re.IGNORECASE)
@@ -440,9 +449,13 @@ class SQLGenerator(Node):
         )
 
         available_tables_lower = {t.lower() for t in available_tables}
-        for table in referenced_tables:
-            if table.lower() not in available_tables_lower:
-                errors.append(f"Table '{table}' is not in the available schema")
+        errors.extend(
+            [
+                f"Table '{table}' is not in the available schema"
+                for table in referenced_tables
+                if table.lower() not in available_tables_lower
+            ]
+        )
 
         schema_columns = self._parse_schema_columns(table_schemas)
         column_refs = re.findall(
@@ -455,9 +468,7 @@ class SQLGenerator(Node):
             if columns is None:
                 continue
             if column.lower() not in columns:
-                errors.append(
-                    f"Column '{column}' not found in table '{table_name}'"
-                )
+                errors.append(f"Column '{column}' not found in table '{table_name}'")
 
         return errors
 
@@ -472,8 +483,8 @@ class SQLGenerator(Node):
             table_name = match.group(1)
             column_block = match.group(2)
             columns: set[str] = set()
-            for line in column_block.splitlines():
-                line = line.strip().rstrip(",")
+            for raw_line in column_block.splitlines():
+                line = raw_line.strip().rstrip(",")
                 if not line or line.startswith("--"):
                     continue
                 col_name = line.split()[0].strip("\"'")

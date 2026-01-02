@@ -10,12 +10,10 @@ import logging
 import re
 import threading
 from collections import deque
-from typing import TYPE_CHECKING
+from functools import lru_cache
 
 from src.backend.models import ConversationContext, ConversationTurn, ResolvedReferences
 
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -192,11 +190,36 @@ class ConversationMemory:
         text = f"{turn.question} {turn.rewritten_query or ''} {turn.answer or ''}"
 
         nba_teams = [
-            "Lakers", "Celtics", "Warriors", "Bulls", "Heat", "Nets",
-            "Knicks", "Sixers", "Bucks", "Suns", "Nuggets", "Clippers",
-            "Mavericks", "Grizzlies", "Pelicans", "Timberwolves", "Thunder",
-            "Rockets", "Spurs", "Jazz", "Kings", "Blazers", "Hornets",
-            "Hawks", "Magic", "Pacers", "Pistons", "Cavaliers", "Wizards", "Raptors",
+            "Lakers",
+            "Celtics",
+            "Warriors",
+            "Bulls",
+            "Heat",
+            "Nets",
+            "Knicks",
+            "Sixers",
+            "Bucks",
+            "Suns",
+            "Nuggets",
+            "Clippers",
+            "Mavericks",
+            "Grizzlies",
+            "Pelicans",
+            "Timberwolves",
+            "Thunder",
+            "Rockets",
+            "Spurs",
+            "Jazz",
+            "Kings",
+            "Blazers",
+            "Hornets",
+            "Hawks",
+            "Magic",
+            "Pacers",
+            "Pistons",
+            "Cavaliers",
+            "Wizards",
+            "Raptors",
         ]
 
         for team in nba_teams:
@@ -204,7 +227,9 @@ class ConversationMemory:
                 entities["team"] = team
                 break
 
-        player_pattern = r"(?:LeBron|Stephen Curry|Kevin Durant|Giannis|Luka|Jayson Tatum)"
+        player_pattern = (
+            r"(?:LeBron|Stephen Curry|Kevin Durant|Giannis|Luka|Jayson Tatum)"
+        )
         player_match = re.search(player_pattern, text, re.IGNORECASE)
         if player_match:
             entities["player"] = player_match.group()
@@ -258,25 +283,24 @@ class ConversationMemory:
 
             lines = []
             for i, turn in enumerate(self._turns, 1):
-                q = turn.question[:50] + "..." if len(turn.question) > 50 else turn.question
+                q = (
+                    turn.question[:50] + "..."
+                    if len(turn.question) > 50
+                    else turn.question
+                )
                 lines.append(f"{i}. Q: {q}")
 
             return "\n".join(lines)
 
 
-_memory_instance: ConversationMemory | None = None
-
-
+@lru_cache(maxsize=1)
 def get_memory() -> ConversationMemory:
     """Get the global conversation memory instance.
 
     Returns:
         Conversation memory instance.
     """
-    global _memory_instance
-    if _memory_instance is None:
-        _memory_instance = ConversationMemory()
-    return _memory_instance
+    return ConversationMemory()
 
 
 def add_turn(

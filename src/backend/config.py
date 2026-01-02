@@ -14,10 +14,12 @@ import logging
 import os
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
+from functools import lru_cache
 from pathlib import Path
 
-import yaml
+import yaml  # type: ignore[import-untyped]
+
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +33,7 @@ def get_current_nba_season() -> str:
     NBA season starts in October, so:
     - Oct 2024 - Sep 2025 = "2024-25"
     """
-    now = datetime.now()
+    now = datetime.now(tz=UTC)
     year = now.year
     if now.month >= 10:
         return f"{year}-{str(year + 1)[-2:]}"
@@ -145,19 +147,14 @@ def load_config(config_path: Path | None = None) -> AppConfig:
     return config
 
 
-_config: AppConfig | None = None
-
-
+@lru_cache(maxsize=1)
 def get_config() -> AppConfig:
-    """Get the global configuration instance.
+    """Get the cached configuration instance.
 
     Returns:
         Application configuration.
     """
-    global _config
-    if _config is None:
-        _config = load_config()
-    return _config
+    return load_config()
 
 
 DEFAULT_DATA_DIR = "src/backend/data/raw/csv"

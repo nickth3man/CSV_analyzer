@@ -10,17 +10,16 @@ TODO: ROADMAP Phase 1.2 - Document canonical tables vs raw text tables
 - Reference: docs/roadmap.md Phase 1.2
 
 TODO: ROADMAP Phase 1.5 - Quarantine raw text tables
-- Current Status: Raw text tables (game, player, team) coexist with typed versions
+- Current Status: Raw tables use the '_raw' suffix and are normalized into silver.
 - Recommended actions:
-  1. Rename raw tables with '_raw' suffix (e.g., game -> game_raw)
-  2. Or move to separate schema/database (e.g., 'raw' schema)
-  3. Update documentation to clarify canonical vs raw
-  4. Prevent accidental use of raw tables in queries
+  1. Consider moving raw tables to a separate schema/database (e.g., 'raw' schema)
+  2. Update documentation to clarify canonical vs raw
+  3. Prevent accidental use of raw tables in queries
 - Priority: MEDIUM (Phase 1.5)
 - Canonical tables to prefer:
-  - Use player_silver (not player)
-  - Use team_silver (not team)
-  - Use game_gold (not game)
+  - Use player_silver (not player_raw)
+  - Use team_silver (not team_raw)
+  - Use game_gold (not game_raw)
 - Reference: docs/roadmap.md Phase 1.5
 
 This script analyzes VARCHAR columns in the database and converts them to
@@ -67,7 +66,7 @@ SILVER_SUFFIX = "_silver"
 
 
 def get_tables(con: duckdb.DuckDBPyConnection) -> list[str]:
-    """Get actual tables (not views) that don't end with _silver or _rejects.
+    """Get actual raw tables (not views) that end with _raw.
 
     Args:
         con: DuckDB connection
@@ -83,12 +82,12 @@ def get_tables(con: duckdb.DuckDBPyConnection) -> list[str]:
         ).fetchall()
     }
 
-    # Get all tables and filter out views and silver/rejects tables
+    # Get all tables and filter out views, keeping only raw tables
     all_tables = [r[0] for r in con.sql("SHOW TABLES").fetchall()]
     return [
         t
         for t in all_tables
-        if t not in views and not t.endswith("_silver") and not t.endswith("_rejects")
+        if t not in views and t.endswith("_raw")
     ]
 
 
@@ -143,7 +142,8 @@ def infer_column_type(con: duckdb.DuckDBPyConnection, table: str, col: str) -> s
 
 
 def transform_to_silver(
-    db_path: str | None = None, tables: list[str] | None = None,
+    db_path: str | None = None,
+    tables: list[str] | None = None,
 ) -> None:
     """Transform tables to silver layer with proper data types.
 
@@ -202,7 +202,11 @@ def transform_to_silver(
                 logger.info(f"  - {col_name}: inferred {new_type}")
 
             # Create Silver Table
-            silver_table = f"{table}{SILVER_SUFFIX}"
+            if table.endswith("_raw"):
+                silver_table = f"{table[:-4]}{SILVER_SUFFIX}"
+            else:
+                silver_table = f"{table}{SILVER_SUFFIX}"
+
             logger.info(f"  Creating '{silver_table}' with corrected types...")
 
             query = f"""
@@ -238,7 +242,7 @@ Examples:
     python scripts/maintenance/normalize_db.py
 
     # Normalize specific tables
-    python scripts/maintenance/normalize_db.py --tables player team game
+    python scripts/maintenance/normalize_db.py --tables player_raw team_raw game_raw
 
     # Specify custom database
     python scripts/maintenance/normalize_db.py --db /path/to/nba.duckdb

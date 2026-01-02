@@ -10,7 +10,7 @@ This script performs a comprehensive analysis of the DuckDB database including:
 
 import io
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -28,7 +28,7 @@ sys.path.insert(0, str(project_root))
 
 
 # Current date for comparison
-CURRENT_DATE = datetime(2025, 12, 31)
+CURRENT_DATE = datetime(2025, 12, 31, tzinfo=UTC)
 CURRENT_DATE_ISO = "2025-12-31T09:19:13.767Z"
 
 # Database and CSV paths
@@ -72,9 +72,9 @@ def analyze_database() -> dict[str, Any]:
 
     # Get all tables
     tables_query = """
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_schema = 'main' 
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'main'
         AND table_type = 'BASE TABLE'
         ORDER BY table_name
     """
@@ -221,6 +221,7 @@ def analyze_database() -> dict[str, Any]:
 
                         # Try to parse the date to calculate freshness
                         try:
+                            parsed_date = None
                             if isinstance(max_date, str):
                                 # Try common date formats
                                 for fmt in [
@@ -230,22 +231,30 @@ def analyze_database() -> dict[str, Any]:
                                 ]:
                                     try:
                                         parsed_date = datetime.strptime(
-                                            max_date.split()[0], "%Y-%m-%d"
-                                        )
-                                        days_old = (CURRENT_DATE - parsed_date).days
-                                        print(f"    Data Age: {days_old} days old")
-
-                                        results["summary"]["timestamp_columns"].append(
-                                            {
-                                                "table": table_name,
-                                                "column": ts_col,
-                                                "latest_date": max_date,
-                                                "days_old": days_old,
-                                            }
-                                        )
+                                            max_date, fmt
+                                        ).replace(tzinfo=UTC)
                                         break
-                                    except (ValueError, IndexError):
+                                    except ValueError:
                                         continue
+                            elif isinstance(max_date, datetime):
+                                parsed_date = (
+                                    max_date
+                                    if max_date.tzinfo
+                                    else max_date.replace(tzinfo=UTC)
+                                )
+
+                            if parsed_date is not None:
+                                days_old = (CURRENT_DATE - parsed_date).days
+                                print(f"    Data Age: {days_old} days old")
+
+                                results["summary"]["timestamp_columns"].append(
+                                    {
+                                        "table": table_name,
+                                        "column": ts_col,
+                                        "latest_date": max_date,
+                                        "days_old": days_old,
+                                    }
+                                )
                         except Exception:
                             pass
                 except Exception as e:

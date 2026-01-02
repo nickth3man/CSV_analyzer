@@ -9,11 +9,11 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import pandas as pd
 from pocketflow import Node
 
 from src.backend.utils.duckdb_client import get_duckdb_client
 from src.backend.utils.logger import get_logger
+
 
 logger = logging.getLogger(__name__)
 
@@ -36,25 +36,27 @@ class SQLExecutor(Node):
         Returns:
             SQL query string.
         """
-        sql_query = shared.get("sql_query", "")
+        sql_query = shared.get("sql_query")
+        sql_query_str = str(sql_query) if sql_query is not None else ""
         sub_query_id = self.params.get("sub_query_id")
 
         get_logger().log_node_start(
             "SQLExecutor",
-            {"sql_length": len(sql_query), "sub_query_id": sub_query_id},
+            {"sql_length": len(sql_query_str), "sub_query_id": sub_query_id},
         )
 
-        return sql_query
+        return sql_query_str
 
-    def exec(self, sql: str) -> dict[str, Any]:
+    def exec(self, prep_res: str) -> dict[str, Any]:
         """Execute the SQL query.
 
         Args:
-            sql: SQL query to execute.
+            prep_res: SQL query to execute.
 
         Returns:
             Dictionary with either 'result' (DataFrame) or 'error'.
         """
+        sql = prep_res
         if not sql:
             return {
                 "success": False,
@@ -70,11 +72,11 @@ class SQLExecutor(Node):
                 "success": True,
                 "result": result,
                 "error": None,
-                "row_count": len(result),
+                "row_count": len(result) if result is not None else 0,
             }
 
         except TimeoutError as e:
-            logger.error("SQL execution timeout: %s", e)
+            logger.exception("SQL execution timeout: %s", e)
             return {
                 "success": False,
                 "error": "Query took too long. Try a simpler question.",
@@ -83,7 +85,7 @@ class SQLExecutor(Node):
 
         except Exception as e:
             error_msg = str(e)
-            logger.error("SQL execution error: %s", error_msg)
+            logger.exception("SQL execution error: %s", error_msg)
 
             user_friendly_error = self._format_error_message(error_msg)
 
@@ -173,7 +175,9 @@ class SQLExecutor(Node):
         error_lower = raw_error.lower()
 
         if "timeout" in error_lower:
-            return "Query took too long. Try a simpler question or limit the date range."
+            return (
+                "Query took too long. Try a simpler question or limit the date range."
+            )
 
         if "column" in error_lower and "not found" in error_lower:
             return f"Column not found: {raw_error}"
@@ -185,7 +189,9 @@ class SQLExecutor(Node):
             return f"SQL syntax error: {raw_error}"
 
         if "division by zero" in error_lower:
-            return "Division by zero error - some calculations produced invalid results."
+            return (
+                "Division by zero error - some calculations produced invalid results."
+            )
 
         if "out of memory" in error_lower:
             return "Query too complex - try limiting the data range or simplifying."

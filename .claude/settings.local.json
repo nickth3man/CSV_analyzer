@@ -13,7 +13,10 @@
       "Bash(dir:*)",
       "Bash(tree:*)",
       "Bash(python -m src.scripts.populate.cli:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(duckdb:*)",
+      "Bash(cat:*)",
+      "Bash(pip install:*)"
     ]
   }
 }

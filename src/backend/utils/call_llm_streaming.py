@@ -1,4 +1,5 @@
 import os
+from contextlib import suppress
 
 from openai import OpenAI
 
@@ -37,17 +38,13 @@ def call_llm_streaming(prompt, model=None):
 
     temperature = DEFAULT_TEMPERATURE
     if env_temp := os.environ.get("LLM_TEMPERATURE"):
-        try:
+        with suppress(ValueError):
             temperature = float(env_temp)
-        except ValueError:
-            pass
 
     max_tokens = DEFAULT_MAX_TOKENS
     if env_tokens := os.environ.get("LLM_MAX_TOKENS"):
-        try:
+        with suppress(ValueError):
             max_tokens = int(env_tokens)
-        except ValueError:
-            pass
 
     kwargs = {
         "model": model,

@@ -36,9 +36,6 @@ Usage (planned):
 
     # All players for a season (WARNING: Very large dataset)
     python scripts/populate/populate_shot_chart.py --seasons 2023-24 --all-players
-
-Based on nba_api documentation:
-- nba_api.stats.endpoints.shotchartdetail
 """
 
 import argparse
@@ -55,11 +52,10 @@ logger = logging.getLogger(__name__)
 
 
 def populate_shot_chart(*args, **kwargs):
-    """
-    Populate the shot_chart_detail table from NBA API data.
-    
+    """Populate the shot_chart_detail table from NBA API data.
+
     This function is a placeholder and is not yet implemented; it will, when implemented, fetch shot chart data from the NBA API, transform it to the shot_chart_detail schema, insert records with deduplication, and support resumable progress tracking per docs/roadmap.md Phase 3.2.
-    
+
     Raises:
         NotImplementedError: Always raised; implementation planned per docs/roadmap.md Phase 3.2.
     """
@@ -72,9 +68,8 @@ def populate_shot_chart(*args, **kwargs):
 
 
 def main():
-    """
-    CLI entry point for shot chart population.
-    
+    """CLI entry point for shot chart population.
+
     Parses command-line options (--player-id, --games, --seasons, --all-players), logs warnings that the feature is not yet implemented and refers to docs/roadmap.md Phase 3.2, then terminates the process with exit code 1.
     """
     parser = argparse.ArgumentParser(

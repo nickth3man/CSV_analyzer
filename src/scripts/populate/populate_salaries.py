@@ -63,11 +63,10 @@ logger = logging.getLogger(__name__)
 
 
 def populate_salaries(*args, **kwargs):
-    """
-    Placeholder for populating the NBA salaries table.
-    
+    """Placeholder for populating the NBA salaries table.
+
     This function is not implemented and will raise NotImplementedError directing implementers to docs/roadmap.md Phase 3.3 for requirements, data source options, and implementation notes.
-    
+
     Raises:
         NotImplementedError: Always raised with a message pointing to docs/roadmap.md Phase 3.3.
     """
@@ -80,9 +79,8 @@ def populate_salaries(*args, **kwargs):
 
 
 def main():
-    """
-    Command-line entry point that outlines salary population options and exits because the feature is unimplemented.
-    
+    """Command-line entry point that outlines salary population options and exits because the feature is unimplemented.
+
     Parses command-line options for seasons, teams, an all-seasons flag, and a data-source choice; logs roadmap notes and key implementation decisions required, then terminates the process with exit status 1. See docs/roadmap.md Phase 3.3 for implementation requirements.
     """
     parser = argparse.ArgumentParser(
@@ -90,9 +88,15 @@ def main():
     )
     parser.add_argument("--seasons", nargs="+", help="Seasons to process")
     parser.add_argument("--teams", nargs="+", help="Specific team abbreviations")
-    parser.add_argument("--all-seasons", action="store_true", help="All available seasons")
-    parser.add_argument("--source", choices=["basketball-reference", "hoopshype", "spotrac"],
-                        default="basketball-reference", help="Data source to use")
+    parser.add_argument(
+        "--all-seasons", action="store_true", help="All available seasons"
+    )
+    parser.add_argument(
+        "--source",
+        choices=["basketball-reference", "hoopshype", "spotrac"],
+        default="basketball-reference",
+        help="Data source to use",
+    )
 
     _args = parser.parse_args()
 
@@ -103,7 +107,9 @@ def main():
     logger.warning("See docs/roadmap.md Phase 3.3 for implementation requirements.")
     logger.warning("")
     logger.warning("Key Decisions Needed:")
-    logger.warning("1. Select primary data source (Basketball Reference, HoopsHype, Spotrac)")
+    logger.warning(
+        "1. Select primary data source (Basketball Reference, HoopsHype, Spotrac)"
+    )
     logger.warning("2. Implement web scraping or API integration")
     logger.warning("3. Define schema for contract details (options, guarantees, etc.)")
     logger.warning("=" * 70)

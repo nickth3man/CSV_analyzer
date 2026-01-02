@@ -5,6 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "beautifulsoup4>=4.12.0",
+    "cloudscraper>=1.2.0",
     "pandas>=2.0.0",
     "matplotlib>=3.7.0",
     "pocketflow>=0.0.3",
@@ -18,6 +20,8 @@ dependencies = [
     "pyyaml>=6.0.0",
     "numpy>=1.24.0",
     "python-dotenv>=1.2.1",
+    "rich>=13.0.0",
+    "tenacity>=8.2.0",
 ]
 
 [dependency-groups]
@@ -139,9 +143,12 @@ select = [
 
 [tool.ruff.lint.per-file-ignores]
 # Tests can use assert statements and magic values
+# Tests can use assert statements and magic values
 "tests/**/*.py" = ["S101", "PLR2004", "ANN"]
+"src/tests/**/*.py" = ["S101", "PLR2004", "ANN"]
 # Scripts can use print statements, have less strict annotations, and use dynamic SQL
 "scripts/**/*.py" = ["T201", "ANN", "PLR0915", "E501", "S608", "PLW0603", "B027", "S603", "PLR0913", "DTZ005", "ERA001"]
+"src/scripts/**/*.py" = ["T201", "ANN", "PLR0915", "E501", "S608", "PLW0603", "B027", "S603", "PLR0913", "DTZ005", "ERA001"]
 # Reference/external code has different standards
 "reference/**/*.py" = ["ALL"]
 # Backend nodes often have complex methods
@@ -231,6 +238,8 @@ module = [
     "openai.*",
     "requests",
     "requests.*",
+    "yaml",
+    "yaml.*",
 ]
 ignore_missing_imports = true
 
@@ -259,7 +268,7 @@ line_length = 88
 known_first_party = ["webapp"]
 
 [tool.pytest.ini_options]
-testpaths = ["src/tests"]
+testpaths = ["tests", "src/tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -301,7 +310,7 @@ exclude_lines = [
 ]
 
 [tool.bandit]
-exclude_dirs = ["tests", ".venv", "htmlcov"]
+exclude_dirs = ["tests", ".venv", "htmlcov", "scripts", "src/scripts"]
 
 [tool.interrogate]
 ignore-init-method = true
@@ -315,7 +324,7 @@ ignore-nested-functions = false
 ignore-nested-classes = false
 ignore-setters = false
 fail-under = 80
-exclude = ["setup.py", "docs", "build", "tests"]
+exclude = ["setup.py", "docs", "build", "tests", "src/tests", "scripts", "src/scripts"]
 ignore-regex = ["^get$", "^post$", "^put$", "^delete$", "^prep$", "^exec$"]
 verbose = 1
 quiet = false

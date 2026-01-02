@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Populate player_game_stats table from NBA API.
+"""Populate player_game_stats_raw table from NBA API.
 
 This script fetches player game logs from the NBA API and populates the
-player_game_stats table in the DuckDB database.
+player_game_stats_raw table in the DuckDB database.
 
 Features:
 - Fetches game logs for all players (or a subset)
@@ -69,6 +69,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 PROGRESS_FILE = CACHE_DIR / "player_game_stats_progress.json"
+TABLE_NAME = "player_game_stats_raw"
 
 
 # =============================================================================
@@ -108,7 +109,7 @@ def transform_game_log(df: pd.DataFrame, player_info: dict) -> pd.DataFrame:
         player_info: Player information dictionary
 
     Returns:
-        Transformed DataFrame matching player_game_stats schema
+        Transformed DataFrame matching player_game_stats_raw schema
     """
     if df is None or df.empty:
         return pd.DataFrame()
@@ -116,16 +117,20 @@ def transform_game_log(df: pd.DataFrame, player_info: dict) -> pd.DataFrame:
     # Make a copy to avoid modifying original
     df_work = df.copy()
 
-    # Create output DataFrame with exact schema expected by player_game_stats table
+    # Create output DataFrame with exact schema expected by player_game_stats_raw table
     output = pd.DataFrame()
 
     # game_id - Handle mixed case from API (Game_ID)
     if "Game_ID" in df_work.columns:
-        output["game_id"] = pd.Series(pd.to_numeric(df_work["Game_ID"], errors="coerce")).astype(
+        output["game_id"] = pd.Series(
+            pd.to_numeric(df_work["Game_ID"], errors="coerce")
+        ).astype(
             "Int64",
         )
     elif "GAME_ID" in df_work.columns:
-        output["game_id"] = pd.Series(pd.to_numeric(df_work["GAME_ID"], errors="coerce")).astype(
+        output["game_id"] = pd.Series(
+            pd.to_numeric(df_work["GAME_ID"], errors="coerce")
+        ).astype(
             "Int64",
         )
     else:
@@ -137,9 +142,12 @@ def transform_game_log(df: pd.DataFrame, player_info: dict) -> pd.DataFrame:
 
     # player_id - from API (Player_ID) or from player_info
     if "Player_ID" in df_work.columns:
-        output["player_id"] = pd.Series(pd.to_numeric(
-            df_work["Player_ID"], errors="coerce",
-        )).astype("Int64")
+        output["player_id"] = pd.Series(
+            pd.to_numeric(
+                df_work["Player_ID"],
+                errors="coerce",
+            )
+        ).astype("Int64")
     else:
         output["player_id"] = player_info.get("id")
 
@@ -176,7 +184,9 @@ def transform_game_log(df: pd.DataFrame, player_info: dict) -> pd.DataFrame:
     ]
     for api_col, our_col in int_cols:
         if api_col in df_work.columns:
-            output[our_col] = pd.Series(pd.to_numeric(df_work[api_col], errors="coerce")).astype(
+            output[our_col] = pd.Series(
+                pd.to_numeric(df_work[api_col], errors="coerce")
+            ).astype(
                 "Int64",
             )
         else:
@@ -231,9 +241,11 @@ def insert_game_logs(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame) -> int:
     # Get existing game_id + player_id combinations to avoid duplicates
     existing = set()
     try:
-        result = conn.execute("""
-            SELECT game_id, player_id FROM player_game_stats
-        """).fetchall()
+        result = conn.execute(
+            f"""
+            SELECT game_id, player_id FROM {TABLE_NAME}
+        """
+        ).fetchall()
         existing = {(r[0], r[1]) for r in result}
     except Exception:
         pass  # Table might be empty
@@ -246,10 +258,12 @@ def insert_game_logs(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame) -> int:
 
     # Insert new records
     try:
-        conn.execute("""
-            INSERT INTO player_game_stats
+        conn.execute(
+            f"""
+            INSERT INTO {TABLE_NAME}
             SELECT * FROM df_new
-        """)
+        """
+        )
         return len(df_new)
     except Exception as e:
         logger.exception(f"Insert error: {e}")
@@ -271,7 +285,7 @@ def populate_player_game_stats(
     season_types: list[str] | None = None,
     client: NBAClient | None = None,
 ) -> dict[str, Any]:
-    """Main function to populate player_game_stats table.
+    """Main function to populate player_game_stats_raw table.
 
     Args:
         db_path: Path to DuckDB database
@@ -312,7 +326,7 @@ def populate_player_game_stats(
     conn = duckdb.connect(db_path)
 
     # Get initial count
-    initial_count = conn.execute("SELECT COUNT(*) FROM player_game_stats").fetchone()[0]
+    initial_count = conn.execute(f"SELECT COUNT(*) FROM {TABLE_NAME}").fetchone()[0]
     logger.info(f"Initial row count: {initial_count:,}")
 
     # Get players using the API client
@@ -407,7 +421,7 @@ def populate_player_game_stats(
                 conn.commit()
                 save_progress(progress)
                 current_count = conn.execute(
-                    "SELECT COUNT(*) FROM player_game_stats",
+                    f"SELECT COUNT(*) FROM {TABLE_NAME}",
                 ).fetchone()[0]
                 logger.info(
                     f"  [Progress: {idx}/{len(all_players)} players, {current_count:,} total rows]",
@@ -430,9 +444,7 @@ def populate_player_game_stats(
         save_progress(progress)
 
         # Get final count
-        final_count = conn.execute("SELECT COUNT(*) FROM player_game_stats").fetchone()[
-            0
-        ]
+        final_count = conn.execute(f"SELECT COUNT(*) FROM {TABLE_NAME}").fetchone()[0]
 
         # Close connection
         conn.close()
@@ -465,7 +477,7 @@ def populate_player_game_stats(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Populate player_game_stats table from NBA API",
+        description="Populate player_game_stats_raw table from NBA API",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

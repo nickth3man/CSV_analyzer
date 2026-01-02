@@ -2,8 +2,8 @@
 
 import chainlit as cl
 
-from .config import HELP_TEXT
-from .data_utils import get_schema_info, get_table_names
+from src.frontend.config import HELP_TEXT
+from src.frontend.data_utils import get_schema_info, get_table_names
 
 
 @cl.action_callback("list_tables")

@@ -12,7 +12,7 @@ import re
 from typing import Any
 
 import pandas as pd
-import yaml
+import yaml  # type: ignore[import-untyped]
 from pocketflow import Node
 
 from src.backend.utils.call_llm import call_llm
@@ -162,9 +162,7 @@ class DataAnalyzer(Node):
 
         return self._truncate(result_str)
 
-    def _format_sql_block(
-        self, sql_query: str, sub_query_sqls: dict[str, str]
-    ) -> str:
+    def _format_sql_block(self, sql_query: str, sub_query_sqls: dict[str, str]) -> str:
         """Format SQL for prompt, handling multi-query plans."""
         if sub_query_sqls:
             lines = []
@@ -183,7 +181,9 @@ class DataAnalyzer(Node):
             if isinstance(parsed, dict):
                 return {
                     "answer": str(parsed.get("answer", "")).strip(),
-                    "transparency_note": str(parsed.get("transparency_note", "")).strip(),
+                    "transparency_note": str(
+                        parsed.get("transparency_note", "")
+                    ).strip(),
                 }
         except yaml.YAMLError as exc:
             logger.warning("Failed to parse analyzer YAML: %s", exc)

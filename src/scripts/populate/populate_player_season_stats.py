@@ -25,10 +25,6 @@ Usage:
 
     # For specific seasons only
     python scripts/populate/populate_player_season_stats.py --seasons 2022-23 2021-22
-
-Based on nba_api documentation:
-- reference/nba_api/src/nba_api/stats/endpoints/playercareerstats.py
-- reference/nba_api/src/nba_api/stats/endpoints/leaguedashplayerstats.py
 """
 
 import argparse

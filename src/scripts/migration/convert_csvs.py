@@ -10,9 +10,10 @@ DATA_DIRECTORY = "./src/backend/data/raw/csv/"
 # We will iterate through files, so we don't use a single source pattern for read_csv
 
 
-def run_ingestion_pipeline() -> None:
+def run_ingestion_pipeline(db_path: str | None = None) -> None:
     # Connect to DuckDB
-    con = duckdb.connect(DATABASE_FILE)
+    database_file = db_path or DATABASE_FILE
+    con = duckdb.connect(database_file)
 
     # Find CSV files
     csv_files = glob.glob(os.path.join(DATA_DIRECTORY, "*.csv"))
@@ -23,7 +24,8 @@ def run_ingestion_pipeline() -> None:
 
     for file_path in csv_files:
         filename = os.path.basename(file_path)
-        table_name = os.path.splitext(filename)[0]
+        base_table = os.path.splitext(filename)[0]
+        table_name = f"{base_table}_raw"
 
         try:
             # Drop the table if it exists to allow re-running
@@ -126,4 +128,15 @@ def run_ingestion_pipeline() -> None:
 
 
 if __name__ == "__main__":
-    run_ingestion_pipeline()
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Load CSV files into the DuckDB raw tables"
+    )
+    parser.add_argument(
+        "--db",
+        default=None,
+        help="Path to DuckDB database (default: src/backend/data/nba.duckdb)",
+    )
+    args = parser.parse_args()
+    run_ingestion_pipeline(db_path=args.db)

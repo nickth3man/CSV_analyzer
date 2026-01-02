@@ -74,6 +74,8 @@ EXPECTED_COLUMNS = [
 
 
 class DraftCombineStatsPopulator(BasePopulator):
+    """Populate draft combine stats from the NBA API."""
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self._fetched_keys: list[str] = []
@@ -142,7 +144,9 @@ def populate_draft_combine_stats(
     dry_run: bool = False,
 ) -> dict[str, Any]:
     client = get_client()
-    populator = DraftCombineStatsPopulator(db_path=db_path or str(get_db_path()), client=client)
+    populator = DraftCombineStatsPopulator(
+        db_path=db_path or str(get_db_path()), client=client
+    )
     return populator.run(
         seasons=seasons,
         reset_progress=reset_progress,
@@ -151,9 +155,13 @@ def populate_draft_combine_stats(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Populate draft_combine_stats from NBA API")
+    parser = argparse.ArgumentParser(
+        description="Populate draft_combine_stats from NBA API"
+    )
     parser.add_argument("--db", default=None, help="Database path")
-    parser.add_argument("--seasons", nargs="+", help="Season list (e.g., 2024-25 2023-24)")
+    parser.add_argument(
+        "--seasons", nargs="+", help="Season list (e.g., 2024-25 2023-24)"
+    )
     parser.add_argument("--reset-progress", action="store_true", help="Reset progress")
     parser.add_argument("--dry-run", action="store_true", help="Skip database writes")
     args = parser.parse_args()

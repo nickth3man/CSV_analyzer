@@ -10,13 +10,14 @@ import logging
 import re
 from typing import Any
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 from pocketflow import Node
 
 from src.backend.models import ResolvedReferences
 from src.backend.utils.call_llm import call_llm
 from src.backend.utils.logger import get_logger
 from src.backend.utils.memory import get_memory
+
 
 logger = logging.getLogger(__name__)
 
@@ -224,10 +225,7 @@ class QueryRewriter(Node):
         """
         try:
             yaml_match = re.search(r"```yaml\s*(.*?)\s*```", response, re.DOTALL)
-            if yaml_match:
-                yaml_str = yaml_match.group(1)
-            else:
-                yaml_str = response.strip()
+            yaml_str = yaml_match.group(1) if yaml_match else response.strip()
 
             result = yaml.safe_load(yaml_str)
 

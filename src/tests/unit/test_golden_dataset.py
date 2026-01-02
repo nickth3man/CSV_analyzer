@@ -10,6 +10,8 @@ from backend.nodes.sql_generator import SQLGenerator
 
 
 class StubDuckDBClient:
+    """Stubbed DuckDB client that always validates SQL."""
+
     def validate_sql_syntax(self, sql):
         return ValidationResult(is_valid=True, errors=[], warnings=[])
 

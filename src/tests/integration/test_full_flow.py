@@ -25,9 +25,16 @@ class StubDuckDBClient:
 
 def test_simple_flow_runs(mocker, mock_call_llm_in_nodes, mock_llm_response) -> None:
     """Run the flow end-to-end with mocked LLM and DB."""
-    mocker.patch("backend.nodes.table_selector.get_duckdb_client", return_value=StubDuckDBClient())
-    mocker.patch("backend.nodes.sql_generator.get_duckdb_client", return_value=StubDuckDBClient())
-    mocker.patch("backend.nodes.sql_executor.get_duckdb_client", return_value=StubDuckDBClient())
+    mocker.patch(
+        "backend.nodes.table_selector.get_duckdb_client",
+        return_value=StubDuckDBClient(),
+    )
+    mocker.patch(
+        "backend.nodes.sql_generator.get_duckdb_client", return_value=StubDuckDBClient()
+    )
+    mocker.patch(
+        "backend.nodes.sql_executor.get_duckdb_client", return_value=StubDuckDBClient()
+    )
     mock_call_llm_in_nodes.side_effect = mock_llm_response
 
     flow = create_analyst_flow()

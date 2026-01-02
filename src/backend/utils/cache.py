@@ -13,11 +13,10 @@ import re
 import threading
 import time
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +24,9 @@ CACHE_DIR = Path(__file__).parent.parent / "data" / "llm_cache"
 DEFAULT_SIMILARITY_THRESHOLD = 0.95
 DEFAULT_TTL_HOURS = 24
 DEFAULT_MAX_ENTRIES = 10000
+
+if TYPE_CHECKING:
+    from src.backend.utils.embeddings import EmbeddingService
 
 
 @dataclass
@@ -67,7 +69,7 @@ class SemanticCache:
 
         self._cache: dict[str, CacheEntry] = {}
         self._lock = threading.Lock()
-        self._embedding_service = None
+        self._embedding_service: EmbeddingService | None = None
 
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
         self._load_cache()
@@ -131,7 +133,7 @@ class SemanticCache:
     def _get_hash(self, prompt: str) -> str:
         """Generate hash for a prompt."""
         normalized = self._normalize_prompt(prompt)
-        return hashlib.md5(normalized.encode()).hexdigest()
+        return hashlib.sha256(normalized.encode()).hexdigest()
 
     def _normalize_prompt(self, prompt: str) -> str:
         """Normalize prompt for comparison.
@@ -142,9 +144,7 @@ class SemanticCache:
         Returns:
             Normalized prompt.
         """
-        text = prompt.lower().strip()
-        text = re.sub(r"\s+", " ", text)
-        return text
+        return re.sub(r"\s+", " ", prompt.lower().strip())
 
     def get(self, prompt: str) -> str | None:
         """Check cache for a matching response.
@@ -165,8 +165,7 @@ class SemanticCache:
                 if time.time() - entry.timestamp < self.ttl_seconds:
                     logger.debug("Cache hit (exact match)")
                     return entry.response
-                else:
-                    del self._cache[prompt_hash]
+                del self._cache[prompt_hash]
 
             if not self.use_embeddings:
                 return None
@@ -301,19 +300,14 @@ class SemanticCache:
             }
 
 
-_cache_instance: SemanticCache | None = None
-
-
+@lru_cache(maxsize=1)
 def get_cache() -> SemanticCache:
     """Get the global semantic cache instance.
 
     Returns:
         Semantic cache instance.
     """
-    global _cache_instance
-    if _cache_instance is None:
-        _cache_instance = SemanticCache()
-    return _cache_instance
+    return SemanticCache()
 
 
 def get_cached(prompt: str) -> str | None:

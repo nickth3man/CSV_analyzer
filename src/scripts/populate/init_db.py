@@ -5,10 +5,12 @@ This script creates all required tables for the NBA analytics database.
 It can be run to set up a fresh database or to add missing tables.
 
 Tables created:
-- player: Player master data
-- team: Team master data
-- game: Game records with home/away stats
-- player_game_stats: Player statistics per game
+- player_raw: Player master data (raw landing)
+- team_raw: Team master data (raw landing)
+- game_raw: Game records with home/away stats (raw landing)
+- team_info_common_raw: Team info common data (raw landing)
+- player_game_stats_raw: Player statistics per game (raw landing)
+- player_game_stats: Player statistics per game (canonical)
 - play_by_play: Play-by-play event data
 - player_season_stats: Aggregated season statistics (view)
 
@@ -44,8 +46,8 @@ logger = logging.getLogger(__name__)
 
 # Schema definitions
 SCHEMA_DEFINITIONS = {
-    "player": """
-        CREATE TABLE IF NOT EXISTS player (
+    "player_raw": """
+        CREATE TABLE IF NOT EXISTS player_raw (
             id BIGINT PRIMARY KEY,
             full_name VARCHAR NOT NULL,
             first_name VARCHAR,
@@ -62,8 +64,8 @@ SCHEMA_DEFINITIONS = {
             is_active BOOLEAN DEFAULT FALSE
         )
     """,
-    "team": """
-        CREATE TABLE IF NOT EXISTS team (
+    "team_raw": """
+        CREATE TABLE IF NOT EXISTS team_raw (
             id BIGINT PRIMARY KEY,
             full_name VARCHAR NOT NULL,
             abbreviation VARCHAR(3) NOT NULL,
@@ -84,8 +86,8 @@ SCHEMA_DEFINITIONS = {
             year_founded INTEGER
         )
     """,
-    "team_details": """
-        CREATE TABLE IF NOT EXISTS team_details (
+    "team_details_raw": """
+        CREATE TABLE IF NOT EXISTS team_details_raw (
             team_id BIGINT PRIMARY KEY,
             abbreviation VARCHAR(3),
             nickname VARCHAR,
@@ -102,8 +104,40 @@ SCHEMA_DEFINITIONS = {
             twitter VARCHAR
         )
     """,
-    "game": """
-        CREATE TABLE IF NOT EXISTS game (
+    "team_info_common_raw": """
+        CREATE TABLE IF NOT EXISTS team_info_common_raw (
+            team_id BIGINT,
+            season_year VARCHAR,
+            team_city VARCHAR,
+            team_name VARCHAR,
+            team_abbreviation VARCHAR(3),
+            team_conference VARCHAR,
+            team_division VARCHAR,
+            team_code VARCHAR,
+            team_slug VARCHAR,
+            w INTEGER,
+            l INTEGER,
+            pct DOUBLE,
+            conf_rank INTEGER,
+            div_rank INTEGER,
+            min_year INTEGER,
+            max_year INTEGER,
+            league_id VARCHAR,
+            season_id VARCHAR,
+            pts_rank INTEGER,
+            pts_pg DOUBLE,
+            reb_rank INTEGER,
+            reb_pg DOUBLE,
+            ast_rank INTEGER,
+            ast_pg DOUBLE,
+            opp_pts_rank INTEGER,
+            opp_pts_pg DOUBLE,
+            filename VARCHAR,
+            PRIMARY KEY (team_id, season_year)
+        )
+    """,
+    "game_raw": """
+        CREATE TABLE IF NOT EXISTS game_raw (
             game_id BIGINT PRIMARY KEY,
             season_id VARCHAR,
             game_date DATE,
@@ -143,6 +177,37 @@ SCHEMA_DEFINITIONS = {
             away_pts INTEGER,
             home_win BOOLEAN,
             season_type VARCHAR
+        )
+    """,
+    "player_game_stats_raw": """
+        CREATE TABLE IF NOT EXISTS player_game_stats_raw (
+            game_id BIGINT NOT NULL,
+            team_id BIGINT,
+            player_id BIGINT NOT NULL,
+            player_name VARCHAR,
+            start_position VARCHAR,
+            comment VARCHAR,
+            min VARCHAR,
+            fgm INTEGER,
+            fga INTEGER,
+            fg_pct DOUBLE,
+            fg3m INTEGER,
+            fg3a INTEGER,
+            fg3_pct DOUBLE,
+            ftm INTEGER,
+            fta INTEGER,
+            ft_pct DOUBLE,
+            oreb INTEGER,
+            dreb INTEGER,
+            reb INTEGER,
+            ast INTEGER,
+            stl INTEGER,
+            blk INTEGER,
+            tov INTEGER,
+            pf INTEGER,
+            pts INTEGER,
+            plus_minus DOUBLE,
+            PRIMARY KEY (game_id, player_id)
         )
     """,
     "player_game_stats": """
@@ -205,8 +270,8 @@ SCHEMA_DEFINITIONS = {
             PRIMARY KEY (game_id, action_number)
         )
     """,
-    "common_player_info": """
-        CREATE TABLE IF NOT EXISTS common_player_info (
+    "common_player_info_raw": """
+        CREATE TABLE IF NOT EXISTS common_player_info_raw (
             person_id BIGINT PRIMARY KEY,
             first_name VARCHAR,
             last_name VARCHAR,
@@ -236,8 +301,8 @@ SCHEMA_DEFINITIONS = {
             greatest_75_flag BOOLEAN
         )
     """,
-    "draft_history": """
-        CREATE TABLE IF NOT EXISTS draft_history (
+    "draft_history_raw": """
+        CREATE TABLE IF NOT EXISTS draft_history_raw (
             person_id BIGINT,
             player_name VARCHAR,
             season INTEGER,
@@ -254,8 +319,8 @@ SCHEMA_DEFINITIONS = {
             PRIMARY KEY (person_id, season)
         )
     """,
-    "draft_combine_stats": """
-        CREATE TABLE IF NOT EXISTS draft_combine_stats (
+    "draft_combine_stats_raw": """
+        CREATE TABLE IF NOT EXISTS draft_combine_stats_raw (
             season INTEGER,
             player_id BIGINT,
             first_name VARCHAR,
@@ -314,6 +379,17 @@ SCHEMA_DEFINITIONS = {
     """,
 }
 
+TABLE_ALIASES = {
+    "player": "player_raw",
+    "team": "team_raw",
+    "game": "game_raw",
+    "team_details": "team_details_raw",
+    "team_info_common": "team_info_common_raw",
+    "common_player_info": "common_player_info_raw",
+    "draft_history": "draft_history_raw",
+    "draft_combine_stats": "draft_combine_stats_raw",
+}
+
 PLAY_BY_PLAY_COLUMNS = [
     "game_id",
     "action_number",
@@ -349,14 +425,14 @@ INDEX_DEFINITIONS = [
     "CREATE INDEX IF NOT EXISTS idx_player_game_stats_team ON player_game_stats(team_id)",
     "CREATE INDEX IF NOT EXISTS idx_play_by_play_game ON play_by_play(game_id)",
     "CREATE INDEX IF NOT EXISTS idx_play_by_play_person ON play_by_play(person_id)",
-    "CREATE INDEX IF NOT EXISTS idx_game_date ON game(game_date)",
-    "CREATE INDEX IF NOT EXISTS idx_game_home_team ON game(team_id_home)",
-    "CREATE INDEX IF NOT EXISTS idx_game_away_team ON game(team_id_away)",
+    "CREATE INDEX IF NOT EXISTS idx_game_raw_date ON game_raw(game_date)",
+    "CREATE INDEX IF NOT EXISTS idx_game_raw_home_team ON game_raw(team_id_home)",
+    "CREATE INDEX IF NOT EXISTS idx_game_raw_away_team ON game_raw(team_id_away)",
     "CREATE INDEX IF NOT EXISTS idx_player_season_stats_player ON player_season_stats(player_id)",
     "CREATE INDEX IF NOT EXISTS idx_player_season_stats_season ON player_season_stats(season_id)",
     "CREATE INDEX IF NOT EXISTS idx_player_season_stats_team ON player_season_stats(team_id)",
-    "CREATE INDEX IF NOT EXISTS idx_common_player_info_team ON common_player_info(team_id)",
-    "CREATE INDEX IF NOT EXISTS idx_draft_history_team ON draft_history(team_id)",
+    "CREATE INDEX IF NOT EXISTS idx_common_player_info_raw_team ON common_player_info_raw(team_id)",
+    "CREATE INDEX IF NOT EXISTS idx_draft_history_raw_team ON draft_history_raw(team_id)",
 ]
 
 
@@ -390,7 +466,10 @@ def init_database(
     results = {}
 
     # Determine which tables to create
-    tables_to_create = tables or list(SCHEMA_DEFINITIONS.keys())
+    if tables:
+        tables_to_create = [TABLE_ALIASES.get(name, name) for name in tables]
+    else:
+        tables_to_create = list(SCHEMA_DEFINITIONS.keys())
 
     for table_name in tables_to_create:
         if table_name not in SCHEMA_DEFINITIONS:
@@ -459,7 +538,8 @@ def ensure_play_by_play_schema(
     """Ensure play_by_play matches the V3 schema, recreating when safe."""
     try:
         existing_cols = [
-            row[1] for row in conn.execute("PRAGMA table_info('play_by_play')").fetchall()
+            row[1]
+            for row in conn.execute("PRAGMA table_info('play_by_play')").fetchall()
         ]
     except duckdb.CatalogException:
         existing_cols = []
@@ -559,8 +639,8 @@ Examples:
   # Force recreate all tables (WARNING: deletes data)
   python scripts/populate/init_db.py --force
 
-  # Create specific tables only
-  python scripts/populate/init_db.py --tables player team game
+    # Create specific tables only
+    python scripts/populate/init_db.py --tables player_raw team_raw game_raw
         """,
     )
 

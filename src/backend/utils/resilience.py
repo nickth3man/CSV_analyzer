@@ -10,11 +10,16 @@ import functools
 import logging
 import threading
 import time
-from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, ParamSpec, TypeVar
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +48,6 @@ class CircuitBreakerState:
 
 class CircuitBreakerError(Exception):
     """Raised when circuit breaker is open."""
-
-    pass
 
 
 def circuit_breaker(
@@ -113,7 +116,7 @@ def circuit_breaker(
                     elif state.failure_count > 0:
                         state.failure_count = 0
                 return result
-            except Exception as e:
+            except Exception:
                 with state.lock:
                     state.failure_count += 1
                     state.last_failure_time = current_time
@@ -129,7 +132,7 @@ def circuit_breaker(
                             f"Circuit breaker for {func.__name__} opened after "
                             f"{state.failure_count} failures"
                         )
-                raise e
+                raise
 
         return wrapper
 
@@ -281,7 +284,7 @@ def retry(
                         time.sleep(current_delay)
                         current_delay *= backoff_multiplier
                     else:
-                        logger.error(
+                        logger.exception(
                             f"All {max_attempts} attempts failed for {func.__name__}"
                         )
 

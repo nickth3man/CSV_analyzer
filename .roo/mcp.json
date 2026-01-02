@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "duckdb": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-motherduck",
+        "--db-path",
+        "C:\\Users\\nicolas\\Documents\\GitHub\\nba_expert\\src\\backend\\data\\nba.duckdb",
+        "--read-only"
+      ],
+      "alwaysAllow": ["query"],
+      "timeout": 3600
+    }
+  }
+}

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Comprehensive structural analysis of DuckDB database schema.
+
 This script performs schema integrity checks, table relationship analysis,
 and overall database structure documentation.
 """
@@ -16,23 +17,23 @@ import duckdb
 REFERENCE_TIMESTAMP = "2025-12-31T09:10:30.386Z"
 
 
-def connect_to_duckdb(database_path: Optional[str] = None) -> duckdb.DuckDBPyConnection:
-    """Connect to DuckDB database"""
+def connect_to_duckdb(database_path: str | None = None) -> duckdb.DuckDBPyConnection:
+    """Connect to DuckDB database."""
     try:
         if database_path and os.path.exists(database_path):
             conn = duckdb.connect(database=database_path, read_only=True)
         else:
             # Connect to in-memory database if no path provided
             conn = duckdb.connect()
-        print("✓ Successfully connected to DuckDB database")
+        print("[OK] Successfully connected to DuckDB database")
         return conn
     except Exception as e:
-        print(f"✗ Failed to connect to DuckDB: {e}")
+        print(f"[ERROR] Failed to connect to DuckDB: {e}")
         raise
 
 
-def get_all_tables(conn: duckdb.DuckDBPyConnection) -> List[str]:
-    """Retrieve all table names from the database"""
+def get_all_tables(conn: duckdb.DuckDBPyConnection) -> list[str]:
+    """Retrieve all table names from the database."""
     try:
         query = """
         SELECT table_name
@@ -43,82 +44,82 @@ def get_all_tables(conn: duckdb.DuckDBPyConnection) -> List[str]:
         """
         result = conn.execute(query).fetchall()
         tables = [row[0] for row in result]
-        print(f"✓ Found {len(tables)} tables in the database")
+        print(f"[OK] Found {len(tables)} tables in the database")
         return tables
     except Exception as e:
-        print(f"✗ Failed to retrieve tables: {e}")
+        print(f"[ERROR] Failed to retrieve tables: {e}")
         return []
 
 
 def get_table_schema(
     conn: duckdb.DuckDBPyConnection, table_name: str
 ) -> dict[str, Any]:
-    """Retrieve detailed schema information for a specific table"""
+    """Retrieve detailed schema information for a specific table."""
     try:
         # Get column information
         columns_query = f"""
-        SELECT 
-            column_name,
-            data_type,
-            is_nullable,
-            column_default,
-            character_maximum_length,
-            numeric_precision,
-            numeric_scale,
-            datetime_precision
-        FROM information_schema.columns
-        WHERE table_name = '{table_name}'
-        ORDER BY ordinal_position
+            SELECT
+                column_name,
+                data_type,
+                is_nullable,
+                column_default,
+                character_maximum_length,
+                numeric_precision,
+                numeric_scale,
+                datetime_precision
+            FROM information_schema.columns
+            WHERE table_name = '{table_name}'
+            ORDER BY ordinal_position
         """
         columns = conn.execute(columns_query).fetchall()
 
         # Get constraints
         constraints_query = f"""
-        SELECT 
-            constraint_name,
-            constraint_type
-        FROM information_schema.table_constraints
-        WHERE table_name = '{table_name}'
+            SELECT
+                constraint_name,
+                constraint_type
+            FROM information_schema.table_constraints
+            WHERE table_name = '{table_name}'
         """
         constraints = conn.execute(constraints_query).fetchall()
 
         # Get primary key
         pk_query = f"""
-        SELECT 
-            kcu.column_name
-        FROM information_schema.key_column_usage kcu
-        JOIN information_schema.table_constraints tc 
-            ON kcu.constraint_name = tc.constraint_name
-        WHERE tc.table_name = '{table_name}'
-        AND tc.constraint_type = 'PRIMARY KEY'
-        ORDER BY kcu.ordinal_position
+            SELECT
+                kcu.column_name
+            FROM information_schema.key_column_usage kcu
+            JOIN information_schema.table_constraints tc
+                ON kcu.constraint_name = tc.constraint_name
+            WHERE tc.table_name = '{table_name}'
+            AND tc.constraint_type = 'PRIMARY KEY'
+            ORDER BY kcu.ordinal_position
         """
         primary_keys = conn.execute(pk_query).fetchall()
 
         # Get foreign keys
         fk_query = f"""
-        SELECT 
-            kcu.column_name,
-            ccu.table_name AS foreign_table_name,
-            ccu.column_name AS foreign_column_name
-        FROM information_schema.key_column_usage kcu
-        JOIN information_schema.constraint_column_usage ccu 
-            ON kcu.constraint_name = ccu.constraint_name
-        JOIN information_schema.table_constraints tc 
-            ON kcu.constraint_name = tc.constraint_name
-        WHERE tc.table_name = '{table_name}'
-        AND tc.constraint_type = 'FOREIGN KEY'
+            SELECT
+                kcu.column_name,
+                ccu.table_name AS foreign_table_name,
+                ccu.column_name AS foreign_column_name
+            FROM information_schema.key_column_usage kcu
+            JOIN information_schema.constraint_column_usage ccu
+                ON kcu.constraint_name = ccu.constraint_name
+            JOIN information_schema.table_constraints tc
+                ON kcu.constraint_name = tc.constraint_name
+            WHERE tc.table_name = '{table_name}'
+            AND tc.constraint_type = 'FOREIGN KEY'
         """
         foreign_keys = conn.execute(fk_query).fetchall()
 
         # Get table statistics
         stats_query = f"""
-        SELECT COUNT(*) as row_count
-        FROM {table_name}
+            SELECT COUNT(*) as row_count
+            FROM {table_name}
         """
         try:
             row_count = conn.execute(stats_query).fetchone()[0]
-        except:
+        except Exception:
             row_count = None
 
         return {
@@ -148,12 +149,12 @@ def get_table_schema(
             "last_analyzed": datetime.now().isoformat(),
         }
     except Exception as e:
-        print(f"✗ Failed to retrieve schema for table {table_name}: {e}")
-        return None
+        print(f"[ERROR] Failed to retrieve schema for table {table_name}: {e}")
+        return {}
 
 
 def analyze_schema_integrity(schema: dict[str, Any]) -> dict[str, Any]:
-    """Analyze schema integrity and identify potential issues"""
+    """Analyze schema integrity and identify potential issues."""
     issues = []
     warnings = []
 
@@ -177,9 +178,13 @@ def analyze_schema_integrity(schema: dict[str, Any]) -> dict[str, Any]:
             )
 
     # Check foreign key relationships
-    for fk in schema["foreign_keys"]:
-        if not fk["foreign_table"] or not fk["foreign_column"]:
-            issues.append(f"Foreign key relationship issue in column {fk['column']}")
+    issues.extend(
+        [
+            f"Foreign key relationship issue in column {fk['column']}"
+            for fk in schema["foreign_keys"]
+            if not fk["foreign_table"] or not fk["foreign_column"]
+        ]
+    )
 
     return {
         "issues": issues,
@@ -189,7 +194,7 @@ def analyze_schema_integrity(schema: dict[str, Any]) -> dict[str, Any]:
 
 
 def calculate_integrity_score(issues_count: int, warnings_count: int) -> float:
-    """Calculate integrity score based on issues and warnings"""
+    """Calculate integrity score based on issues and warnings."""
     # Base score of 100, deduct points for issues and warnings
     score = 100.0
     score -= issues_count * 10  # Each issue deducts 10 points
@@ -198,7 +203,7 @@ def calculate_integrity_score(issues_count: int, warnings_count: int) -> float:
 
 
 def analyze_table_relationships(tables: list[dict[str, Any]]) -> dict[str, Any]:
-    """Analyze relationships between tables"""
+    """Analyze relationships between tables."""
     relationships = []
     relationship_graph = {}
 
@@ -246,7 +251,7 @@ def analyze_table_relationships(tables: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def find_circular_dependencies(graph: dict[str, Any]) -> list[list[str]]:
-    """Find circular dependencies in the relationship graph using DFS"""
+    """Find circular dependencies in the relationship graph using DFS."""
     circular_deps = []
     visited = set()
 
@@ -254,7 +259,7 @@ def find_circular_dependencies(graph: dict[str, Any]) -> list[list[str]]:
         if node in path:
             # Found a cycle
             cycle_start = path.index(node)
-            cycle = path[cycle_start:] + [node]
+            cycle = [*path[cycle_start:], node]
             if cycle not in circular_deps and len(cycle) > 1:
                 circular_deps.append(cycle)
             return
@@ -277,7 +282,7 @@ def find_circular_dependencies(graph: dict[str, Any]) -> list[list[str]]:
 
 
 def generate_schema_documentation(schema_data: dict[str, Any]) -> str:
-    """Generate comprehensive schema documentation"""
+    """Generate comprehensive schema documentation."""
     doc = []
     doc.append("# Database Schema Analysis Report")
     doc.append(f"Generated: {datetime.now().isoformat()}")
@@ -319,24 +324,28 @@ def generate_schema_documentation(schema_data: dict[str, Any]) -> str:
 
         if table["foreign_keys"]:
             doc.append("Foreign Keys:")
-            for fk in table["foreign_keys"]:
-                doc.append(
-                    f"  - {fk['column']} → {fk['foreign_table']}.{fk['foreign_column']}"
-                )
+            doc.extend(
+                [
+                    f"  - {fk['column']} -> {fk['foreign_table']}.{fk['foreign_column']}"
+                    for fk in table["foreign_keys"]
+                ]
+            )
 
         if table["integrity"]["issues"]:
             doc.append("Issues:")
-            for issue in table["integrity"]["issues"]:
-                doc.append(f"  - ❌ {issue}")
+            doc.extend(
+                [f"  - [ERROR] {issue}" for issue in table["integrity"]["issues"]]
+            )
 
         if table["integrity"]["warnings"]:
             doc.append("Warnings:")
-            for warning in table["integrity"]["warnings"]:
-                doc.append(f"  - ⚠️ {warning}")
+            doc.extend(
+                [f"  - [WARN] {warning}" for warning in table["integrity"]["warnings"]]
+            )
 
         doc.append("Columns:")
         for col in table["columns"]:
-            nullable = "✓" if col["is_nullable"] else "✗"
+            nullable = "YES" if col["is_nullable"] else "NO"
             default = f" = {col['default']}" if col["default"] else ""
             doc.append(
                 f"  - {col['name']}: {col['data_type']} (Nullable: {nullable}{default})"
@@ -348,31 +357,42 @@ def generate_schema_documentation(schema_data: dict[str, Any]) -> str:
     doc.append("## Relationships")
     if schema_data["relationships"]["relationships"]:
         doc.append("### Foreign Key Relationships")
-        for rel in schema_data["relationships"]["relationships"]:
-            doc.append(
-                f"- {rel['source_table']}.{rel['source_column']} → {rel['target_table']}.{rel['target_column']}"
-            )
+        doc.extend(
+            [
+                (
+                    f"- {rel['source_table']}.{rel['source_column']} -> "
+                    f"{rel['target_table']}.{rel['target_column']}"
+                )
+                for rel in schema_data["relationships"]["relationships"]
+            ]
+        )
     else:
         doc.append("No foreign key relationships found")
 
     if schema_data["relationships"]["orphan_tables"]:
         doc.append("### Orphan Tables (No Relationships)")
-        for table in schema_data["relationships"]["orphan_tables"]:
-            doc.append(f"- {table}")
+        doc.extend(
+            [f"- {table}" for table in schema_data["relationships"]["orphan_tables"]]
+        )
 
     if schema_data["relationships"]["circular_dependencies"]:
         doc.append("### Circular Dependencies")
-        for cycle in schema_data["relationships"]["circular_dependencies"]:
-            doc.append(f"- {' → '.join(cycle)}")
+        doc.extend(
+            [
+                f"- {' -> '.join(cycle)}"
+                for cycle in schema_data["relationships"]["circular_dependencies"]
+            ]
+        )
 
     return "\n".join(doc)
 
 
 def main():
-    """Main analysis function"""
+    """Main analysis function."""
     print("Starting DuckDB Schema Analysis...")
     print(f"Reference Timestamp: {REFERENCE_TIMESTAMP}")
 
+    conn = None
     try:
         # Connect to database
         conn = connect_to_duckdb()
@@ -421,7 +441,7 @@ def main():
         with open(md_path, "w") as f:
             f.write(documentation)
 
-        print("✓ Analysis complete!")
+        print("[OK] Analysis complete!")
         print(f"JSON report saved to: {json_path}")
         print(f"Markdown report saved to: {md_path}")
 
@@ -448,7 +468,7 @@ def main():
         return schema_data, documentation
 
     except Exception as e:
-        print(f"✗ Analysis failed: {e}")
+        print(f"[ERROR] Analysis failed: {e}")
         raise
     finally:
         if "conn" in locals():

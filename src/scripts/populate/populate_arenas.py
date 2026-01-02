@@ -67,12 +67,12 @@ logger = logging.getLogger(__name__)
 
 
 def populate_arenas(*args, **kwargs):
-    """
-    TODO: ROADMAP Phase 4.1 (see docs/roadmap.md for requirements).
-    Populate the arenas table with comprehensive NBA venue data (placeholder — not implemented).
-    
+    """TODO: ROADMAP Phase 4.1 (see docs/roadmap.md for requirements).
+
+    Populate the arenas table with comprehensive NBA venue data (placeholder - not implemented).
+
     Intended to collect arena metadata, associate arenas with teams and date ranges, track arena name changes, and add geographic coordinates as specified in docs/roadmap.md Phase 4.1.
-    
+
     Raises:
         NotImplementedError: Function is a placeholder and not yet implemented; see docs/roadmap.md Phase 4.1 for requirements.
     """
@@ -85,17 +85,19 @@ def populate_arenas(*args, **kwargs):
 
 
 def main():
-    """
-    CLI entry point that parses command-line options and exits indicating the feature is not implemented.
-    
+    """CLI entry point that parses command-line options and exits indicating the feature is not implemented.
+
     Parses the optional `--teams` and `--include-historical` arguments, emits warning logs describing that arena population is a placeholder and listing key design decisions, and then exits the process with status code 1.
     """
     parser = argparse.ArgumentParser(
         description="Populate arenas data (NOT YET IMPLEMENTED)",
     )
     parser.add_argument("--teams", nargs="+", help="Specific team abbreviations")
-    parser.add_argument("--include-historical", action="store_true",
-                        help="Include defunct/historical arenas")
+    parser.add_argument(
+        "--include-historical",
+        action="store_true",
+        help="Include defunct/historical arenas",
+    )
 
     _args = parser.parse_args()
 

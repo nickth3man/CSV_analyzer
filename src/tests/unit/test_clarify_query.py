@@ -1,7 +1,7 @@
 """Tests for ClarifyQuery node."""
 
-from backend.nodes import ClarifyQuery
 from backend.models import QueryIntent
+from backend.nodes import ClarifyQuery
 
 
 def test_clarify_query_clear(mocker) -> None:

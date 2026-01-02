@@ -14,6 +14,7 @@ class TestDuckDBAvailability:
         """Test that duckdb package can be imported."""
         try:
             import duckdb
+
             assert duckdb is not None
         except ImportError:
             pytest.fail("duckdb package is not installed")
@@ -120,7 +121,9 @@ class TestDuckDBAvailability:
 
         con = duckdb.connect(":memory:")
         con.execute("CREATE TABLE parent (id INTEGER PRIMARY KEY)")
-        con.execute("CREATE TABLE child (id INTEGER, parent_id INTEGER, FOREIGN KEY(parent_id) REFERENCES parent(id))")
+        con.execute(
+            "CREATE TABLE child (id INTEGER, parent_id INTEGER, FOREIGN KEY(parent_id) REFERENCES parent(id))"
+        )
 
         con.execute("INSERT INTO parent VALUES (1)")
         con.execute("INSERT INTO child VALUES (1, 1)")
@@ -136,7 +139,9 @@ class TestDuckDBAvailability:
         con.execute("INSERT INTO test VALUES (1), (2), (3)")
 
         # Test various aggregates
-        result = con.execute("SELECT SUM(val), AVG(val), COUNT(val), MIN(val), MAX(val) FROM test").fetchone()
+        result = con.execute(
+            "SELECT SUM(val), AVG(val), COUNT(val), MIN(val), MAX(val) FROM test"
+        ).fetchone()
         assert result == (6, 2.0, 3, 1, 3)
 
         con.close()
@@ -149,7 +154,9 @@ class TestDuckDBAvailability:
         con.execute("CREATE TABLE test (category VARCHAR, value INTEGER)")
         con.execute("INSERT INTO test VALUES ('A', 10), ('B', 20), ('A', 15)")
 
-        result = con.execute("SELECT category, SUM(value) FROM test GROUP BY category ORDER BY category").fetchall()
+        result = con.execute(
+            "SELECT category, SUM(value) FROM test GROUP BY category ORDER BY category"
+        ).fetchall()
         assert result == [("A", 25), ("B", 20)]
 
         con.close()
@@ -267,6 +274,7 @@ class TestDuckDBIntegrationWithScripts:
         """Test that check_integrity script can import duckdb."""
         try:
             import src.scripts.maintenance.check_integrity as check_integrity_module
+
             assert check_integrity_module is not None
         except ImportError as e:
             pytest.fail(f"check_integrity failed to import duckdb: {e}")
@@ -275,6 +283,7 @@ class TestDuckDBIntegrationWithScripts:
         """Test that create_advanced_metrics script can import duckdb."""
         try:
             import src.scripts.analysis.create_advanced_metrics as metrics_module
+
             assert metrics_module is not None
         except ImportError as e:
             pytest.fail(f"create_advanced_metrics failed to import duckdb: {e}")
@@ -283,6 +292,7 @@ class TestDuckDBIntegrationWithScripts:
         """Test that normalize_db script can import duckdb."""
         try:
             import src.scripts.maintenance.normalize_db as normalize_module
+
             assert normalize_module is not None
         except ImportError as e:
             pytest.fail(f"normalize_db failed to import duckdb: {e}")
@@ -296,6 +306,7 @@ class TestDuckDBIntegrationWithScripts:
             mock_connect.return_value = mock_con
 
             import duckdb
+
             con = duckdb.connect(":memory:")
 
             assert mock_connect.called

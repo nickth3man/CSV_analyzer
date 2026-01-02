@@ -72,12 +72,14 @@ class TestCallLLMEnvironmentValidation:
 
     def test_raises_when_api_key_missing(self) -> None:
         """Test that missing OPENROUTER_API_KEY raises a clear error."""
-        with patch.dict(os.environ, {}, clear=True):
-            with pytest.raises(
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            pytest.raises(
                 RuntimeError,
                 match="OPENROUTER_API_KEY is required",
-            ):
-                call_llm("Test prompt")
+            ),
+        ):
+            call_llm("Test prompt")
 
     def test_uses_default_model_when_not_set(self, mock_env_vars) -> None:
         """Test default model is used when OPENROUTER_MODEL not set."""
@@ -85,17 +87,17 @@ class TestCallLLMEnvironmentValidation:
             patch.dict(os.environ, {"OPENROUTER_API_KEY": "test_key"}, clear=True),
             patch("backend.utils.call_llm.OpenAI") as mock_client_class,
         ):
-                mock_client = MagicMock()
-                mock_client.chat.completions.create.return_value.choices[
-                    0
-                ].message.content = "Response"
-                mock_client_class.return_value = mock_client
+            mock_client = MagicMock()
+            mock_client.chat.completions.create.return_value.choices[
+                0
+            ].message.content = "Response"
+            mock_client_class.return_value = mock_client
 
-                call_llm("Test prompt")
+            call_llm("Test prompt")
 
-                # Should use default model
-                call_args = mock_client.chat.completions.create.call_args
-                assert call_args[1]["model"] == "meta-llama/llama-3.3-70b-instruct"
+            # Should use default model
+            call_args = mock_client.chat.completions.create.call_args
+            assert call_args[1]["model"] == "meta-llama/llama-3.3-70b-instruct"
 
     def test_uses_custom_model_when_set(self, mock_env_vars) -> None:
         """Test custom model is used when OPENROUTER_MODEL is set."""
@@ -308,7 +310,23 @@ class TestCallLLMErrorHandling:
                 patch("backend.utils.call_llm.time.sleep"),
                 pytest.raises(RuntimeError),
             ):
-                    call_llm("Test prompt")
+                call_llm("Test prompt")
+
+    def test_auth_error_returns_mock_when_enabled(self, mock_env_vars) -> None:
+        """Test auth errors return mock responses when USE_MOCK_LLM is enabled."""
+        with (
+            patch.dict(os.environ, {"USE_MOCK_LLM": "1"}, clear=False),
+            patch("backend.utils.call_llm.OpenAI") as mock_client_class,
+        ):
+            mock_client = MagicMock()
+            mock_client.chat.completions.create.side_effect = Exception(
+                "401 Unauthorized",
+            )
+            mock_client_class.return_value = mock_client
+
+            result = call_llm("Some prompt")
+
+            assert result == "Mock response"
 
 
 class TestCallLLMEdgeCases:

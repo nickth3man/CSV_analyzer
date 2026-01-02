@@ -7,7 +7,7 @@ and validation, as specified in design.md Section 5.1.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -29,7 +29,7 @@ class QueryComplexity(str, Enum):
 class GradeStatus(str, Enum):
     """Quality assessment result from ResponseGrader."""
 
-    PASS = "pass"
+    PASS = "pass"  # noqa: S105  # nosec B105
     FAIL = "fail"
 
 
@@ -38,7 +38,7 @@ class TableMeta(BaseModel):
 
     name: str
     description: str = ""
-    row_count: Optional[int] = None
+    row_count: int | None = None
     columns: list[str] = Field(default_factory=list)
 
 
@@ -48,8 +48,8 @@ class SubQuery(BaseModel):
     id: str
     description: str
     depends_on: list[str] = Field(default_factory=list)
-    sql: Optional[str] = None
-    result: Optional[dict[str, Any]] = None
+    sql: str | None = None
+    result: dict[str, Any] | None = None
 
 
 class QueryPlan(BaseModel):
@@ -74,7 +74,7 @@ class SQLGenerationAttempt(BaseModel):
     attempt_number: int
     sql: str
     validation: ValidationResult
-    execution_error: Optional[str] = None
+    execution_error: str | None = None
 
 
 class GraderFeedback(BaseModel):
@@ -90,9 +90,9 @@ class ConversationTurn(BaseModel):
     """A single turn in the conversation history."""
 
     question: str
-    rewritten_query: Optional[str] = None
-    sql: Optional[str] = None
-    answer: Optional[str] = None
+    rewritten_query: str | None = None
+    sql: str | None = None
+    answer: str | None = None
 
 
 class NodeExecution(BaseModel):
@@ -129,4 +129,4 @@ class ConversationContext(BaseModel):
 
     turns: list[ConversationTurn] = Field(default_factory=list)
     last_tables_used: list[str] = Field(default_factory=list)
-    last_sql: Optional[str] = None
+    last_sql: str | None = None

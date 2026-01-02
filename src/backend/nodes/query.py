@@ -10,13 +10,14 @@ import logging
 import re
 from typing import Any
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 from pocketflow import Node
 
 from src.backend.models import QueryIntent
 from src.backend.utils.call_llm import call_llm
 from src.backend.utils.logger import get_logger
 from src.backend.utils.memory import get_memory
+
 
 logger = logging.getLogger(__name__)
 
@@ -190,18 +191,22 @@ class ClarifyQuery(Node):
         """
         try:
             yaml_match = re.search(r"```yaml\s*(.*?)\s*```", response, re.DOTALL)
-            if yaml_match:
-                yaml_str = yaml_match.group(1)
-            else:
-                yaml_str = response.strip()
+            yaml_str = yaml_match.group(1) if yaml_match else response.strip()
 
             result = yaml.safe_load(yaml_str)
 
             if not isinstance(result, dict):
-                return {"intent": QueryIntent.CLEAR, "reasoning": "Parse failed, assuming clear"}
+                return {
+                    "intent": QueryIntent.CLEAR,
+                    "reasoning": "Parse failed, assuming clear",
+                }
 
             intent_str = result.get("intent", "clear").lower()
-            intent = QueryIntent.AMBIGUOUS if intent_str == "ambiguous" else QueryIntent.CLEAR
+            intent = (
+                QueryIntent.AMBIGUOUS
+                if intent_str == "ambiguous"
+                else QueryIntent.CLEAR
+            )
 
             reasoning = result.get("reasoning", "")
             clarification_questions = result.get("clarification_questions", [])
@@ -217,7 +222,10 @@ class ClarifyQuery(Node):
 
         except yaml.YAMLError as e:
             logger.warning("Failed to parse YAML response: %s", e)
-            return {"intent": QueryIntent.CLEAR, "reasoning": "Parse error, assuming clear"}
+            return {
+                "intent": QueryIntent.CLEAR,
+                "reasoning": "Parse error, assuming clear",
+            }
 
 
 class AskUser(Node):
@@ -252,11 +260,10 @@ class AskUser(Node):
 
         if is_cli:
             final_text = prep_res.get("final_text", "")
-            if final_text:
-                print(final_text)
+            prompt = f"{final_text}\n> " if final_text else "> "
 
             try:
-                user_input = input("> ").strip()
+                user_input = input(prompt).strip()
                 if user_input.lower() in ["quit", "exit", "q"]:
                     return {"action": "quit", "clarified_question": None}
                 if user_input:

@@ -4,8 +4,9 @@ import duckdb
 DATABASE = "src/backend/data/nba.duckdb"
 
 
-def fix_duplicates() -> None:
-    con = duckdb.connect(DATABASE)
+def fix_duplicates(db_path: str | None = None) -> None:
+    db_path = db_path or DATABASE
+    con = duckdb.connect(db_path)
 
     try:
         # Normalize season_type and de-duplicate per game_id

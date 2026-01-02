@@ -76,13 +76,12 @@ logger = logging.getLogger(__name__)
 
 
 def populate_officials(*args, **kwargs):
-    """
-    Populate the officials_directory table with referee records and game linkages.
-    
+    """Populate the officials_directory table with referee records and game linkages.
+
     Intended to fetch current (and optionally historical) NBA referee data, store biographical
     and officiating statistics, and create links between officials and games. See
     docs/roadmap.md Phase 4.3 for detailed requirements and data sources.
-    
+
     Raises:
         NotImplementedError: Function is a placeholder; implementation planned per docs/roadmap.md Phase 4.3.
     """
@@ -95,20 +94,22 @@ def populate_officials(*args, **kwargs):
 
 
 def main():
-    """
-    Command-line entry point that reports the placeholder status for officials population.
-    
+    """Command-line entry point that reports the placeholder status for officials population.
+
     Parses the command-line options --include-historical, --seasons, and --with-games, emits a series of warning messages describing that officials population is not yet implemented and listing required decisions, references docs/roadmap.md Phase 4.3, and exits the process with status code 1.
     """
     parser = argparse.ArgumentParser(
         description="Populate officials data (NOT YET IMPLEMENTED)",
     )
-    parser.add_argument("--include-historical", action="store_true",
-                        help="Include retired officials")
-    parser.add_argument("--seasons", nargs="+",
-                        help="Link officials to games for these seasons")
-    parser.add_argument("--with-games", action="store_true",
-                        help="Create game-official linkages")
+    parser.add_argument(
+        "--include-historical", action="store_true", help="Include retired officials"
+    )
+    parser.add_argument(
+        "--seasons", nargs="+", help="Link officials to games for these seasons"
+    )
+    parser.add_argument(
+        "--with-games", action="store_true", help="Create game-official linkages"
+    )
 
     _args = parser.parse_args()
 

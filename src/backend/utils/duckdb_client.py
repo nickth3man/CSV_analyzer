@@ -9,22 +9,29 @@ from __future__ import annotations
 import logging
 import os
 import time
+from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import duckdb
-import pandas as pd
 
 from src.backend.models import TableMeta, ValidationResult
 from src.backend.utils.logger import get_logger
 from src.backend.utils.resilience import circuit_breaker, timeout
 
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_DB_PATH = Path(__file__).parent.parent / "data" / "nba.duckdb"
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+
+def _quote_identifier(identifier: str) -> str:
+    """Safely quote a DuckDB identifier."""
+    escaped = identifier.replace('"', '""')
+    return f'"{escaped}"'
 
 
 class DuckDBClient:
@@ -83,25 +90,33 @@ class DuckDBClient:
             SELECT table_name
             FROM information_schema.tables
             WHERE table_schema = 'main'
-            AND table_type = 'BASE TABLE'
-            ORDER BY table_name
+            AND table_type IN ('BASE TABLE', 'VIEW')
+            ORDER BY 
+                CASE 
+                    WHEN table_name LIKE '%_gold' THEN 1
+                    WHEN table_name LIKE '%_silver' THEN 2
+                    WHEN table_name LIKE '%_raw' THEN 4
+                    ELSE 3
+                END,
+                table_name
         """
         tables_df = conn.execute(tables_query).fetchdf()
 
         result = []
         for table_name in tables_df["table_name"]:
+            table_identifier = _quote_identifier(table_name)
             count_result = conn.execute(
-                f'SELECT COUNT(*) as cnt FROM "{table_name}"'
+                f"SELECT COUNT(*) as cnt FROM {table_identifier}"  # noqa: S608  # nosec B608
             ).fetchone()
             row_count = count_result[0] if count_result else 0
 
-            columns_query = f"""
+            columns_query = """
                 SELECT column_name
                 FROM information_schema.columns
-                WHERE table_name = '{table_name}'
+                WHERE table_name = ?
                 ORDER BY ordinal_position
             """
-            columns_df = conn.execute(columns_query).fetchdf()
+            columns_df = conn.execute(columns_query, [table_name]).fetchdf()
             columns = columns_df["column_name"].tolist()
 
             description = self._generate_table_description(table_name, columns)
@@ -117,9 +132,7 @@ class DuckDBClient:
 
         return result
 
-    def _generate_table_description(
-        self, table_name: str, columns: list[str]
-    ) -> str:
+    def _generate_table_description(self, table_name: str, columns: list[str]) -> str:
         """Generate a description for a table based on its name and columns.
 
         Args:
@@ -130,6 +143,25 @@ class DuckDBClient:
             Human-readable description.
         """
         descriptions = {
+            # Analytics Layer
+            "team_rolling_metrics": "Rolling 10-game averages for team performance (PPG, Opp PPG, Win %)",
+            "player_season_averages": "Season-level averages for players (PPG, RPG, APG, etc.)",
+            "team_standings": "Current and historical team standings and win percentages",
+            # Gold Layer (Canonical)
+            "games": "Canonical game records with scores and dates",
+            "team_game_stats": "Team-level statistics for every game (points, rebounds, assists, etc.)",
+            "player_game_stats": "Player-level statistics for every game (points, rebounds, assists, etc.)",
+            "game_gold": "Canonical game statistics (deduplicated and cleaned)",
+            "player_gold": "Canonical player information (deduplicated and cleaned)",
+            "team_gold": "Canonical team information (deduplicated and cleaned)",
+            # Silver Layer (Typed & Normalized)
+            "player_silver": "Normalized player basic information with correct types",
+            "team_silver": "Normalized team information with correct types",
+            "game_silver": "Normalized game statistics with correct types",
+            "common_player_info_silver": "Detailed player info (birthdate, school, position, draft)",
+            "draft_history_silver": "Historical draft data with correct types",
+            "draft_combine_stats_silver": "Physical measurements and athletic tests from draft combine",
+            # Legacy / Other
             "player": "Player basic information including name and active status",
             "team": "Team information including name, abbreviation, city, and founding year",
             "game": "Game statistics for home and away teams including scores and shooting stats",
@@ -150,6 +182,9 @@ class DuckDBClient:
         if table_name in descriptions:
             return descriptions[table_name]
 
+        if table_name.endswith("_raw"):
+            return f"Raw landing table for {table_name[:-4]} (untyped)"
+
         col_sample = ", ".join(columns[:5])
         if len(columns) > 5:
             col_sample += f" (+{len(columns) - 5} more)"
@@ -168,13 +203,13 @@ class DuckDBClient:
         ddl_parts = []
 
         for table_name in tables:
-            columns_query = f"""
+            columns_query = """
                 SELECT column_name, data_type, is_nullable
                 FROM information_schema.columns
-                WHERE table_name = '{table_name}'
+                WHERE table_name = ?
                 ORDER BY ordinal_position
             """
-            columns_df = conn.execute(columns_query).fetchdf()
+            columns_df = conn.execute(columns_query, [table_name]).fetchdf()
 
             if columns_df.empty:
                 continue
@@ -182,14 +217,17 @@ class DuckDBClient:
             column_defs = []
             for _, row in columns_df.iterrows():
                 nullable = "" if row["is_nullable"] == "YES" else " NOT NULL"
-                column_defs.append(f"    {row['column_name']} {row['data_type']}{nullable}")
+                column_defs.append(
+                    f"    {row['column_name']} {row['data_type']}{nullable}"
+                )
 
-            ddl = f"CREATE TABLE {table_name} (\n"
+            table_identifier = _quote_identifier(table_name)
+            ddl = f"CREATE TABLE {table_identifier} (\n"
             ddl += ",\n".join(column_defs)
             ddl += "\n);"
 
             count_result = conn.execute(
-                f'SELECT COUNT(*) as cnt FROM "{table_name}"'
+                f"SELECT COUNT(*) as cnt FROM {table_identifier}"  # noqa: S608  # nosec B608
             ).fetchone()
             row_count = count_result[0] if count_result else 0
             ddl += f"\n-- {row_count:,} rows"
@@ -278,9 +316,7 @@ class DuckDBClient:
             warnings=warnings,
         )
 
-    def get_sample_data(
-        self, table_name: str, limit: int = 5
-    ) -> pd.DataFrame:
+    def get_sample_data(self, table_name: str, limit: int = 5) -> pd.DataFrame:
         """Get sample rows from a table.
 
         Args:
@@ -290,11 +326,29 @@ class DuckDBClient:
         Returns:
             DataFrame with sample data.
         """
-        sql = f'SELECT * FROM "{table_name}" LIMIT {limit}'
-        return self.execute_query(sql)
+        table_identifier = _quote_identifier(table_name)
+        sql = f"SELECT * FROM {table_identifier} LIMIT ?"  # noqa: S608  # nosec B608
+        return self.execute_query(sql, params=[int(limit)])
 
 
-_client_instance: DuckDBClient | None = None
+@cache
+def _get_duckdb_client_cached(db_path: str | None) -> DuckDBClient:
+    return DuckDBClient(db_path=db_path)
+
+
+def _resolve_db_path(db_path: str | Path | None) -> str | None:
+    if db_path is not None:
+        return str(db_path)
+
+    if env_path := os.environ.get("NBA_DB_PATH"):
+        return env_path
+
+    try:
+        from src.backend.config import get_config
+
+        return get_config().database.path
+    except Exception:
+        return str(DEFAULT_DB_PATH)
 
 
 def get_duckdb_client(
@@ -308,10 +362,8 @@ def get_duckdb_client(
     Returns:
         DuckDB client instance.
     """
-    global _client_instance
-    if _client_instance is None or db_path is not None:
-        _client_instance = DuckDBClient(db_path=db_path)
-    return _client_instance
+    normalized_path = _resolve_db_path(db_path)
+    return _get_duckdb_client_cached(normalized_path)
 
 
 def initialize_database_from_csvs(
@@ -342,22 +394,24 @@ def initialize_database_from_csvs(
 
     for csv_file in csv_files:
         table_name = csv_file.stem
+        table_identifier = _quote_identifier(table_name)
 
         try:
             conn.execute(
                 f"""
-                CREATE TABLE "{table_name}" AS
-                SELECT * FROM read_csv_auto('{csv_file}', header=true)
-                """
+                CREATE TABLE {table_identifier} AS
+                SELECT * FROM read_csv_auto(?, header=true)
+                """,  # noqa: S608  # nosec B608
+                [str(csv_file)],
             )
 
             count = conn.execute(
-                f'SELECT COUNT(*) FROM "{table_name}"'
+                f"SELECT COUNT(*) FROM {table_identifier}"  # noqa: S608  # nosec B608
             ).fetchone()[0]
             logger.info(f"Created table '{table_name}' with {count:,} rows")
 
         except Exception as e:
-            logger.error(f"Failed to import {csv_file.name}: {e}")
+            logger.exception(f"Failed to import {csv_file.name}: {e}")
 
     conn.close()
     logger.info(f"Database created at: {db_path}")

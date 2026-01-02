@@ -12,8 +12,8 @@ from typing import Any
 import pandas as pd
 from pocketflow import Node
 
-from src.backend.models import QueryPlan, SubQuery
 from src.backend.utils.logger import get_logger
+
 
 logger = logging.getLogger(__name__)
 
@@ -148,7 +148,11 @@ class CombineResults(Node):
 
         for sq in sub_queries:
             sq_id = sq.id if hasattr(sq, "id") else sq.get("id", "")
-            sq_desc = sq.description if hasattr(sq, "description") else sq.get("description", "")
+            sq_desc = (
+                sq.description
+                if hasattr(sq, "description")
+                else sq.get("description", "")
+            )
 
             if sq_id in results:
                 result = results[sq_id]
@@ -206,16 +210,24 @@ class CombineResults(Node):
         chain = []
         for sq in sorted_queries:
             sq_id = sq.id if hasattr(sq, "id") else sq.get("id", "")
-            sq_desc = sq.description if hasattr(sq, "description") else sq.get("description", "")
+            sq_desc = (
+                sq.description
+                if hasattr(sq, "description")
+                else sq.get("description", "")
+            )
 
             if sq_id in results:
                 result = results[sq_id]
 
-                chain.append({
-                    "step": sq_id,
-                    "description": sq_desc,
-                    "result": result.to_dict("records") if isinstance(result, pd.DataFrame) else result,
-                })
+                chain.append(
+                    {
+                        "step": sq_id,
+                        "description": sq_desc,
+                        "result": result.to_dict("records")
+                        if isinstance(result, pd.DataFrame)
+                        else result,
+                    }
+                )
 
         return {"chain": chain, "final_step": chain[-1] if chain else None}
 
@@ -253,7 +265,7 @@ class CombineResults(Node):
         for df in dataframes[1:]:
             common_cols = list(set(merged.columns) & set(df.columns))
             if common_cols:
-                merged = pd.merge(merged, df, on=common_cols, how="outer")
+                merged = merged.merge(df, on=common_cols, how="outer")
             else:
                 merged = pd.concat([merged, df], ignore_index=True)
 
@@ -273,11 +285,15 @@ class CombineResults(Node):
         Returns:
             Dictionary with all synthesized data.
         """
-        synthesized = {"sub_queries": [], "all_data": []}
+        synthesized: dict[str, Any] = {"sub_queries": [], "all_data": []}
 
         for sq in sub_queries:
             sq_id = sq.id if hasattr(sq, "id") else sq.get("id", "")
-            sq_desc = sq.description if hasattr(sq, "description") else sq.get("description", "")
+            sq_desc = (
+                sq.description
+                if hasattr(sq, "description")
+                else sq.get("description", "")
+            )
 
             entry = {
                 "id": sq_id,
@@ -306,20 +322,21 @@ class CombineResults(Node):
         Returns:
             Summary dictionary.
         """
-        summary = {
+        summary: dict[str, Any] = {
             "rows": len(df),
             "columns": list(df.columns),
         }
 
         numeric_cols = df.select_dtypes(include=["number"]).columns
         if len(numeric_cols) > 0:
-            summary["numeric_stats"] = {}
+            numeric_stats: dict[str, dict[str, float | None]] = {}
             for col in numeric_cols[:5]:
-                summary["numeric_stats"][col] = {
+                numeric_stats[col] = {
                     "mean": float(df[col].mean()) if not df[col].isna().all() else None,
                     "min": float(df[col].min()) if not df[col].isna().all() else None,
                     "max": float(df[col].max()) if not df[col].isna().all() else None,
                 }
+            summary["numeric_stats"] = numeric_stats
 
         return summary
 
@@ -347,7 +364,11 @@ class CombineResults(Node):
 
             sq = id_to_query.get(sq_id)
             if sq:
-                deps = sq.depends_on if hasattr(sq, "depends_on") else sq.get("depends_on", [])
+                deps = (
+                    sq.depends_on
+                    if hasattr(sq, "depends_on")
+                    else sq.get("depends_on", [])
+                )
                 for dep in deps:
                     visit(dep)
                 result.append(sq)
