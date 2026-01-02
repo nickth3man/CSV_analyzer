@@ -375,3 +375,193 @@ def mock_matplotlib():
         patch("matplotlib.pyplot.close") as mock_close,
     ):
         yield {"savefig": mock_savefig, "close": mock_close}
+
+
+# ============================================================================
+# Populate Module Fixtures
+# ============================================================================
+
+
+@pytest.fixture
+def temp_duckdb(tmp_path):
+    """Create a temporary DuckDB database for testing populators."""
+    import duckdb
+
+    db_path = tmp_path / "test_nba.duckdb"
+    conn = duckdb.connect(str(db_path))
+
+    # Create base schema tables
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS player_game_stats_raw (
+            game_id VARCHAR,
+            player_id INTEGER,
+            team_id INTEGER,
+            player_name VARCHAR,
+            min VARCHAR,
+            pts INTEGER,
+            fgm INTEGER,
+            fga INTEGER,
+            fg_pct DOUBLE,
+            fg3m INTEGER,
+            fg3a INTEGER,
+            fg3_pct DOUBLE,
+            ftm INTEGER,
+            fta INTEGER,
+            ft_pct DOUBLE,
+            oreb INTEGER,
+            dreb INTEGER,
+            reb INTEGER,
+            ast INTEGER,
+            stl INTEGER,
+            blk INTEGER,
+            tov INTEGER,
+            pf INTEGER,
+            plus_minus INTEGER,
+            populated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (game_id, player_id)
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS games_raw (
+            game_id VARCHAR PRIMARY KEY,
+            season_year VARCHAR,
+            game_date DATE,
+            home_team_id INTEGER,
+            away_team_id INTEGER,
+            home_team_score INTEGER,
+            away_team_score INTEGER,
+            populated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.close()
+    return db_path
+
+
+@pytest.fixture
+def mock_nba_client():
+    """Create a mock NBA API client for testing populators."""
+    mock_client = MagicMock()
+
+    # Mock player game logs response
+    mock_client.get_player_game_logs.return_value = pd.DataFrame(
+        {
+            "GAME_ID": ["0022300001", "0022300002"],
+            "PLAYER_ID": [2544, 2544],
+            "PLAYER_NAME": ["LeBron James", "LeBron James"],
+            "TEAM_ID": [1610612747, 1610612747],
+            "TEAM_ABBREVIATION": ["LAL", "LAL"],
+            "GAME_DATE": ["2023-10-24", "2023-10-26"],
+            "MATCHUP": ["LAL vs. DEN", "LAL @ PHX"],
+            "WL": ["W", "L"],
+            "MIN": ["35:20", "38:15"],
+            "PTS": [28, 32],
+            "FGM": [10, 12],
+            "FGA": [18, 22],
+            "FG_PCT": [0.556, 0.545],
+            "FG3M": [2, 3],
+            "FG3A": [5, 7],
+            "FG3_PCT": [0.400, 0.429],
+            "FTM": [6, 5],
+            "FTA": [8, 6],
+            "FT_PCT": [0.750, 0.833],
+            "OREB": [1, 2],
+            "DREB": [7, 6],
+            "REB": [8, 8],
+            "AST": [11, 9],
+            "STL": [2, 1],
+            "BLK": [1, 0],
+            "TOV": [3, 4],
+            "PF": [2, 3],
+            "PLUS_MINUS": [12, -5],
+        }
+    )
+
+    # Mock static players
+    mock_client.get_all_players.return_value = [
+        {"id": 2544, "full_name": "LeBron James", "is_active": True},
+        {"id": 201566, "full_name": "Stephen Curry", "is_active": True},
+    ]
+
+    # Mock static teams
+    mock_client.get_all_teams.return_value = [
+        {"id": 1610612747, "full_name": "Los Angeles Lakers", "abbreviation": "LAL"},
+        {"id": 1610612744, "full_name": "Golden State Warriors", "abbreviation": "GSW"},
+    ]
+
+    # Mock league game finder
+    mock_client.get_league_game_finder.return_value = pd.DataFrame(
+        {
+            "GAME_ID": ["0022300001"],
+            "SEASON_ID": ["22023"],
+            "TEAM_ID": [1610612747],
+            "TEAM_ABBREVIATION": ["LAL"],
+            "GAME_DATE": ["2023-10-24"],
+            "PTS": [117],
+            "WL": ["W"],
+        }
+    )
+
+    return mock_client
+
+
+@pytest.fixture
+def sample_player_game_stats_df():
+    """Sample DataFrame matching player_game_stats schema."""
+    return pd.DataFrame(
+        {
+            "game_id": ["0022300001", "0022300002"],
+            "player_id": [2544, 201566],
+            "player_name": ["LeBron James", "Stephen Curry"],
+            "team_id": [1610612747, 1610612744],
+            "game_date": ["2023-10-24", "2023-10-24"],
+            "matchup": ["LAL vs. DEN", "GSW vs. PHX"],
+            "wl": ["W", "L"],
+            "min": [35.5, 38.0],
+            "pts": [28, 35],
+            "fgm": [10, 12],
+            "fga": [18, 24],
+            "fg_pct": [0.556, 0.500],
+            "fg3m": [2, 8],
+            "fg3a": [5, 15],
+            "fg3_pct": [0.400, 0.533],
+            "ftm": [6, 3],
+            "fta": [8, 3],
+            "ft_pct": [0.750, 1.000],
+            "oreb": [1, 0],
+            "dreb": [7, 4],
+            "reb": [8, 4],
+            "ast": [11, 6],
+            "stl": [2, 3],
+            "blk": [1, 0],
+            "tov": [3, 2],
+            "pf": [2, 4],
+            "plus_minus": [12, -8],
+        }
+    )
+
+
+@pytest.fixture
+def mock_circuit_breaker():
+    """Create a mock circuit breaker for testing."""
+    from src.scripts.populate.resilience import CircuitBreaker
+
+    breaker = CircuitBreaker(
+        name="test_breaker",
+        failure_threshold=3,
+        success_threshold=2,
+        timeout=5.0,
+    )
+    return breaker
+
+
+@pytest.fixture
+def population_test_context(temp_duckdb, mock_nba_client):
+    """Complete test context for population tests."""
+    return {
+        "db_path": temp_duckdb,
+        "client": mock_nba_client,
+        "season": "2023-24",
+        "season_type": "Regular Season",
+    }
