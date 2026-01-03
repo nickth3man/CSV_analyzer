@@ -84,7 +84,11 @@ class TestCallLLMEnvironmentValidation:
     def test_uses_default_model_when_not_set(self, mock_env_vars) -> None:
         """Test default model is used when OPENROUTER_MODEL not set."""
         with (
-            patch.dict(os.environ, {"OPENROUTER_API_KEY": "test_key"}, clear=True),
+            patch.dict(
+                os.environ,
+                {"OPENROUTER_API_KEY": "test_key", "LLM_CACHE_ENABLED": "0"},
+                clear=True,
+            ),
             patch("backend.utils.call_llm.OpenAI") as mock_client_class,
         ):
             mock_client = MagicMock()
@@ -129,7 +133,7 @@ class TestCallLLMRetryLogic:
             ]
             mock_client_class.return_value = mock_client
 
-            with patch("backend.utils.call_llm.time.sleep"):
+            with patch("tenacity.nap.time.sleep"):
                 result = call_llm("Test prompt")
 
                 assert result == "Success"
@@ -148,7 +152,7 @@ class TestCallLLMRetryLogic:
             ]
             mock_client_class.return_value = mock_client
 
-            with patch("backend.utils.call_llm.time.sleep") as mock_sleep:
+            with patch("tenacity.nap.time.sleep") as mock_sleep:
                 call_llm("Test prompt")
 
                 # Should sleep with exponential backoff: 2^1=2s, 2^2=4s
@@ -165,7 +169,7 @@ class TestCallLLMRetryLogic:
             mock_client.chat.completions.create.side_effect = Exception("Always fails")
             mock_client_class.return_value = mock_client
 
-            with patch("backend.utils.call_llm.time.sleep"):
+            with patch("tenacity.nap.time.sleep"):
                 with pytest.raises(
                     RuntimeError,
                     match="LLM call failed after 3 attempts",
@@ -183,7 +187,7 @@ class TestCallLLMRetryLogic:
             mock_client.chat.completions.create.side_effect = original_error
             mock_client_class.return_value = mock_client
 
-            with patch("backend.utils.call_llm.time.sleep"):
+            with patch("tenacity.nap.time.sleep"):
                 with pytest.raises(RuntimeError) as exc_info:
                     call_llm("Test prompt")
 
@@ -200,7 +204,7 @@ class TestCallLLMRetryLogic:
             ].message.content = "Success"
             mock_client_class.return_value = mock_client
 
-            with patch("backend.utils.call_llm.time.sleep") as mock_sleep:
+            with patch("tenacity.nap.time.sleep") as mock_sleep:
                 result = call_llm("Test prompt")
 
                 assert result == "Success"
@@ -242,7 +246,7 @@ class TestCallLLMCustomMaxRetries:
             mock_client.chat.completions.create.side_effect = Exception("Always fails")
             mock_client_class.return_value = mock_client
 
-            with patch("backend.utils.call_llm.time.sleep"):
+            with patch("tenacity.nap.time.sleep"):
                 with pytest.raises(RuntimeError, match="5 attempts"):
                     call_llm("Test prompt", max_retries=5)
 
@@ -256,7 +260,7 @@ class TestCallLLMCustomMaxRetries:
             mock_client.chat.completions.create.side_effect = Exception("Fails")
             mock_client_class.return_value = mock_client
 
-            with patch("backend.utils.call_llm.time.sleep") as mock_sleep:
+            with patch("tenacity.nap.time.sleep") as mock_sleep:
                 with pytest.raises(RuntimeError, match="1 attempts"):
                     call_llm("Test prompt", max_retries=1)
 
@@ -279,7 +283,7 @@ class TestCallLLMErrorHandling:
             ]
             mock_client_class.return_value = mock_client
 
-            with patch("backend.utils.call_llm.time.sleep"):
+            with patch("tenacity.nap.time.sleep"):
                 result = call_llm("Test prompt")
                 assert result == "Success"
 
@@ -293,7 +297,7 @@ class TestCallLLMErrorHandling:
             ]
             mock_client_class.return_value = mock_client
 
-            with patch("backend.utils.call_llm.time.sleep"):
+            with patch("tenacity.nap.time.sleep"):
                 result = call_llm("Test prompt")
                 assert result == "Success"
 
@@ -307,27 +311,10 @@ class TestCallLLMErrorHandling:
             mock_client_class.return_value = mock_client
 
             with (
-                patch("backend.utils.call_llm.time.sleep"),
+                patch("tenacity.nap.time.sleep"),
                 pytest.raises(RuntimeError),
             ):
                 call_llm("Test prompt")
-
-    def test_auth_error_returns_mock_when_enabled(self, mock_env_vars) -> None:
-        """Test auth errors return mock responses when USE_MOCK_LLM is enabled."""
-        with (
-            patch.dict(os.environ, {"USE_MOCK_LLM": "1"}, clear=False),
-            patch("backend.utils.call_llm.OpenAI") as mock_client_class,
-        ):
-            mock_client = MagicMock()
-            mock_client.chat.completions.create.side_effect = Exception(
-                "401 Unauthorized",
-            )
-            mock_client_class.return_value = mock_client
-
-            result = call_llm("Some prompt")
-
-            assert result == "Mock response"
-
 
 class TestCallLLMEdgeCases:
     """Test edge cases."""

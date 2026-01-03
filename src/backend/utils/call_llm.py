@@ -1,48 +1,66 @@
-"""LLM wrapper for OpenRouter API with retry logic and provider routing.
+"""LLM wrapper for OpenRouter API with retries, caching, and async support."""
 
-# TODO (Code Quality): Separate mock responses from production code
-# The mock responses embedded in call_llm() should be extracted to a separate
-# module or test fixtures. Mocking is now gated behind USE_MOCK_LLM to avoid
-# masking real API issues in production.
-
-# TODO (Performance): Implement async LLM calls
-# Current synchronous calls block the main thread during LLM inference.
-# Consider adding an async variant:
-#   async def call_llm_async(prompt, max_retries=3):
-#       async with httpx.AsyncClient() as client:
-#           response = await client.post(...)
-# This would enable parallel LLM calls in the flow.
-
-# TODO (Performance): Add response caching with TTL
-# Identical prompts could return cached responses to reduce API costs.
-# Use functools.lru_cache or a Redis-based cache with configurable TTL.
-# Note: Must handle cache invalidation for time-sensitive queries.
-
-# TODO (Reliability): Implement circuit breaker pattern
-# Repeated failures should trigger a circuit breaker to prevent cascading
-# failures and allow the system to recover gracefully.
-# Consider using the 'circuitbreaker' package or implementing a simple
-# state machine (CLOSED -> OPEN -> HALF_OPEN).
-"""
+from __future__ import annotations
 
 import logging
 import os
 import time
+from dataclasses import dataclass
 
+import httpx
 from openai import OpenAI
+from tenacity import (
+    AsyncRetrying,
+    Retrying,
+    before_sleep_log,
+    retry_if_exception_type,
+    retry_if_not_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
+
+from src.backend.utils.cache import get_cached, set_cached
+from src.backend.utils.logger import get_logger
+from src.backend.utils.resilience import circuit_breaker
 
 
 logger = logging.getLogger(__name__)
 
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_MODEL = "meta-llama/llama-3.3-70b-instruct"
 DEFAULT_TEMPERATURE = 0.1
 DEFAULT_MAX_TOKENS = 2000
-MOCK_LLM_ENV = "USE_MOCK_LLM"
+DEFAULT_TIMEOUT_SECONDS = 60.0
+
+CACHE_ENV = "LLM_CACHE_ENABLED"
 
 
-def _mock_enabled() -> bool:
-    value = os.environ.get(MOCK_LLM_ENV, "")
+class AuthenticationError(RuntimeError):
+    """Raised when OpenRouter authentication fails."""
+
+
+@dataclass(frozen=True)
+class LLMSettings:
+    """Resolved settings for a single LLM call."""
+
+    api_key: str
+    model: str
+    temperature: float
+    max_tokens: int
+    timeout: float
+    base_url: str = OPENROUTER_BASE_URL
+
+
+def _cache_enabled() -> bool:
+    value = os.environ.get(CACHE_ENV, "1")
     return value.strip().lower() in {"1", "true", "yes", "y"}
+
+
+def _build_cache_key(prompt: str, settings: LLMSettings) -> str:
+    return (
+        f"[model={settings.model}|temp={settings.temperature}|"
+        f"max_tokens={settings.max_tokens}] {prompt}"
+    )
 
 
 def _is_auth_error(error_message: str) -> bool:
@@ -52,136 +70,28 @@ def _is_auth_error(error_message: str) -> bool:
         or "user not found" in lower
         or "invalid api key" in lower
         or "authentication" in lower
+        or "unauthorized" in lower
+        or "forbidden" in lower
     )
 
 
-def _mock_response(prompt: str) -> str:
-    # Table Selection Mock
-    if "select the most relevant tables" in prompt:
-        if "rolling" in prompt.lower() or "trend" in prompt.lower():
-            return """
-```yaml
-selected_tables:
-  - table_name: team_rolling_metrics
-    reason: Contains rolling averages for team performance.
-  - table_name: team_gold
-    reason: Canonical team information.
-```"""
-        if "season" in prompt.lower() and "average" in prompt.lower():
-            return """
-```yaml
-selected_tables:
-  - table_name: player_season_averages
-    reason: Contains pre-calculated season averages for players.
-  - table_name: player_gold
-    reason: Canonical player information.
-```"""
-        if "standing" in prompt.lower() or "rank" in prompt.lower():
-            return """
-```yaml
-selected_tables:
-  - table_name: team_standings
-    reason: Contains current league standings and win percentages.
-```"""
-        return """
-```yaml
-selected_tables:
-  - table_name: player_gold
-    reason: Basic player info.
-  - table_name: team_gold
-    reason: Basic team info.
-```"""
-
-    # SQL Generation Mock
-    if "Generate a DuckDB SQL query" in prompt:
-        if "team_rolling_metrics" in prompt:
-            return """
-```sql
-SELECT team_name, rolling_win_pct
-FROM team_rolling_metrics
-WHERE rolling_window = 10
-ORDER BY rolling_win_pct DESC
-LIMIT 5;
-```"""
-        if "player_season_averages" in prompt:
-            return """
-```sql
-SELECT player_name, pts_avg
-FROM player_season_averages
-WHERE season_id = '2023-24'
-ORDER BY pts_avg DESC
-LIMIT 5;
-```"""
-        if "team_standings" in prompt:
-            return """
-```sql
-SELECT team_name, wins, losses, win_pct
-FROM team_standings
-ORDER BY win_pct DESC;
-```"""
-        return "```sql\nSELECT * FROM player_gold LIMIT 5;\n```"
-
-    if "Extract all named entities" in prompt:
-        return '["LeBron James", "Tracy McGrady"]'
-    if "create a comprehensive analysis plan" in prompt:
-        return """1. Query the 'stats' table for LeBron James and Tracy McGrady.
-2. Filter for relevant years.
-3. Compare points.
-4. Generate insights."""
-    if "Write comprehensive code" in prompt or "Fix it" in prompt:
-        return """
-final_result = {}
-try:
-    df = dfs['stats']
-    lebron = df[df['player_name'] == 'LeBron James']
-    tracy = df[df['player_name'] == 'Tracy McGrady']
-    final_result['LeBron James'] = lebron.to_dict('records')
-    final_result['Tracy McGrady'] = tracy.to_dict('records')
-except Exception as e:
-    final_result['error'] = str(e)
-"""
-    if "Analyze the following data" in prompt:
-        return """
-```json
-{
-"key_stats": {"LeBron Points": 30000, "Tracy Points": 18000},
-"comparison": "LeBron has more points.",
-"insights": ["LeBron played longer."],
-"data_gaps": [],
-"narrative_points": ["LeBron is great", "Tracy was good"]
-}
-```"""
-    if "writing a response to a user's question" in prompt:
-        return "LeBron James scored 30000 points and Tracy McGrady scored 18000 points. LeBron had a longer career."
-    return "Mock response"
-
-
-def call_llm(prompt: str, max_retries: int = 3) -> str:
-    if _mock_enabled():
-        logger.info("Mocking LLM response as requested by USE_MOCK_LLM")
-        return _mock_response(prompt)
-
+def _load_llm_settings() -> LLMSettings:
     api_key = os.environ.get("OPENROUTER_API_KEY", "")
     if not api_key:
         raise RuntimeError(
             "OPENROUTER_API_KEY is required. Set it in the environment or .env.",
         )
 
-    base_url = "https://openrouter.ai/api/v1"
+    model = os.environ.get("OPENROUTER_MODEL") or os.environ.get("LLM_MODEL")
+    model = model or DEFAULT_MODEL
 
-    # Create client with timeout
-    client = OpenAI(api_key=api_key, base_url=base_url, timeout=60.0)
-    model = (
-        os.environ.get("OPENROUTER_MODEL")
-        or os.environ.get("LLM_MODEL")
-        or DEFAULT_MODEL
-    )
     temperature = DEFAULT_TEMPERATURE
     if env_temp := os.environ.get("LLM_TEMPERATURE"):
         try:
             temperature = float(env_temp)
         except ValueError:
             logger.warning("Invalid LLM_TEMPERATURE=%s; using default", env_temp)
+
     max_tokens = DEFAULT_MAX_TOKENS
     if env_tokens := os.environ.get("LLM_MAX_TOKENS"):
         try:
@@ -189,38 +99,169 @@ def call_llm(prompt: str, max_retries: int = 3) -> str:
         except ValueError:
             logger.warning("Invalid LLM_MAX_TOKENS=%s; using default", env_tokens)
 
-    # Retry logic with exponential backoff
-    messages = [{"role": "user", "content": prompt}]
-    for attempt in range(max_retries):
-        try:
-            r = client.chat.completions.create(
-                model=model,
-                messages=messages,  # type: ignore[arg-type]
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
-            return r.choices[0].message.content or ""
-        except Exception as e:
-            error_text = str(e)
-            if _is_auth_error(error_text):
-                if _mock_enabled():
-                    logger.warning("Mocking LLM response due to auth error: %s", e)
-                    return _mock_response(prompt)
-                raise RuntimeError(
-                    "OpenRouter authentication failed. Set OPENROUTER_API_KEY "
-                    "or enable USE_MOCK_LLM for testing.",
-                ) from e
+    return LLMSettings(
+        api_key=api_key,
+        model=model,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        timeout=DEFAULT_TIMEOUT_SECONDS,
+    )
 
-            if attempt == max_retries - 1:
-                # Re-raise on last attempt
-                raise RuntimeError(
-                    f"LLM call failed after {max_retries} attempts: {e!s}",
-                ) from e
-            logger.warning(
-                f"LLM call failed (attempt {attempt + 1}/{max_retries}): {e}",
-            )
-            # Exponential backoff: 2s, 4s, 8s
-            time.sleep(2 ** (attempt + 1))
+
+def _log_llm_call(
+    prompt: str,
+    response: str,
+    start_time: float,
+    *,
+    cached: bool,
+    model: str,
+) -> None:
+    latency_ms = int((time.time() - start_time) * 1000) if start_time else 0
+    get_logger().log_llm_call(
+        prompt=prompt,
+        response=response,
+        latency_ms=latency_ms,
+        cached=cached,
+        model=model,
+    )
+
+
+@circuit_breaker(threshold=5, recovery=120)
+def call_llm(prompt: str, max_retries: int = 3) -> str:
+    """Call OpenRouter synchronously with retries and caching."""
+    settings = _load_llm_settings()
+    attempts = max(1, max_retries)
+    cache_key = _build_cache_key(prompt, settings)
+
+    if _cache_enabled():
+        cached = get_cached(cache_key)
+        if cached is not None:
+            _log_llm_call(prompt, cached, 0.0, cached=True, model=settings.model)
+            return cached
+
+    client = OpenAI(
+        api_key=settings.api_key,
+        base_url=settings.base_url,
+        timeout=settings.timeout,
+    )
+    messages = [{"role": "user", "content": prompt}]
+    retryer = Retrying(
+        stop=stop_after_attempt(attempts),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(Exception)
+        & retry_if_not_exception_type(AuthenticationError),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True,
+    )
+
+    start_time = time.time()
+    try:
+        for attempt in retryer:
+            with attempt:
+                try:
+                    response = client.chat.completions.create(
+                        model=settings.model,
+                        messages=messages,  # type: ignore[arg-type]
+                        temperature=settings.temperature,
+                        max_tokens=settings.max_tokens,
+                    )
+                except Exception as e:
+                    if _is_auth_error(str(e)):
+                        raise AuthenticationError(str(e)) from e
+                    raise
+
+                content = response.choices[0].message.content or ""
+                if _cache_enabled() and content:
+                    set_cached(cache_key, content)
+                _log_llm_call(
+                    prompt,
+                    content,
+                    start_time,
+                    cached=False,
+                    model=settings.model,
+                )
+                return content
+    except AuthenticationError as e:
+        raise RuntimeError(
+            "OpenRouter authentication failed. Set OPENROUTER_API_KEY.",
+        ) from e
+    except Exception as e:
+        raise RuntimeError(
+            f"LLM call failed after {attempts} attempts: {e!s}",
+        ) from e
+    return ""
+
+
+async def call_llm_async(prompt: str, max_retries: int = 3) -> str:
+    """Call OpenRouter asynchronously using httpx with retries and caching."""
+    settings = _load_llm_settings()
+    attempts = max(1, max_retries)
+    cache_key = _build_cache_key(prompt, settings)
+
+    if _cache_enabled():
+        cached = get_cached(cache_key)
+        if cached is not None:
+            _log_llm_call(prompt, cached, 0.0, cached=True, model=settings.model)
+            return cached
+
+    headers = {"Authorization": f"Bearer {settings.api_key}"}
+    payload = {
+        "model": settings.model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": settings.temperature,
+        "max_tokens": settings.max_tokens,
+    }
+
+    retryer = AsyncRetrying(
+        stop=stop_after_attempt(attempts),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(Exception)
+        & retry_if_not_exception_type(AuthenticationError),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True,
+    )
+
+    start_time = time.time()
+    try:
+        async with httpx.AsyncClient(
+            base_url=settings.base_url,
+            timeout=settings.timeout,
+            headers=headers,
+        ) as client:
+            async for attempt in retryer:
+                with attempt:
+                    response = await client.post(
+                        "/chat/completions",
+                        json=payload,
+                    )
+                    if response.status_code in {401, 403}:
+                        raise AuthenticationError(response.text)
+                    response.raise_for_status()
+                    data = response.json()
+                    content = (
+                        data.get("choices", [{}])[0]
+                        .get("message", {})
+                        .get("content")
+                        or ""
+                    )
+                    if _cache_enabled() and content:
+                        set_cached(cache_key, content)
+                    _log_llm_call(
+                        prompt,
+                        content,
+                        start_time,
+                        cached=False,
+                        model=settings.model,
+                    )
+                    return content
+    except AuthenticationError as e:
+        raise RuntimeError(
+            "OpenRouter authentication failed. Set OPENROUTER_API_KEY.",
+        ) from e
+    except Exception as e:
+        raise RuntimeError(
+            f"LLM call failed after {attempts} attempts: {e!s}",
+        ) from e
     return ""
 
 

@@ -238,6 +238,24 @@ class SQLGenerator(Node):
             "sub_query_id": sub_query_id,
         }
 
+    def exec_fallback(self, prep_res: dict[str, Any], exc: Exception) -> dict[str, Any]:
+        """Return a safe fallback when SQL generation fails unexpectedly."""
+        error_msg = str(exc)
+        logger.error("SQLGenerator failed: %s", error_msg)
+        attempt = SQLGenerationAttempt(
+            attempt_number=1,
+            sql="",
+            validation=ValidationResult(is_valid=False, errors=[error_msg]),
+            execution_error=error_msg,
+        )
+        return {
+            "sql": "",
+            "is_valid": False,
+            "attempts": [attempt],
+            "thinking": "",
+            "sub_query_id": prep_res.get("sub_query_id"),
+        }
+
     def post(
         self,
         shared: dict[str, Any],

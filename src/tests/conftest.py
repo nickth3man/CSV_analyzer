@@ -9,6 +9,9 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
+from src.tests.fixtures.mock_llm_responses import (
+    mock_llm_response as shared_mock_llm_response,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SRC_DIR = PROJECT_ROOT / "src"
@@ -114,73 +117,7 @@ def sample_shared_store(sample_df):
 @pytest.fixture
 def mock_llm_response():
     """Returns a mock LLM response function."""
-
-    def _mock_response(prompt) -> str:
-        """Generate deterministic mock responses based on prompt content."""
-        prompt_lower = prompt.lower()
-
-        if "analyzing if a user's nba question" in prompt_lower:
-            return """```yaml
-intent: clear
-reasoning: "Query is specific enough"
-clarification_questions: []
-```"""
-
-        if "rewriting a user's nba question" in prompt_lower:
-            return """```yaml
-rewritten_query: "Who led the league in points in 2023?"
-resolved_entities: {}
-reasoning: "No changes needed"
-```"""
-
-        if "determine if the question is simple" in prompt_lower:
-            return """```yaml
-complexity: simple
-combination_strategy: synthesize
-sub_queries: []
-```"""
-
-        if "select the most relevant tables" in prompt_lower:
-            return """```yaml
-selected_tables:
-  - table_name: player
-    reason: "Contains player information"
-  - table_name: game
-    reason: "Contains game stats"
-```"""
-
-        if "duckdb sql expert" in prompt_lower:
-            return """```yaml
-thinking: |
-  Use a simple aggregation on the game table.
-sql: |
-  SELECT player_name, SUM(points) AS total_points
-  FROM player_game_stats
-  WHERE season = '2022-23'
-  GROUP BY player_name
-  ORDER BY total_points DESC
-  LIMIT 1;
-```"""
-
-        if "quality assurance reviewer" in prompt_lower:
-            return """```yaml
-status: pass
-confidence: 0.9
-issues: []
-suggestions: []
-```"""
-
-        if "nba data analyst explaining query results" in prompt_lower:
-            return """```yaml
-answer: |
-  The top scorer in 2023 was Player X with 2,000 points.
-transparency_note: |
-  I summed points by player for the 2022-23 season and sorted the totals.
-```"""
-
-        return "Mock LLM response for testing purposes."
-
-    return _mock_response
+    return shared_mock_llm_response
 
 
 @pytest.fixture
@@ -288,7 +225,11 @@ def mock_env_vars():
     """Sets up mock environment variables."""
     with patch.dict(
         os.environ,
-        {"OPENROUTER_API_KEY": "test_api_key_12345", "OPENROUTER_MODEL": "test-model"},
+        {
+            "OPENROUTER_API_KEY": "test_api_key_12345",
+            "OPENROUTER_MODEL": "test-model",
+            "LLM_CACHE_ENABLED": "0",
+        },
     ):
         yield
 
