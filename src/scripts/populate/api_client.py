@@ -911,38 +911,44 @@ class NBAClient:
         self,
         season: str,
         season_type: str = "Regular Season",
-        player_or_team: str = "P",
+        pt_measure_type: str = "SpeedDistance",
     ) -> pd.DataFrame | None:
-        """Get player tracking statistics.
+        """Fetch player tracking statistics.
 
         Args:
-            season: Season string (e.g., "2023-24")
-            season_type: Season type (Regular Season, Playoffs, etc.)
-            player_or_team: "P" for player stats, "T" for team stats
+            season: Season (e.g., "2024-25")
+            season_type: Season type
+            pt_measure_type: Tracking measure type:
+                - SpeedDistance: Speed and distance traveled
+                - Rebounding: Rebounding tracking
+                - Possessions: Touches and time of possession
+                - CatchShoot: Catch and shoot stats
+                - PullUpShot: Pull-up shooting
+                - Defense: Defensive tracking
+                - Drives: Driving stats
+                - Passing: Passing stats
+                - ElbowTouch: Elbow touch stats
+                - PostTouch: Post touch stats
+                - PaintTouch: Paint touch stats
 
         Returns:
-            DataFrame with tracking statistics or None if not available
+            DataFrame with player tracking stats
 
         Reference:
             nba_api/stats/endpoints/leaguedashptstats.py
-
-        API Fields Include:
-            - Speed/Distance: SPEED, DIST, ORBCONTRIB, DRCONTRIB
-            - Rebounding: REBCONTRIB, REBCHANCES, REBCHANCE_PCT
-            - Defense: DEF_RIM_PCT, DFGM, DFGA
         """
         from nba_api.stats.endpoints import leaguedashptstats
 
-        tracking = leaguedashptstats.LeagueDashPtStats(
+        endpoint = leaguedashptstats.LeagueDashPtStats(
             season=season,
             season_type_all_star=season_type,
-            player_or_team=player_or_team,
+            pt_measure_type=pt_measure_type,
+            per_mode_simple="Totals",
             proxy=self.config.proxy,
             headers=self.config.headers,
             timeout=self.config.timeout,
         )
-
-        df = tracking.league_dash_pt_stats.get_data_frame()
+        df = endpoint.get_data_frames()[0]
         return self._non_empty_frame(df)
 
     @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
@@ -986,6 +992,41 @@ class NBAClient:
             return None
 
         return dfs[0]
+
+    @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
+    def get_player_awards(
+        self,
+        player_id: int,
+    ) -> pd.DataFrame | None:
+        """Fetch player awards and achievements.
+
+        Args:
+            player_id: NBA player ID
+
+        Returns:
+            DataFrame with player awards (All-NBA, All-Star, MVP, etc.) or None if no data
+
+        Reference:
+            nba_api/stats/endpoints/playerawards.py
+
+        API Fields Include:
+            - PERSON_ID, FIRST_NAME, LAST_NAME, TEAM
+            - DESCRIPTION (award description)
+            - ALL_NBA_TEAM_NUMBER (1st/2nd/3rd team designation)
+            - SEASON, MONTH, WEEK
+            - CONFERENCE, TYPE, SUBTYPE
+        """
+        from nba_api.stats.endpoints import playerawards
+
+        endpoint = playerawards.PlayerAwards(
+            player_id=player_id,
+            proxy=self.config.proxy,
+            headers=self.config.headers,
+            timeout=self.config.timeout,
+        )
+
+        df = endpoint.get_data_frames()[0]
+        return self._non_empty_frame(df)
 
     @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
     def get_scoreboard(
@@ -1042,6 +1083,95 @@ class NBAClient:
         except Exception as e:
             logger.error(f"Error initializing ScoreboardV3: {e}")
             return None
+
+    @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
+    def get_matchup_stats(
+        self,
+        season: str,
+        season_type: str = "Regular Season",
+        def_player_id_nullable: str = "",
+        off_player_id_nullable: str = "",
+    ) -> pd.DataFrame | None:
+        """Fetch player defensive matchup statistics.
+
+        Args:
+            season: Season (e.g., "2024-25")
+            season_type: Season type
+            def_player_id_nullable: Defensive player ID filter (optional)
+            off_player_id_nullable: Offensive player ID filter (optional)
+
+        Returns:
+            DataFrame with matchup stats showing how players perform against specific defenders
+
+        Reference:
+            nba_api/stats/endpoints/leagueseasonmatchups.py
+
+        API Fields Include:
+            - Identifiers: OFF_PLAYER_ID, DEF_PLAYER_ID, OFF_PLAYER_NAME, DEF_PLAYER_NAME
+            - Matchup stats: MATCHUP_MIN, PARTIAL_POSS, PLAYER_PTS, TEAM_PTS
+            - Shot stats: MATCHUP_FGM, MATCHUP_FGA, MATCHUP_FG_PCT
+            - Other: MATCHUP_AST, MATCHUP_TOV
+        """
+        from nba_api.stats.endpoints import leagueseasonmatchups
+
+        endpoint = leagueseasonmatchups.LeagueSeasonMatchups(
+            season=season,
+            season_type_all_star=season_type,
+            def_player_id_nullable=def_player_id_nullable,
+            off_player_id_nullable=off_player_id_nullable,
+            per_mode_simple="Totals",
+            proxy=self.config.proxy,
+            headers=self.config.headers,
+            timeout=self.config.timeout,
+        )
+
+        df = endpoint.get_data_frames()[0]
+        return self._non_empty_frame(df)
+
+    @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
+    def get_lineup_stats(
+        self,
+        season: str,
+        season_type: str = "Regular Season",
+        group_quantity: int = 5,
+        measure_type: str = "Base",
+    ) -> pd.DataFrame | None:
+        """Fetch lineup combination statistics.
+
+        Args:
+            season: Season (e.g., "2024-25")
+            season_type: Season type
+            group_quantity: Number of players in lineup (2, 3, 4, or 5)
+            measure_type: Stat type (Base, Advanced, Misc, etc.)
+
+        Returns:
+            DataFrame with lineup stats including NET rating, +/-, minutes
+
+        Reference:
+            nba_api/stats/endpoints/leaguedashlineups.py
+
+        API Fields Include:
+            - Lineup info: GROUP_ID, GROUP_NAME, TEAM_ID, TEAM_ABBREVIATION
+            - Minutes: MIN
+            - Offensive: OFF_RATING, FG_PCT, FG3_PCT, FT_PCT
+            - Defensive: DEF_RATING
+            - Overall: NET_RATING, PLUS_MINUS, PACE
+            - Counting stats: W, L, W_PCT, GP, FGM, FGA, etc.
+        """
+        from nba_api.stats.endpoints import leaguedashlineups
+
+        endpoint = leaguedashlineups.LeagueDashLineups(
+            season=season,
+            season_type_all_star=season_type,
+            group_quantity=group_quantity,
+            measure_type_detailed_defense=measure_type,
+            per_mode_detailed="Totals",
+            proxy=self.config.proxy,
+            headers=self.config.headers,
+            timeout=self.config.timeout,
+        )
+        df = endpoint.get_data_frames()[0]
+        return self._non_empty_frame(df)
 
 
 # =============================================================================

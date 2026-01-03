@@ -14,13 +14,14 @@ Usage:
 """
 
 import logging
+import time
 from typing import Any
 
 import duckdb
 import pandas as pd
+from basketball_reference_web_scraper import client as br_client
 
 from src.scripts.populate.base import PopulationMetrics, ProgressTracker
-from src.scripts.populate.br_client import get_br_client
 from src.scripts.populate.config import get_db_path
 from src.scripts.populate.helpers import configure_logging
 
@@ -227,6 +228,7 @@ def populate_br_season_stats(
     start_year: int = 1980,
     end_year: int = 1996,
     include_advanced: bool = True,
+    delay: float | None = None,
     reset_progress: bool = False,
     dry_run: bool = False,
 ) -> dict[str, Any]:
@@ -238,6 +240,7 @@ def populate_br_season_stats(
         start_year: Start year for automatic season range
         end_year: End year for automatic season range
         include_advanced: Also fetch advanced stats
+        delay: Delay in seconds between API calls (default: 3.0)
         reset_progress: Reset progress tracking
         dry_run: Don't write to database
 
@@ -259,9 +262,12 @@ def populate_br_season_stats(
     metrics.start()
     conn = None
 
+    # Set default delay for rate limiting (Basketball Reference is sensitive)
+    if delay is None:
+        delay = 3.0  # 3 seconds between requests to avoid 403 errors
+
     try:
         conn = duckdb.connect(db_path)
-        client = get_br_client()
 
         # Create tables if needed
         if not dry_run:

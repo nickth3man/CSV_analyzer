@@ -17,14 +17,15 @@ Usage:
 """
 
 import logging
+import time
 from datetime import date, datetime, timedelta
 from typing import Any
 
 import duckdb
 import pandas as pd
+from basketball_reference_web_scraper import client as br_client
 
 from src.scripts.populate.base import PopulationMetrics, ProgressTracker
-from src.scripts.populate.br_client import get_br_client
 from src.scripts.populate.config import get_db_path
 from src.scripts.populate.helpers import configure_logging
 
@@ -370,11 +371,12 @@ def populate_br_player_box_scores(
 
     metrics.start()
 
+    # Set default delay for rate limiting (Basketball Reference is sensitive)
+    if delay is None:
+        delay = 3.0  # 3 seconds between requests to avoid 403 errors
+
     try:
         conn = duckdb.connect(db_path)
-        client = get_br_client()
-        if delay is not None:
-            client.config.request_delay = delay
 
         # Create table if needed
         if not dry_run:
@@ -422,7 +424,11 @@ def populate_br_player_box_scores(
                 logger.info(f"Fetching box scores for {date_key}...")
                 metrics.api_calls += 1
 
-                df = client.get_player_box_scores(
+                # Add rate limiting delay before API call
+                if metrics.api_calls > 1:
+                    time.sleep(delay)
+
+                df = br_client.player_box_scores(
                     day=game_date.day,
                     month=game_date.month,
                     year=game_date.year,
