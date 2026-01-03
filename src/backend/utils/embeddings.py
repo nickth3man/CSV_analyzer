@@ -156,64 +156,56 @@ class EmbeddingService:
         Returns:
             List of embedding vectors.
         """
-        results = []
-        uncached_texts = []
-        uncached_indices = []
+        results: list[list[float] | None] = [None] * len(texts)
+        uncached_texts: list[str] = []
+        uncached_indices: list[int] = []
 
         for i, text in enumerate(texts):
-            cache_key = self._get_cache_key(text)
-            if self.use_cache and cache_key in self._cache:
-                results.append((i, self._cache[cache_key]))
+            cached = self._get_cached_embedding(text)
+            if cached is not None:
+                results[i] = cached
             else:
                 uncached_texts.append(text)
                 uncached_indices.append(i)
-                results.append((i, None))
 
         if uncached_texts:
-            client = self._get_openai_client()
+            embeddings = self._embed_uncached_texts(uncached_texts)
+            for idx, embedding in zip(uncached_indices, embeddings):
+                results[idx] = embedding
 
-            if client:
-                try:
-                    response = client.embeddings.create(
-                        input=uncached_texts,
-                        model=self.model,
-                    )
-                    for j, embedding_data in enumerate(response.data):
-                        idx = uncached_indices[j]
-                        embedding = self._normalize_embedding(embedding_data.embedding)
+        return [emb or self._fallback_embedding(texts[i]) for i, emb in enumerate(results)]
 
-                        for k, (result_idx, _) in enumerate(results):
-                            if result_idx == idx:
-                                results[k] = (idx, embedding)
-                                break
+    def _get_cached_embedding(self, text: str) -> list[float] | None:
+        if not self.use_cache:
+            return None
+        cache_key = self._get_cache_key(text)
+        return self._cache.get(cache_key)
 
-                        if self.use_cache:
-                            cache_key = self._get_cache_key(uncached_texts[j])
-                            self._cache[cache_key] = embedding
+    def _embed_uncached_texts(self, texts: list[str]) -> list[list[float]]:
+        client = self._get_openai_client()
+        if client:
+            try:
+                embeddings = self._embed_with_client(client, texts)
+                if self.use_cache:
+                    self._save_cache()
+                return embeddings
+            except Exception as e:
+                logger.warning(f"OpenRouter batch embedding failed: {e}")
+        return [self._fallback_embedding(text) for text in texts]
 
-                    if self.use_cache:
-                        self._save_cache()
-
-                except Exception as e:
-                    logger.warning(f"OpenRouter batch embedding failed: {e}")
-                    for j, text in enumerate(uncached_texts):
-                        idx = uncached_indices[j]
-                        embedding = self._fallback_embedding(text)
-                        for k, (result_idx, _) in enumerate(results):
-                            if result_idx == idx:
-                                results[k] = (idx, embedding)
-                                break
-            else:
-                for j, text in enumerate(uncached_texts):
-                    idx = uncached_indices[j]
-                    embedding = self._fallback_embedding(text)
-                    for k, (result_idx, _) in enumerate(results):
-                        if result_idx == idx:
-                            results[k] = (idx, embedding)
-                            break
-
-        results.sort(key=lambda x: x[0])
-        return [emb for _, emb in results]
+    def _embed_with_client(self, client, texts: list[str]) -> list[list[float]]:
+        response = client.embeddings.create(
+            input=texts,
+            model=self.model,
+        )
+        embeddings: list[list[float]] = []
+        for text, embedding_data in zip(texts, response.data):
+            embedding = self._normalize_embedding(embedding_data.embedding)
+            embeddings.append(embedding)
+            if self.use_cache:
+                cache_key = self._get_cache_key(text)
+                self._cache[cache_key] = embedding
+        return embeddings
 
     def _fallback_embedding(self, text: str) -> list[float]:
         """Generate a simple fallback embedding using hash-based approach.

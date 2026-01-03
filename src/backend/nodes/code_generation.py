@@ -104,51 +104,85 @@ Only query tables listed there - don't assume tables exist.
         Raises:
             ValueError: If the LLM returns no code (empty string).
         """
-        entity_info = ""
-        if prep_res.get("entity_map"):
-            entity_info = "\n\nENTITY LOCATIONS:\n"
-            for entity, tables in prep_res["entity_map"].items():
-                for table, cols in tables.items():
-                    entity_info += (
-                        f"  - '{entity}' is in table '{table}', columns: {cols}\n"
-                    )
-
+        entity_info = self._build_entity_info(prep_res)
+        cross_ref_info = self._build_cross_reference_info(prep_res)
+        comparison_hint = self._build_comparison_hint(prep_res)
         context_summary = prep_res.get("context_summary", "")
-        cross_refs = prep_res.get("cross_references", {})
-        cross_ref_info = ""
-        if cross_refs:
-            cross_ref_info = "\n\nCROSS-REFERENCES (entity IDs found):\n"
-            for entity, refs in cross_refs.items():
-                for ref_key, ref_val in refs.items():
-                    cross_ref_info += f"  - {entity}: {ref_key} = {ref_val}\n"
 
-        is_comparison = len(prep_res.get("entities", [])) > 1
-        comparison_hint = ""
-        if is_comparison:
-            entities = prep_res["entities"]
-            comparison_hint = f"""
+        if prep_res.get("error"):
+            logger.info("Fixing code based on error...")
+            prompt = self._build_error_prompt(
+                prep_res,
+                entity_info,
+                cross_ref_info,
+                context_summary,
+                comparison_hint,
+            )
+        else:
+            prompt = self._build_base_prompt(
+                prep_res,
+                entity_info,
+                cross_ref_info,
+                context_summary,
+                comparison_hint,
+            )
+
+        code = call_llm(prompt)
+        code = (code or "").replace("```python", "").replace("```", "").strip()
+        if not code:
+            raise ValueError("LLM returned empty code - retrying")
+        return code
+
+    def _build_entity_info(self, prep_res: dict) -> str:
+        if not prep_res.get("entity_map"):
+            return ""
+        lines = ["", "", "ENTITY LOCATIONS:"]
+        for entity, tables in prep_res["entity_map"].items():
+            for table, cols in tables.items():
+                lines.append(f"  - '{entity}' is in table '{table}', columns: {cols}")
+        return "\n".join(lines)
+
+    def _build_cross_reference_info(self, prep_res: dict) -> str:
+        cross_refs = prep_res.get("cross_references", {})
+        if not cross_refs:
+            return ""
+        lines = ["", "", "CROSS-REFERENCES (entity IDs found):"]
+        for entity, refs in cross_refs.items():
+            for ref_key, ref_val in refs.items():
+                lines.append(f"  - {entity}: {ref_key} = {ref_val}")
+        return "\n".join(lines)
+
+    def _build_comparison_hint(self, prep_res: dict) -> str:
+        entities = prep_res.get("entities", [])
+        if len(entities) <= 1:
+            return ""
+        return f"""
 COMPARISON QUERY: You are comparing these entities: {entities}
 For each entity, query ONLY the tables listed in ENTITY LOCATIONS above.
 Loop through each entity, gather data from their respective tables, then combine into final_result.
 """
 
-        if prep_res.get("error"):
-            logger.info("Fixing code based on error...")
-            error_fix_hint = ""
-            error = prep_res["error"]
-            if (
-                "merge" in error.lower()
-                or "key" in error.lower()
-                or "dtype" in error.lower()
-            ):
-                error_fix_hint = """
+    def _build_error_fix_hint(self, error: str) -> str:
+        error_lower = error.lower()
+        if any(token in error_lower for token in ["merge", "key", "dtype"]):
+            return """
 FIX APPROACH: The error is likely due to incompatible dtypes or merge keys.
 - AVOID complex multi-table merges. Instead, query tables separately.
 - If you must merge, convert keys to same dtype first: df['key'] = df['key'].astype(str)
 - Loop through entities and gather data from each table separately.
 """
+        return ""
 
-            prompt = f"""You are a Python data analyst. Your previous code had an error. Fix it.
+    def _build_error_prompt(
+        self,
+        prep_res: dict,
+        entity_info: str,
+        cross_ref_info: str,
+        context_summary: str,
+        comparison_hint: str,
+    ) -> str:
+        error_fix_hint = self._build_error_fix_hint(prep_res.get("error", ""))
+        return f"""You are a Python data analyst. Your previous code had an error. Fix it.
 {self.DYNAMIC_GUIDANCE}
 {error_fix_hint}
 DATABASE SCHEMA (available as dfs dictionary):
@@ -168,8 +202,16 @@ Write ONLY the corrected Python code. AVOID complex merges - query tables separa
 The DataFrames are in a dict called 'dfs' where keys are table names.
 Store your final answer in a variable called 'final_result' (a dictionary).
 Do NOT include markdown code blocks. Just raw Python code."""
-        else:
-            prompt = f"""You are a Python data analyst. Write comprehensive code to answer the user's question using CSV data.
+
+    def _build_base_prompt(
+        self,
+        prep_res: dict,
+        entity_info: str,
+        cross_ref_info: str,
+        context_summary: str,
+        comparison_hint: str,
+    ) -> str:
+        return f"""You are a Python data analyst. Write comprehensive code to answer the user's question using CSV data.
 {self.DYNAMIC_GUIDANCE}
 DATABASE SCHEMA (available as dfs dictionary):
 {prep_res["schema"]}
@@ -191,12 +233,6 @@ Write Python code to thoroughly analyze and answer the question.
 - Make final_result a dictionary with all relevant data for deep analysis
 - Do NOT include markdown code blocks. Just raw Python code.
 - Only use pandas (pd) which is already imported."""
-
-        code = call_llm(prompt)
-        code = (code or "").replace("```python", "").replace("```", "").strip()
-        if not code:
-            raise ValueError("LLM returned empty code - retrying")
-        return code
 
     def exec_fallback(self, prep_res, exc) -> str:
         """Provide a minimal fallback Python snippet when code generation fails.

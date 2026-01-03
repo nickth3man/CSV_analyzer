@@ -147,37 +147,64 @@ class SafetyCheck(Node):
         except SyntaxError as exc:
             return "unsafe", f"Syntax Error: {exc}"
 
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                for alias in node.names:
-                    module_root = alias.name.split(".")[0]
-                    if module_root in self.FORBIDDEN_MODULES:
-                        return "unsafe", f"Forbidden import: {alias.name}"
-            elif isinstance(node, ast.ImportFrom):
-                if node.module:
-                    module_root = node.module.split(".")[0]
-                    if module_root in self.FORBIDDEN_MODULES:
-                        return "unsafe", f"Forbidden from-import: {node.module}"
-            elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-                if node.func.id in self.FORBIDDEN_FUNCTIONS:
-                    return "unsafe", f"Forbidden function call: {node.func.id}"
-            elif isinstance(node, ast.Attribute):
-                if node.attr in self.FORBIDDEN_ATTRIBUTES:
-                    return "unsafe", f"Forbidden attribute access: {node.attr}"
-            elif (
-                isinstance(node, ast.Subscript)
-                and isinstance(
-                    node.slice,
-                    ast.Constant,
-                )
-                and (
-                    isinstance(node.slice.value, str)
-                    and node.slice.value in self.FORBIDDEN_ATTRIBUTES
-                )
-            ):
-                return "unsafe", f"Forbidden subscript access: {node.slice.value}"
+        violation = self._find_violation(tree)
+        if violation:
+            return "unsafe", violation
 
         return "safe", None
+
+    def _find_violation(self, tree: ast.AST) -> str | None:
+        for node in ast.walk(tree):
+            violation = (
+                self._check_import(node)
+                or self._check_import_from(node)
+                or self._check_call(node)
+                or self._check_attribute(node)
+                or self._check_subscript(node)
+            )
+            if violation:
+                return violation
+        return None
+
+    def _check_import(self, node: ast.AST) -> str | None:
+        if not isinstance(node, ast.Import):
+            return None
+        for alias in node.names:
+            module_root = alias.name.split(".")[0]
+            if module_root in self.FORBIDDEN_MODULES:
+                return f"Forbidden import: {alias.name}"
+        return None
+
+    def _check_import_from(self, node: ast.AST) -> str | None:
+        if not isinstance(node, ast.ImportFrom) or not node.module:
+            return None
+        module_root = node.module.split(".")[0]
+        if module_root in self.FORBIDDEN_MODULES:
+            return f"Forbidden from-import: {node.module}"
+        return None
+
+    def _check_call(self, node: ast.AST) -> str | None:
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name):
+            return None
+        if node.func.id in self.FORBIDDEN_FUNCTIONS:
+            return f"Forbidden function call: {node.func.id}"
+        return None
+
+    def _check_attribute(self, node: ast.AST) -> str | None:
+        if not isinstance(node, ast.Attribute):
+            return None
+        if node.attr in self.FORBIDDEN_ATTRIBUTES:
+            return f"Forbidden attribute access: {node.attr}"
+        return None
+
+    def _check_subscript(self, node: ast.AST) -> str | None:
+        if not isinstance(node, ast.Subscript):
+            return None
+        if not isinstance(node.slice, ast.Constant):
+            return None
+        if isinstance(node.slice.value, str) and node.slice.value in self.FORBIDDEN_ATTRIBUTES:
+            return f"Forbidden subscript access: {node.slice.value}"
+        return None
 
     def exec(self, prep_res):
         """Validate the provided CSV and API code snippets for forbidden imports, calls, or attribute access.

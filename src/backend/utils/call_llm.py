@@ -147,7 +147,7 @@ def call_llm(prompt: str, max_retries: int = 3) -> str:
     messages = [{"role": "user", "content": prompt}]
     retryer = Retrying(
         stop=stop_after_attempt(attempts),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
+        wait=wait_exponential(multiplier=2, min=2, max=10),
         retry=retry_if_exception_type(Exception)
         & retry_if_not_exception_type(AuthenticationError),
         before_sleep=before_sleep_log(logger, logging.WARNING),
@@ -214,7 +214,7 @@ async def call_llm_async(prompt: str, max_retries: int = 3) -> str:
 
     retryer = AsyncRetrying(
         stop=stop_after_attempt(attempts),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
+        wait=wait_exponential(multiplier=2, min=2, max=10),
         retry=retry_if_exception_type(Exception)
         & retry_if_not_exception_type(AuthenticationError),
         before_sleep=before_sleep_log(logger, logging.WARNING),

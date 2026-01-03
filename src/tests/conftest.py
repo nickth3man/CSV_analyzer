@@ -158,6 +158,13 @@ def mock_call_llm_in_nodes(mock_llm_response):
         patch("backend.nodes.sql_generator.call_llm") as sql_generator_mock,
         patch("backend.nodes.response_grader.call_llm") as grader_mock,
         patch("backend.nodes.analysis.call_llm") as analysis_mock,
+        patch("src.backend.nodes.query.call_llm") as src_query_mock,
+        patch("src.backend.nodes.query_rewriter.call_llm") as src_rewriter_mock,
+        patch("src.backend.nodes.planning.call_llm") as src_planning_mock,
+        patch("src.backend.nodes.table_selector.call_llm") as src_table_selector_mock,
+        patch("src.backend.nodes.sql_generator.call_llm") as src_sql_generator_mock,
+        patch("src.backend.nodes.response_grader.call_llm") as src_grader_mock,
+        patch("src.backend.nodes.analysis.call_llm") as src_analysis_mock,
     ):
         # Set default return values
         default_response = "Mock LLM response for testing purposes."
@@ -211,6 +218,13 @@ def mock_call_llm_in_nodes(mock_llm_response):
                 sql_generator_mock,
                 grader_mock,
                 analysis_mock,
+                src_query_mock,
+                src_rewriter_mock,
+                src_planning_mock,
+                src_table_selector_mock,
+                src_sql_generator_mock,
+                src_grader_mock,
+                src_analysis_mock,
             ]
         )
 
@@ -301,21 +315,6 @@ def mock_csv_files(tmp_path):
     sales.to_csv(csv_dir / "sales.csv", index=False)
 
     return csv_dir
-
-
-# ============================================================================
-# Visualization Fixtures
-# ============================================================================
-
-
-@pytest.fixture
-def mock_matplotlib():
-    """Mocks matplotlib to prevent actual plot generation during tests."""
-    with (
-        patch("matplotlib.pyplot.savefig") as mock_savefig,
-        patch("matplotlib.pyplot.close") as mock_close,
-    ):
-        yield {"savefig": mock_savefig, "close": mock_close}
 
 
 # ============================================================================
@@ -481,20 +480,6 @@ def sample_player_game_stats_df():
             "plus_minus": [12, -8],
         }
     )
-
-
-@pytest.fixture
-def mock_circuit_breaker():
-    """Create a mock circuit breaker for testing."""
-    from src.scripts.populate.resilience import CircuitBreaker
-
-    breaker = CircuitBreaker(
-        name="test_breaker",
-        failure_threshold=3,
-        success_threshold=2,
-        timeout=5.0,
-    )
-    return breaker
 
 
 @pytest.fixture

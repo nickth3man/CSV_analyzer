@@ -73,8 +73,9 @@ from pocketflow import Node
 
 logger = logging.getLogger(__name__)
 
-from backend.config import DEFAULT_DATA_DIR, NBA_DEFAULT_SEASON
+from backend.config import DEFAULT_DATA_DIR, NBA_DEFAULT_SEASON, PROJECT_ROOT
 from backend.utils.data_source_manager import data_source_manager
+from backend.utils.file_sanitizer import resolve_safe_dir
 from backend.utils.nba_api_client import nba_client
 
 
@@ -90,7 +91,11 @@ class LoadData(Node):
         Returns:
             data_dir (str): The path to use for loading CSV files; taken from shared["data_dir"] if present, otherwise DEFAULT_DATA_DIR.
         """
-        return shared.get("data_dir", DEFAULT_DATA_DIR)
+        return resolve_safe_dir(
+            shared.get("data_dir"),
+            base_dir=PROJECT_ROOT,
+            default=DEFAULT_DATA_DIR,
+        )
 
     def exec(self, prep_res):
         """Load all CSV files found in the provided directory into pandas DataFrames.
@@ -219,57 +224,15 @@ class NBAApiDataLoader(Node):
             entities,
             question,
         )
-        api_dfs = {}
-        errors = []
-        used = []
-
-        for endpoint in endpoints_to_call:
-            name = endpoint["name"]
-            params = endpoint.get("params", {})
-            used.append({"name": name, "params": params})
-            try:
-                if name == "player_career":
-                    ent = params.get("entity")
-                    player_id = entity_ids.get(ent, {}).get("player_id")
-                    if not player_id:
-                        continue
-                    career_data: Any = nba_client.get_player_career_stats(player_id)
-                    if isinstance(career_data, dict):
-                        for key, df in career_data.items():
-                            api_dfs[f"{ent}_career_{key}"] = df
-                elif name == "league_leaders":
-                    season = NBA_DEFAULT_SEASON
-                    leaders = nba_client.get_league_leaders(
-                        season=season,
-                        stat_category="PTS",
-                    )
-                    api_dfs[f"league_leaders_{season}"] = leaders
-                elif name == "common_team_roster":
-                    ent = params.get("entity")
-                    team_id = entity_ids.get(ent, {}).get("team_id")
-                    if not team_id:
-                        continue
-                    roster = nba_client.get_common_team_roster(
-                        team_id=team_id,
-                        season=NBA_DEFAULT_SEASON,
-                    )
-                    api_dfs[f"{ent}_roster"] = roster
-                elif name == "player_game_log":
-                    ent = params.get("entity")
-                    player_id = entity_ids.get(ent, {}).get("player_id")
-                    if not player_id:
-                        continue
-                    game_log = nba_client.get_player_game_log(
-                        player_id=player_id,
-                        season=NBA_DEFAULT_SEASON,
-                    )
-                    api_dfs[f"{ent}_game_log"] = game_log
-                elif name == "scoreboard":
-                    api_dfs["live_scoreboard"] = nba_client.get_scoreboard()
-                else:
-                    errors.append({"endpoint": name, "error": "Unknown endpoint"})
-            except Exception as exc:
-                errors.append({"endpoint": name, "error": str(exc)})
+        grouped_endpoints = self._group_endpoints(endpoints_to_call)
+        api_dfs, errors = self._fetch_grouped_endpoints(
+            grouped_endpoints,
+            entity_ids,
+        )
+        used = [
+            {"name": endpoint["name"], "params": endpoint.get("params", {})}
+            for endpoint in endpoints_to_call
+        ]
 
         return {
             "api_dfs": api_dfs,
@@ -277,6 +240,118 @@ class NBAApiDataLoader(Node):
             "used": used,
             "entity_ids": entity_ids,
         }
+
+    def _group_endpoints(self, endpoints_to_call: list[dict[str, Any]]):
+        grouped: dict[str, list[dict[str, Any]]] = {}
+        for endpoint in endpoints_to_call:
+            grouped.setdefault(endpoint["name"], []).append(endpoint)
+        return grouped
+
+    def _fetch_grouped_endpoints(
+        self,
+        grouped: dict[str, list[dict[str, Any]]],
+        entity_ids: dict[str, dict[str, int]],
+    ) -> tuple[dict[str, Any], list[dict[str, str]]]:
+        api_dfs: dict[str, Any] = {}
+        errors: list[dict[str, str]] = []
+        handlers = {
+            "player_career": self._fetch_player_career,
+            "league_leaders": self._fetch_league_leaders,
+            "common_team_roster": self._fetch_common_team_roster,
+            "player_game_log": self._fetch_player_game_logs,
+            "scoreboard": self._fetch_scoreboard,
+        }
+
+        for name, endpoints_list in grouped.items():
+            handler = handlers.get(name)
+            if not handler:
+                errors.append({"endpoint": name, "error": "Unknown endpoint"})
+                continue
+            try:
+                api_dfs.update(handler(endpoints_list, entity_ids))
+            except Exception as exc:
+                errors.append({"endpoint": name, "error": str(exc)})
+
+        return api_dfs, errors
+
+    def _fetch_player_career(
+        self,
+        endpoints_list: list[dict[str, Any]],
+        entity_ids: dict[str, dict[str, int]],
+    ) -> dict[str, Any]:
+        results: dict[str, Any] = {}
+        for endpoint in endpoints_list:
+            ent = endpoint.get("params", {}).get("entity")
+            player_id = entity_ids.get(ent, {}).get("player_id") if ent else None
+            if not player_id:
+                continue
+            career_data: Any = nba_client.get_player_career_stats(player_id)
+            if isinstance(career_data, dict):
+                for key, df in career_data.items():
+                    results[f"{ent}_career_{key}"] = df
+        return results
+
+    def _fetch_league_leaders(
+        self,
+        endpoints_list: list[dict[str, Any]],
+        entity_ids: dict[str, dict[str, int]],
+    ) -> dict[str, Any]:
+        season = NBA_DEFAULT_SEASON
+        leaders = nba_client.get_league_leaders(
+            season=season,
+            stat_category="PTS",
+        )
+        return {f"league_leaders_{season}": leaders}
+
+    def _fetch_common_team_roster(
+        self,
+        endpoints_list: list[dict[str, Any]],
+        entity_ids: dict[str, dict[str, int]],
+    ) -> dict[str, Any]:
+        results: dict[str, Any] = {}
+        for endpoint in endpoints_list:
+            ent = endpoint.get("params", {}).get("entity")
+            team_id = entity_ids.get(ent, {}).get("team_id") if ent else None
+            if not team_id:
+                continue
+            roster = nba_client.get_common_team_roster(
+                team_id=team_id,
+                season=NBA_DEFAULT_SEASON,
+            )
+            results[f"{ent}_roster"] = roster
+        return results
+
+    def _fetch_player_game_logs(
+        self,
+        endpoints_list: list[dict[str, Any]],
+        entity_ids: dict[str, dict[str, int]],
+    ) -> dict[str, Any]:
+        season = NBA_DEFAULT_SEASON
+        player_map = {
+            endpoint.get("params", {}).get("entity"): entity_ids.get(
+                endpoint.get("params", {}).get("entity"),
+                {},
+            ).get("player_id")
+            for endpoint in endpoints_list
+        }
+        player_ids = [pid for pid in player_map.values() if pid]
+        if not player_ids:
+            return {}
+
+        batch_results = nba_client.get_player_game_logs_batch(player_ids, season)
+        results: dict[str, Any] = {}
+        for entity, player_id in player_map.items():
+            if not entity or player_id not in batch_results:
+                continue
+            results[f"{entity}_game_log"] = batch_results[player_id]
+        return results
+
+    def _fetch_scoreboard(
+        self,
+        endpoints_list: list[dict[str, Any]],
+        entity_ids: dict[str, dict[str, int]],
+    ) -> dict[str, Any]:
+        return {"live_scoreboard": nba_client.get_scoreboard()}
 
     def post(self, shared, prep_res, exec_res) -> str:
         """Store NBA API fetch results into the shared state and log a brief summary.

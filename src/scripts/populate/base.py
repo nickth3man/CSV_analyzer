@@ -500,7 +500,11 @@ class BasePopulator(ABC):
         )
 
         if not report["overall_valid"]:
-            for error in report.get("errors", []):
+            errors = list(report.get("errors", []))
+            completeness = report.get("completeness")
+            if isinstance(completeness, dict):
+                errors.extend(completeness.get("errors", []))
+            for error in errors:
                 self.metrics.add_error(f"Validation Error: {error}")
             return False
 

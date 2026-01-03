@@ -18,6 +18,9 @@ from functools import wraps
 from typing import Any
 
 import pandas as pd
+from requests.exceptions import ConnectionError as RequestsConnectionError
+from requests.exceptions import HTTPError, Timeout
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from src.scripts.populate.config import NBAAPIConfig, get_api_config
 
@@ -25,18 +28,47 @@ from src.scripts.populate.config import NBAAPIConfig, get_api_config
 # Configure logging
 logger = logging.getLogger(__name__)
 
+RETRYABLE_EXCEPTIONS = (
+    Timeout,
+    RequestsConnectionError,
+    HTTPError,
+    OSError,
+)
+
 
 # =============================================================================
 # RETRY DECORATOR
 # =============================================================================
 
 
+def create_retry_decorator(
+    max_retries: int = 3,
+    backoff_multiplier: float = 2.0,
+    min_wait: float = 1.0,
+    max_wait: float = 60.0,
+    retry_exceptions: tuple[type[Exception], ...] = RETRYABLE_EXCEPTIONS,
+):
+    """Create a tenacity retry decorator with exponential backoff."""
+    return retry(
+        stop=stop_after_attempt(max_retries),
+        wait=wait_exponential(
+            multiplier=backoff_multiplier,
+            min=min_wait,
+            max=max_wait,
+        ),
+        retry=retry_if_exception_type(retry_exceptions),
+        reraise=True,
+    )
+
+
 def with_retry(
+    func: Callable | None = None,
+    *,
     max_retries: int = 3,
     backoff_factor: float = 2.0,
     base_delay: float = 0.6,
     retry_exceptions: tuple = (Exception,),
-):
+) -> Callable:
     """Decorator for retrying API calls with exponential backoff.
 
     Args:
@@ -49,8 +81,8 @@ def with_retry(
         Decorated function with retry logic
     """
 
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
+    def decorator(target: Callable) -> Callable:
+        @wraps(target)
         def wrapper(*args, **kwargs):
             last_exception = None
             config = None
@@ -82,7 +114,7 @@ def with_retry(
                     else:
                         time.sleep(effective_delay)
 
-                    return func(*args, **kwargs)
+                    return target(*args, **kwargs)
 
                 except retry_exceptions as e:
                     last_exception = e
@@ -120,6 +152,9 @@ def with_retry(
             return None
 
         return wrapper
+
+    if func is not None and callable(func):
+        return decorator(func)
 
     return decorator
 

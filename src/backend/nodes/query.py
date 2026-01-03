@@ -15,6 +15,7 @@ from pocketflow import Node
 
 from src.backend.models import QueryIntent
 from src.backend.utils.call_llm import call_llm
+from src.backend.utils.input_sanitizer import sanitize_user_question
 from src.backend.utils.logger import get_logger
 from src.backend.utils.memory import get_memory
 
@@ -66,10 +67,22 @@ class ClarifyQuery(Node):
         Returns:
             Dictionary with question and conversation_history.
         """
-        question = shared.get("question", "")
+        raw_question = shared.get("question", "")
+        sanitized_question, warnings = sanitize_user_question(raw_question)
+        if not sanitized_question and raw_question:
+            sanitized_question = raw_question
+            warnings.append("Sanitizer removed all content; using original input.")
+
+        shared["raw_question"] = raw_question
+        shared["question"] = sanitized_question
+        if warnings:
+            shared["sanitization_warnings"] = warnings
+
+        question = sanitized_question
         conversation_history = shared.get("conversation_history")
+        user_id = shared.get("user_id")
         if conversation_history is None:
-            conversation_history = get_memory().get_context(n_turns=3).turns
+            conversation_history = get_memory(user_id).get_context(n_turns=3).turns
             shared["conversation_history"] = conversation_history
 
         get_logger().log_node_start(
@@ -83,6 +96,7 @@ class ClarifyQuery(Node):
         return {
             "question": question,
             "conversation_history": conversation_history,
+            "user_id": user_id,
         }
 
     def exec(self, prep_res: dict[str, Any]) -> dict[str, Any]:

@@ -24,7 +24,7 @@ import duckdb
 import pandas as pd
 
 from src.scripts.populate.base import PopulationMetrics, ProgressTracker
-from src.scripts.populate.br_client import BasketballReferenceClient, get_br_client
+from src.scripts.populate.br_client import get_br_client
 from src.scripts.populate.config import get_db_path
 
 logger = logging.getLogger(__name__)

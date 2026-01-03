@@ -12,6 +12,9 @@ It is organized into the following components:
 - handlers: Main event handlers, starters, and chat profiles
 """
 
+# Register authentication callbacks (JWT/password) if configured.
+from src.frontend import auth  # noqa: F401
+
 # Import handlers, starters, profiles and actions to register them with Chainlit
 from src.frontend.actions import on_list_tables, on_show_help, on_view_schema
 

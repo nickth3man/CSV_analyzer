@@ -38,6 +38,7 @@ from src.scripts.populate.schemas import (
     Player,
     PlayerGameStats,
     TeamGameStats,
+    validate_dataframe,
 )
 
 
@@ -423,7 +424,7 @@ class TestDataFrameValidation:
         df = pd.DataFrame(
             {
                 "player_id": [1, 2, 3],
-                "game_id": ["g1", "g2", "g3"],
+                "game_id": ["0000000001", "0000000002", "0000000003"],
                 "team_id": [100, 100, 200],
                 "pts": [10, 20, 15],
             }
@@ -438,7 +439,7 @@ class TestDataFrameValidation:
         df = pd.DataFrame(
             {
                 "player_id": [1, 2, 3],
-                "game_id": ["g1", "g2", "g3"],
+                "game_id": ["0000000001", "0000000002", "0000000003"],
                 "team_id": [100, 100, 200],
                 "pts": [10, -5, 15],  # Row 1 has invalid negative points
             }
@@ -453,7 +454,7 @@ class TestDataFrameValidation:
         df = pd.DataFrame(
             {
                 "player_id": [None, None],
-                "game_id": ["g1", "g2"],
+                "game_id": ["0000000001", "0000000002"],
                 "team_id": [100, 200],
             }
         )

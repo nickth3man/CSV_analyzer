@@ -7,7 +7,6 @@ import argparse
 import logging
 from typing import Any
 
-import duckdb
 import pandas as pd
 
 from src.scripts.populate.api_client import get_client

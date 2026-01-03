@@ -8,7 +8,6 @@ import logging
 import time
 from typing import Any
 
-import duckdb
 import pandas as pd
 
 from src.scripts.populate.api_client import get_client

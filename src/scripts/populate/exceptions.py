@@ -289,6 +289,9 @@ class ValidationError(PermanentError):
     Attributes:
         validation_errors: List of specific validation failures
         data_sample: Sample of invalid data for debugging
+        field: Field name that failed validation
+        value: Value that failed validation
+        expected_type: Expected type name
     """
 
     def __init__(
@@ -296,6 +299,9 @@ class ValidationError(PermanentError):
         message: str = "Data validation failed",
         context: dict[str, Any] | None = None,
         cause: Exception | None = None,
+        field: str | None = None,
+        value: Any | None = None,
+        expected_type: str | None = None,
         validation_errors: list[str] | None = None,
         data_sample: dict[str, Any] | None = None,
     ) -> None:
@@ -305,12 +311,24 @@ class ValidationError(PermanentError):
             message: Error message
             context: Additional context
             cause: Original exception
+            field: Field that failed validation
+            value: Invalid value
+            expected_type: Expected type name
             validation_errors: List of validation error messages
             data_sample: Sample of the invalid data
         """
         super().__init__(message, context, cause)
+        self.field = field
+        self.value = value
+        self.expected_type = expected_type
         self.validation_errors = validation_errors or []
         self.data_sample = data_sample
+        if field:
+            self.context["field"] = field
+        if value is not None:
+            self.context["value"] = str(value)
+        if expected_type:
+            self.context["expected_type"] = expected_type
         if validation_errors:
             self.context["validation_errors"] = validation_errors[:5]  # First 5
 
@@ -410,6 +428,7 @@ class CircuitBreakerError(PopulationError):
 
     Attributes:
         opened_at: When the circuit was opened
+        endpoint: Identifier for the protected endpoint
         failure_count: Number of failures that triggered opening
         reset_at: When the circuit will attempt to close
     """
@@ -421,21 +440,30 @@ class CircuitBreakerError(PopulationError):
         self,
         message: str = "Circuit breaker is open",
         context: dict[str, Any] | None = None,
+        endpoint: str | None = None,
         failure_count: int = 0,
         reset_at: datetime | None = None,
+        reset_time: float | None = None,
     ) -> None:
         """Initialize circuit breaker error.
 
         Args:
             message: Error message
             context: Additional context
+            endpoint: Identifier for the protected endpoint
             failure_count: Number of failures
             reset_at: When circuit will try to reset
+            reset_time: Optional UNIX timestamp for reset time
         """
         super().__init__(message, context)
         self.opened_at = datetime.now(tz=UTC)
+        self.endpoint = endpoint
         self.failure_count = failure_count
+        if reset_at is None and reset_time is not None:
+            reset_at = datetime.fromtimestamp(reset_time, tz=UTC)
         self.reset_at = reset_at
+        if endpoint:
+            self.context["endpoint"] = endpoint
         self.context["failure_count"] = failure_count
         if reset_at:
             self.context["reset_at"] = reset_at.isoformat()
@@ -556,12 +584,12 @@ def classify_exception(exc: Exception) -> PopulationError:
             status_code=status_code,
         )
 
-    # Check for connection errors
+    # Check for connection errors (treat as service unavailable)
     if any(
         x in error_str for x in ["connection", "network", "refused", "unreachable"]
     ) or any(x in exc_type for x in ["connection", "network"]):
-        return ConnectionError(
-            message=f"Connection error: {exc}",
+        return ServiceUnavailableError(
+            message=f"Service error: {exc}",
             cause=exc,
         )
 
@@ -579,8 +607,8 @@ def classify_exception(exc: Exception) -> PopulationError:
             cause=exc,
         )
 
-    # Default to transient error (safer to retry unknown errors)
-    return TransientError(
+    # Default to permanent error for unknown types
+    return PermanentError(
         message=f"Unknown error: {exc}",
         cause=exc,
     )
@@ -600,7 +628,9 @@ def is_retriable(exc: Exception) -> bool:
     return classify_exception(exc).retriable
 
 
-def get_retry_delay(exc: Exception, attempt: int, base_delay: float = 1.0) -> float:
+def get_retry_delay(
+    exc: Exception, attempt: int = 0, base_delay: float = 1.0
+) -> float:
     """Calculate appropriate retry delay based on error type.
 
     Args:

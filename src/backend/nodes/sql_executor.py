@@ -173,30 +173,26 @@ class SQLExecutor(Node):
             User-friendly error message.
         """
         error_lower = raw_error.lower()
+        message = raw_error
 
         if "timeout" in error_lower:
-            return (
+            message = (
                 "Query took too long. Try a simpler question or limit the date range."
             )
-
-        if "column" in error_lower and "not found" in error_lower:
-            return f"Column not found: {raw_error}"
-
-        if "table" in error_lower and "not found" in error_lower:
-            return f"Table not found: {raw_error}"
-
-        if "syntax error" in error_lower:
-            return f"SQL syntax error: {raw_error}"
-
-        if "division by zero" in error_lower:
-            return (
+        elif "column" in error_lower and "not found" in error_lower:
+            message = f"Column not found: {raw_error}"
+        elif "table" in error_lower and "not found" in error_lower:
+            message = f"Table not found: {raw_error}"
+        elif "syntax error" in error_lower:
+            message = f"SQL syntax error: {raw_error}"
+        elif "division by zero" in error_lower:
+            message = (
                 "Division by zero error - some calculations produced invalid results."
             )
+        elif "out of memory" in error_lower:
+            message = "Query too complex - try limiting the data range or simplifying."
 
-        if "out of memory" in error_lower:
-            return "Query too complex - try limiting the data range or simplifying."
-
-        return raw_error
+        return message
 
 
 class SQLExecutorWithRetry(SQLExecutor):

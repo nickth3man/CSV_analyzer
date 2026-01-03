@@ -94,7 +94,37 @@ class EntityResolver(Node):
         entity_ids = dict(prep_res.get("entity_ids", {}))
 
         knowledge_hints = knowledge_store.get_all_hints()
+        entities = self._extract_entities(question)
+        entity_map: dict[str, dict[str, list[str]]] = {}
 
+        for entity in entities:
+            entity_map[entity] = {}
+            resolved_id = self._resolve_entity_id(entity)
+            if resolved_id:
+                entity_ids[entity] = resolved_id
+
+            for table_name, df in dfs.items():
+                matching_cols = self._find_matching_columns(
+                    entity,
+                    df,
+                    sample_size,
+                )
+                if matching_cols:
+                    entity_map[entity][table_name] = matching_cols
+                    knowledge_store.add_entity_mapping(
+                        entity,
+                        table_name,
+                        matching_cols,
+                    )
+
+        return {
+            "entities": entities,
+            "entity_map": entity_map,
+            "knowledge_hints": knowledge_hints,
+            "entity_ids": entity_ids,
+        }
+
+    def _extract_entities(self, question: str) -> list[str]:
         extract_prompt = f"""Extract entities (people, teams, places, specific items) from this question.
 Return a JSON array of entity names only.
 
@@ -109,106 +139,116 @@ Return ONLY the JSON array, nothing else."""
             if entities_response.startswith("```"):
                 entities_response = entities_response.split("```")[1]
                 entities_response = entities_response.removeprefix("json")
-            entities = json.loads(entities_response)
+            parsed = json.loads(entities_response)
+            return parsed if isinstance(parsed, list) else []
         except json.JSONDecodeError as exc:
             logger.exception(f"Failed to parse entity JSON: {exc}")
-            entities = []
         except Exception as exc:
             logger.exception(f"Unexpected error extracting entities: {exc}")
-            entities = []
+        return []
 
-        entity_map: dict[str, dict[str, list[str]]] = {}
-        for entity in entities:
-            entity_map[entity] = {}
-            entity_lower = entity.lower()
-            entity_parts = entity_lower.split()
-            player = nba_client.find_player(entity)
-            if player:
-                entity_ids[entity] = {"player_id": player.get("id")}
-            else:
-                team = nba_client.find_team(entity)
-                if team:
-                    entity_ids[entity] = {"team_id": team.get("id")}
+    def _resolve_entity_id(self, entity: str) -> dict[str, int] | None:
+        player = nba_client.find_player(entity)
+        if player:
+            return {"player_id": player.get("id")}
+        team = nba_client.find_team(entity)
+        if team:
+            return {"team_id": team.get("id")}
+        return None
 
-            for table_name, df in dfs.items():
-                matching_cols = []
-                name_cols = [
-                    col
-                    for col in df.columns
-                    if any(
-                        token in col.lower()
-                        for token in [
-                            "first_name",
-                            "last_name",
-                            "player_name",
-                            "full_name",
-                            "display",
-                        ]
-                    )
+    def _find_matching_columns(
+        self,
+        entity: str,
+        df: pd.DataFrame,
+        sample_size: int,
+    ) -> list[str]:
+        entity_lower = entity.lower()
+        entity_parts = entity_lower.split()
+        matching_cols: list[str] = []
+
+        name_cols = [
+            col
+            for col in df.columns
+            if any(
+                token in col.lower()
+                for token in [
+                    "first_name",
+                    "last_name",
+                    "player_name",
+                    "full_name",
+                    "display",
                 ]
+            )
+        ]
 
-                if len(name_cols) >= 2 and len(entity_parts) >= 2:
-                    first_name_cols = [c for c in name_cols if "first" in c.lower()]
-                    last_name_cols = [c for c in name_cols if "last" in c.lower()]
-                    if first_name_cols and last_name_cols:
-                        try:
-                            first_sample = self._get_sample(
-                                df,
-                                first_name_cols[0],
-                                sample_size,
-                            )
-                            last_sample = self._get_sample(
-                                df,
-                                last_name_cols[0],
-                                sample_size,
-                            )
-                            first_match = (
-                                first_sample.astype(str)
-                                .str.lower()
-                                .str.contains(entity_parts[0], na=False)
-                            )
-                            last_match = (
-                                last_sample.astype(str)
-                                .str.lower()
-                                .str.contains(entity_parts[-1], na=False)
-                            )
-                            if first_match.any() and last_match.any():
-                                matching_cols.extend(
-                                    [first_name_cols[0], last_name_cols[0]],
-                                )
-                        except (KeyError, AttributeError, TypeError):
-                            continue
+        matching_cols.extend(
+            self._match_first_last_columns(df, name_cols, entity_parts, sample_size)
+        )
+        matching_cols.extend(
+            self._match_string_columns(df, entity_lower, sample_size, matching_cols)
+        )
 
-                for col in df.columns:
-                    if col in matching_cols:
-                        continue
-                    try:
-                        if df[col].dtype == "object":
-                            sample = self._get_sample(df, col, sample_size)
-                            matches = (
-                                sample.astype(str)
-                                .str.lower()
-                                .str.contains(entity_lower, na=False)
-                            )
-                            if matches.any():
-                                matching_cols.append(col)
-                    except (KeyError, AttributeError, TypeError):
-                        continue
+        return sorted(set(matching_cols))
 
-                if matching_cols:
-                    entity_map[entity][table_name] = list(set(matching_cols))
-                    knowledge_store.add_entity_mapping(
-                        entity,
-                        table_name,
-                        matching_cols,
+    def _match_first_last_columns(
+        self,
+        df: pd.DataFrame,
+        name_cols: list[str],
+        entity_parts: list[str],
+        sample_size: int,
+    ) -> list[str]:
+        if len(name_cols) < 2 or len(entity_parts) < 2:
+            return []
+
+        first_name_cols = [c for c in name_cols if "first" in c.lower()]
+        last_name_cols = [c for c in name_cols if "last" in c.lower()]
+        if not first_name_cols or not last_name_cols:
+            return []
+
+        try:
+            first_sample = self._get_sample(df, first_name_cols[0], sample_size)
+            last_sample = self._get_sample(df, last_name_cols[0], sample_size)
+            first_match = (
+                first_sample.astype(str)
+                .str.lower()
+                .str.contains(entity_parts[0], na=False)
+            )
+            last_match = (
+                last_sample.astype(str)
+                .str.lower()
+                .str.contains(entity_parts[-1], na=False)
+            )
+            if first_match.any() and last_match.any():
+                return [first_name_cols[0], last_name_cols[0]]
+        except (KeyError, AttributeError, TypeError):
+            return []
+
+        return []
+
+    def _match_string_columns(
+        self,
+        df: pd.DataFrame,
+        entity_lower: str,
+        sample_size: int,
+        existing_cols: list[str],
+    ) -> list[str]:
+        matches: list[str] = []
+        for col in df.columns:
+            if col in existing_cols:
+                continue
+            try:
+                if df[col].dtype == "object":
+                    sample = self._get_sample(df, col, sample_size)
+                    contains_entity = (
+                        sample.astype(str)
+                        .str.lower()
+                        .str.contains(entity_lower, na=False)
                     )
-
-        return {
-            "entities": entities,
-            "entity_map": entity_map,
-            "knowledge_hints": knowledge_hints,
-            "entity_ids": entity_ids,
-        }
+                    if contains_entity.any():
+                        matches.append(col)
+            except (KeyError, AttributeError, TypeError):
+                continue
+        return matches
 
     def exec_fallback(self, prep_res, exc):
         """Handle failures during EntityResolver.exec by returning a safe default execution result.
@@ -341,64 +381,107 @@ class SearchExpander(Node):
         for entity in entities:
             entity_lower = entity.lower()
             parts = entity_lower.split()
-
             for table_name, df in dfs.items():
                 table_profile = profile.get(table_name, {})
-                sampled_df = self._get_sample(
-                    df,
-                    (
-                        table_profile.get("name_columns", [""])[0]
-                        if table_profile.get("name_columns")
-                        else ""
-                    ),
-                    sample_size,
+                sampled_df = self._sample_table(df, table_profile, sample_size)
+                self._update_entity_mapping(
+                    expanded_map,
+                    entity,
+                    entity_lower,
+                    table_name,
+                    table_profile,
+                    sampled_df,
                 )
-
-                for col in table_profile.get("name_columns", []):
-                    try:
-                        matches = sampled_df[
-                            sampled_df[col]
-                            .astype(str)
-                            .str.lower()
-                            .str.contains(entity_lower, na=False)
-                        ]
-                        if not matches.empty and table_name not in expanded_map.get(
-                            entity,
-                            {},
-                        ):
-                            expanded_map.setdefault(entity, {})[table_name] = [col]
-                    except (KeyError, AttributeError, TypeError):
-                        pass
-
-                if table_name in expanded_map.get(entity, {}):
-                    for id_col in table_profile.get("id_columns", []):
-                        try:
-                            name_cols = table_profile.get("name_columns", [])
-                            if name_cols:
-                                mask = (
-                                    sampled_df[name_cols[0]]
-                                    .astype(str)
-                                    .str.lower()
-                                    .str.contains(
-                                        parts[0] if parts else entity_lower,
-                                        na=False,
-                                    )
-                                )
-                                matches = sampled_df[mask]
-                                if not matches.empty:
-                                    entity_id = str(matches.iloc[0].get(id_col, ""))
-                                    if entity_id and entity_id != "nan":
-                                        cross_references.setdefault(entity, {})[
-                                            f"{table_name}.{id_col}"
-                                        ] = entity_id
-                        except (KeyError, AttributeError, IndexError, TypeError):
-                            pass
+                self._update_cross_references(
+                    cross_references,
+                    expanded_map,
+                    entity,
+                    table_name,
+                    table_profile,
+                    sampled_df,
+                    parts,
+                    entity_lower,
+                )
 
         return {
             "expanded_map": expanded_map,
             "related_entities": related_entities,
             "cross_references": cross_references,
         }
+
+    def _sample_table(
+        self,
+        df: pd.DataFrame,
+        table_profile: dict[str, Any],
+        sample_size: int,
+    ) -> pd.DataFrame:
+        name_cols = table_profile.get("name_columns", [])
+        first_name_col = name_cols[0] if name_cols else ""
+        return self._get_sample(df, first_name_col, sample_size)
+
+    def _update_entity_mapping(
+        self,
+        expanded_map: dict[str, dict[str, list[str]]],
+        entity: str,
+        entity_lower: str,
+        table_name: str,
+        table_profile: dict[str, Any],
+        sampled_df: pd.DataFrame,
+    ) -> None:
+        for col in table_profile.get("name_columns", []):
+            try:
+                matches = sampled_df[
+                    sampled_df[col]
+                    .astype(str)
+                    .str.lower()
+                    .str.contains(entity_lower, na=False)
+                ]
+                if not matches.empty and table_name not in expanded_map.get(entity, {}):
+                    expanded_map.setdefault(entity, {})[table_name] = [col]
+            except (KeyError, AttributeError, TypeError):
+                continue
+
+    def _update_cross_references(
+        self,
+        cross_references: dict[str, dict[str, str]],
+        expanded_map: dict[str, dict[str, list[str]]],
+        entity: str,
+        table_name: str,
+        table_profile: dict[str, Any],
+        sampled_df: pd.DataFrame,
+        parts: list[str],
+        entity_lower: str,
+    ) -> None:
+        if table_name not in expanded_map.get(entity, {}):
+            return
+
+        name_cols = table_profile.get("name_columns", [])
+        if not name_cols:
+            return
+
+        try:
+            mask = (
+                sampled_df[name_cols[0]]
+                .astype(str)
+                .str.lower()
+                .str.contains(parts[0] if parts else entity_lower, na=False)
+            )
+            matches = sampled_df[mask]
+        except (KeyError, AttributeError, TypeError):
+            return
+
+        if matches.empty:
+            return
+
+        for id_col in table_profile.get("id_columns", []):
+            try:
+                entity_id = str(matches.iloc[0].get(id_col, ""))
+                if entity_id and entity_id != "nan":
+                    cross_references.setdefault(entity, {})[
+                        f"{table_name}.{id_col}"
+                    ] = entity_id
+            except (IndexError, TypeError):
+                continue
 
     def post(self, shared, prep_res, exec_res) -> str:
         """Merge expanded entity mappings and cross-references into the shared context and log a brief summary.

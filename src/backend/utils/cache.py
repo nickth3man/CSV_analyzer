@@ -158,14 +158,9 @@ class SemanticCache:
             Cached response if found, None otherwise.
         """
         with self._lock:
-            prompt_hash = self._get_hash(prompt)
-
-            if prompt_hash in self._cache:
-                entry = self._cache[prompt_hash]
-                if time.time() - entry.timestamp < self.ttl_seconds:
-                    logger.debug("Cache hit (exact match)")
-                    return entry.response
-                del self._cache[prompt_hash]
+            exact_match = self._get_exact_match(prompt)
+            if exact_match is not None:
+                return exact_match
 
             if not self.use_embeddings:
                 return None
@@ -174,39 +169,57 @@ class SemanticCache:
             if not embedding_service:
                 return None
 
-            try:
-                query_embedding = embedding_service.embed_text(prompt)
+            return self._get_semantic_match(prompt, embedding_service)
 
-                best_match: CacheEntry | None = None
-                best_similarity = 0.0
-
-                current_time = time.time()
-                for entry in list(self._cache.values()):
-                    if current_time - entry.timestamp >= self.ttl_seconds:
-                        del self._cache[entry.prompt_hash]
-                        continue
-
-                    if entry.embedding is None:
-                        entry.embedding = embedding_service.embed_text(entry.prompt)
-
-                    similarity = embedding_service.cosine_similarity(
-                        query_embedding, entry.embedding
-                    )
-
-                    if similarity > best_similarity:
-                        best_similarity = similarity
-                        best_match = entry
-
-                if best_match and best_similarity >= self.similarity_threshold:
-                    logger.debug(
-                        f"Cache hit (semantic, similarity={best_similarity:.3f})"
-                    )
-                    return best_match.response
-
-            except Exception as e:
-                logger.warning(f"Semantic cache lookup failed: {e}")
-
+    def _get_exact_match(self, prompt: str) -> str | None:
+        prompt_hash = self._get_hash(prompt)
+        entry = self._cache.get(prompt_hash)
+        if entry is None:
+            return None
+        if time.time() - entry.timestamp < self.ttl_seconds:
+            logger.debug("Cache hit (exact match)")
+            return entry.response
+        del self._cache[prompt_hash]
         return None
+
+    def _get_semantic_match(self, prompt: str, embedding_service) -> str | None:
+        try:
+            query_embedding = embedding_service.embed_text(prompt)
+            best_match, best_similarity = self._find_best_match(
+                query_embedding,
+                embedding_service,
+            )
+            if best_match and best_similarity >= self.similarity_threshold:
+                logger.debug(
+                    f"Cache hit (semantic, similarity={best_similarity:.3f})"
+                )
+                return best_match.response
+        except Exception as e:
+            logger.warning(f"Semantic cache lookup failed: {e}")
+        return None
+
+    def _find_best_match(self, query_embedding, embedding_service):
+        best_match: CacheEntry | None = None
+        best_similarity = 0.0
+        current_time = time.time()
+
+        for entry in list(self._cache.values()):
+            if current_time - entry.timestamp >= self.ttl_seconds:
+                del self._cache[entry.prompt_hash]
+                continue
+
+            if entry.embedding is None:
+                entry.embedding = embedding_service.embed_text(entry.prompt)
+
+            similarity = embedding_service.cosine_similarity(
+                query_embedding, entry.embedding
+            )
+
+            if similarity > best_similarity:
+                best_similarity = similarity
+                best_match = entry
+
+        return best_match, best_similarity
 
     def set(self, prompt: str, response: str) -> None:
         """Store a prompt-response pair in cache.

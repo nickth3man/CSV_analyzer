@@ -115,6 +115,7 @@ class CircuitBreaker:
         failure_threshold: int = 5,
         success_threshold: int = 3,
         timeout: float = 60.0,
+        reset_timeout: float | None = None,
         failure_window: float = 60.0,
         excluded_exceptions: tuple[type[Exception], ...] | None = None,
     ) -> None:
@@ -125,13 +126,14 @@ class CircuitBreaker:
             failure_threshold: Failures to trigger open state
             success_threshold: Successes in half-open to close
             timeout: Seconds before transitioning from open to half-open
+            reset_timeout: Optional alias for timeout (seconds)
             failure_window: Window in seconds to count failures
             excluded_exceptions: Exceptions that don't trigger failure count
         """
         self.name = name
         self.failure_threshold = failure_threshold
         self.success_threshold = success_threshold
-        self.timeout = timeout
+        self.timeout = reset_timeout if reset_timeout is not None else timeout
         self.failure_window = failure_window
         self.excluded_exceptions = excluded_exceptions or ()
 
@@ -171,6 +173,20 @@ class CircuitBreaker:
             if total > 0:
                 self._stats.failure_rate = self._stats.failed_requests / total
             return self._stats
+
+    def allow_request(self) -> bool:
+        """Public wrapper to check if a request can proceed."""
+        return self._can_attempt()
+
+    def record_success(self) -> None:
+        """Public wrapper to record a successful request."""
+        self._record_success()
+
+    def record_failure(
+        self, exc: Exception | None = None, context: dict[str, Any] | None = None
+    ) -> None:
+        """Public wrapper to record a failed request."""
+        self._record_failure(exc or Exception("Recorded failure"), context)
 
     def _is_excluded_exception(self, exc: Exception) -> bool:
         """Check if exception should not trigger failure count."""
@@ -483,6 +499,9 @@ class AdaptiveRateLimiter:
         decrease_factor: float = 0.95,
         increase_factor: float = 2.0,
         success_threshold: int = 10,
+        initial_rate: float | None = None,
+        min_rate: float | None = None,
+        max_rate: float | None = None,
     ) -> None:
         """Initialize adaptive rate limiter.
 
@@ -493,6 +512,9 @@ class AdaptiveRateLimiter:
             decrease_factor: Multiply delay by this on success streak
             increase_factor: Multiply delay by this on rate limit
             success_threshold: Successes needed to decrease delay
+            initial_rate: Optional starting rate (requests per second)
+            min_rate: Optional minimum rate
+            max_rate: Optional maximum rate
         """
         self.base_delay = base_delay
         self.min_delay = min_delay
@@ -501,15 +523,36 @@ class AdaptiveRateLimiter:
         self.increase_factor = increase_factor
         self.success_threshold = success_threshold
 
-        self._current_delay = base_delay
+        if initial_rate is None:
+            initial_rate = 0.0 if base_delay <= 0 else 1.0 / base_delay
+        if min_rate is None:
+            min_rate = 0.0 if max_delay <= 0 else 1.0 / max_delay
+        if max_rate is None:
+            max_rate = initial_rate if min_delay <= 0 else 1.0 / min_delay
+
+        self.min_rate = min_rate
+        self.max_rate = max_rate
+        self._initial_rate = max(
+            self.min_rate, min(self.max_rate, initial_rate)
+        )
+        self._current_rate = self._initial_rate
         self._success_count = 0
         self._lock = threading.Lock()
 
     @property
+    def current_rate(self) -> float:
+        """Get current rate value."""
+        with self._lock:
+            return self._current_rate
+
+    @property
     def current_delay(self) -> float:
         """Get current delay value."""
-        with self._lock:
-            return self._current_delay
+        rate = self.current_rate
+        if rate <= 0:
+            return self.max_delay
+        delay = 1.0 / rate
+        return max(self.min_delay, min(self.max_delay, delay))
 
     def wait(self) -> None:
         """Wait for the current delay period."""
@@ -517,45 +560,59 @@ class AdaptiveRateLimiter:
         if delay > 0:
             time.sleep(delay)
 
+    def _set_rate(self, new_rate: float) -> None:
+        self._current_rate = max(self.min_rate, min(self.max_rate, new_rate))
+
+    def on_rate_limited(self) -> None:
+        """Decrease rate immediately after a rate limit."""
+        with self._lock:
+            self._success_count = 0
+            self._set_rate(self._current_rate * self.decrease_factor)
+
     def record_success(self) -> None:
-        """Record a successful request, potentially decreasing delay."""
+        """Record a successful request, potentially increasing rate."""
         with self._lock:
             self._success_count += 1
             if self._success_count >= self.success_threshold:
-                new_delay = self._current_delay * self.decrease_factor
-                self._current_delay = max(self.min_delay, new_delay)
+                self._set_rate(self._current_rate * self.increase_factor)
                 self._success_count = 0
                 logger.debug(
-                    f"Rate limiter delay decreased to {self._current_delay:.2f}s"
+                    "Rate limiter rate increased to %.2f rps",
+                    self._current_rate,
                 )
 
+    def on_success(self) -> None:
+        """Increase rate immediately after a success."""
+        with self._lock:
+            self._success_count = 0
+            self._set_rate(self._current_rate * self.increase_factor)
+
     def record_rate_limit(self, retry_after: float | None = None) -> None:
-        """Record a rate limit error, increasing delay.
+        """Record a rate limit error, decreasing rate.
 
         Args:
             retry_after: Suggested delay from API (uses this if larger)
         """
         with self._lock:
-            if retry_after and retry_after > self._current_delay:
-                self._current_delay = min(self.max_delay, retry_after)
-            else:
-                new_delay = self._current_delay * self.increase_factor
-                self._current_delay = min(self.max_delay, new_delay)
             self._success_count = 0
+            if retry_after and retry_after > 0:
+                target_rate = 1.0 / retry_after
+                self._set_rate(min(self._current_rate, target_rate))
+            else:
+                self._set_rate(self._current_rate * self.decrease_factor)
             logger.warning(
-                f"Rate limit hit, delay increased to {self._current_delay:.2f}s"
+                "Rate limit hit, rate reduced to %.2f rps",
+                self._current_rate,
             )
 
     def record_failure(self) -> None:
         """Record a non-rate-limit failure (slight delay increase)."""
         with self._lock:
             self._success_count = 0
-            # Smaller increase for general failures
-            new_delay = self._current_delay * 1.2
-            self._current_delay = min(self.max_delay, new_delay)
+            self._set_rate(self._current_rate / 1.2)
 
     def reset(self) -> None:
         """Reset to base delay."""
         with self._lock:
-            self._current_delay = self.base_delay
+            self._current_rate = self._initial_rate
             self._success_count = 0

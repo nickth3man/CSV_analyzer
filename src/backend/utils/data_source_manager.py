@@ -31,30 +31,66 @@ class DataSourceManager:
         endpoints: list[dict[str, Any]] = []
         q_lower = question.lower()
 
-        def add_endpoint(name: str, params: dict[str, Any] | None = None) -> None:
-            endpoints.append({"name": name, "params": params or {}})
-
-        if "score" in q_lower or "today" in q_lower or "live" in q_lower:
-            add_endpoint("scoreboard", {})
-
-        if any(k in q_lower for k in ["compare", "versus", "vs", "better", "greater"]):
-            for ent in entities:
-                add_endpoint("player_career", {"entity": ent})
-                add_endpoint("league_leaders", {"entity": ent})
-
-        if "lineup" in q_lower or "roster" in q_lower:
-            for ent in entities:
-                add_endpoint("common_team_roster", {"entity": ent})
-
-        if "game log" in q_lower or "recent games" in q_lower:
-            for ent in entities:
-                add_endpoint("player_game_log", {"entity": ent})
+        self._add_scoreboard_endpoints(q_lower, endpoints)
+        self._add_comparison_endpoints(q_lower, entities, endpoints)
+        self._add_roster_endpoints(q_lower, entities, endpoints)
+        self._add_game_log_endpoints(q_lower, entities, endpoints)
 
         if not endpoints:
-            for ent in entities:
-                add_endpoint("player_career", {"entity": ent})
+            self._add_default_endpoints(entities, endpoints)
 
         return endpoints
+
+    def _add_endpoint(
+        self,
+        endpoints: list[dict[str, Any]],
+        name: str,
+        params: dict[str, Any] | None = None,
+    ) -> None:
+        endpoints.append({"name": name, "params": params or {}})
+
+    def _add_scoreboard_endpoints(self, q_lower: str, endpoints: list[dict[str, Any]]):
+        if any(token in q_lower for token in ["score", "today", "live"]):
+            self._add_endpoint(endpoints, "scoreboard", {})
+
+    def _add_comparison_endpoints(
+        self,
+        q_lower: str,
+        entities: list[str],
+        endpoints: list[dict[str, Any]],
+    ) -> None:
+        if any(token in q_lower for token in ["compare", "versus", "vs", "better", "greater"]):
+            for ent in entities:
+                self._add_endpoint(endpoints, "player_career", {"entity": ent})
+                self._add_endpoint(endpoints, "league_leaders", {"entity": ent})
+
+    def _add_roster_endpoints(
+        self,
+        q_lower: str,
+        entities: list[str],
+        endpoints: list[dict[str, Any]],
+    ) -> None:
+        if "lineup" in q_lower or "roster" in q_lower:
+            for ent in entities:
+                self._add_endpoint(endpoints, "common_team_roster", {"entity": ent})
+
+    def _add_game_log_endpoints(
+        self,
+        q_lower: str,
+        entities: list[str],
+        endpoints: list[dict[str, Any]],
+    ) -> None:
+        if "game log" in q_lower or "recent games" in q_lower:
+            for ent in entities:
+                self._add_endpoint(endpoints, "player_game_log", {"entity": ent})
+
+    def _add_default_endpoints(
+        self,
+        entities: list[str],
+        endpoints: list[dict[str, Any]],
+    ) -> None:
+        for ent in entities:
+            self._add_endpoint(endpoints, "player_career", {"entity": ent})
 
     def merge_data_sources(
         self,
@@ -175,6 +211,9 @@ class DataSourceManager:
         field: str,
     ) -> tuple[Any, str]:
         """Resolve conflicts according to priority rules."""
+        source = "api"
+        value = api_value
+
         if api_value is None and csv_value is None:
             return None, "missing"
         if api_value is None:
@@ -189,12 +228,18 @@ class DataSourceManager:
                 return (csv_value, "csv") if csv_value else (api_value, "api")
             diff_pct = abs(csv_float - api_float) / abs(api_float)
             if diff_pct <= self.DISCREPANCY_THRESHOLD:
-                return api_value, "api"
-            return (
-                (api_value, "api") if "current" in field.lower() else (csv_value, "csv")
-            )
+                value = api_value
+                source = "api"
+            else:
+                value, source = (
+                    (api_value, "api")
+                    if "current" in field.lower()
+                    else (csv_value, "csv")
+                )
         except (TypeError, ValueError):
-            return api_value, "api"
+            value, source = api_value, "api"
+
+        return value, source
 
 
 data_source_manager = DataSourceManager()

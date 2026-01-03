@@ -113,38 +113,44 @@ def load_config(config_path: Path | None = None) -> AppConfig:
         try:
             with open(config_path) as f:
                 data = yaml.safe_load(f) or {}
-
-            if "database" in data:
-                config.database = DatabaseConfig(**data["database"])
-            if "llm" in data:
-                config.llm = LLMConfig(**data["llm"])
-            if "resilience" in data:
-                config.resilience = ResilienceConfig(**data["resilience"])
-            if "cache" in data:
-                config.cache = CacheConfig(**data["cache"])
-            if "logging" in data:
-                config.logging = LoggingConfig(**data["logging"])
-
+            _apply_yaml_config(config, data)
             logger.debug(f"Loaded config from {config_path}")
         except (yaml.YAMLError, TypeError) as e:
             logger.warning(f"Failed to load config from {config_path}: {e}")
 
-    if db_path := os.environ.get("NBA_DB_PATH"):
-        config.database.path = db_path
-    if db_timeout := os.environ.get("NBA_DB_TIMEOUT"):
-        config.database.timeout_seconds = int(db_timeout)
-
-    if llm_model := os.environ.get("LLM_MODEL"):
-        config.llm.model = llm_model
-    if llm_temp := os.environ.get("LLM_TEMPERATURE"):
-        config.llm.temperature = float(llm_temp)
-    if llm_tokens := os.environ.get("LLM_MAX_TOKENS"):
-        config.llm.max_tokens = int(llm_tokens)
-
-    if log_level := os.environ.get("LOG_LEVEL"):
-        config.logging.level = log_level
+    _apply_env_overrides(config)
 
     return config
+
+
+def _apply_yaml_config(config: AppConfig, data: dict) -> None:
+    section_map = {
+        "database": (DatabaseConfig, "database"),
+        "llm": (LLMConfig, "llm"),
+        "resilience": (ResilienceConfig, "resilience"),
+        "cache": (CacheConfig, "cache"),
+        "logging": (LoggingConfig, "logging"),
+    }
+    for key, (klass, attr) in section_map.items():
+        if key in data:
+            setattr(config, attr, klass(**data[key]))
+
+
+def _apply_env_overrides(config: AppConfig) -> None:
+    overrides = [
+        ("NBA_DB_PATH", ("database", "path"), str),
+        ("NBA_DB_TIMEOUT", ("database", "timeout_seconds"), int),
+        ("LLM_MODEL", ("llm", "model"), str),
+        ("LLM_TEMPERATURE", ("llm", "temperature"), float),
+        ("LLM_MAX_TOKENS", ("llm", "max_tokens"), int),
+        ("LOG_LEVEL", ("logging", "level"), str),
+    ]
+    for env_key, (section, attr), caster in overrides:
+        value = os.environ.get(env_key)
+        if value is None:
+            continue
+        section_obj = getattr(config, section)
+        setattr(section_obj, attr, caster(value))
 
 
 @lru_cache(maxsize=1)

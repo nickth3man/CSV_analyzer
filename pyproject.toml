@@ -85,10 +85,6 @@ ignore = [
     "FBT002",  # Boolean default values acceptable in some cases
     "PLC0415", # Import outside top-level acceptable for conditional imports
     "PLR2004", # Magic value comparison - acceptable in many contexts
-    "PLR0911", # Too many return statements - acceptable for complex functions
-    "PLR0912", # Too many branches - acceptable for complex functions
-    "PLR0915", # Too many statements - acceptable for complex functions
-    "C901",    # Complex structure - acceptable for some algorithms
     "RUF012",  # Mutable class default - acceptable when intentional
 ]
 select = [
@@ -144,17 +140,13 @@ select = [
 [tool.ruff.lint.per-file-ignores]
 # Tests can use assert statements and magic values
 # Tests can use assert statements and magic values
-"tests/**/*.py" = ["S101", "PLR2004", "ANN"]
-"src/tests/**/*.py" = ["S101", "PLR2004", "ANN"]
+"tests/**/*.py" = ["S101", "PLR2004", "ANN", "C901", "PLR0911", "PLR0912"]
+"src/tests/**/*.py" = ["S101", "PLR2004", "ANN", "C901", "PLR0911", "PLR0912"]
 # Scripts can use print statements, have less strict annotations, and use dynamic SQL
-"scripts/**/*.py" = ["T201", "ANN", "PLR0915", "E501", "S608", "PLW0603", "B027", "S603", "PLR0913", "DTZ005", "ERA001"]
-"src/scripts/**/*.py" = ["T201", "ANN", "PLR0915", "E501", "S608", "PLW0603", "B027", "S603", "PLR0913", "DTZ005", "ERA001"]
+"scripts/**/*.py" = ["T201", "ANN", "PLR0915", "PLR0912", "PLR0911", "C901", "E501", "S608", "PLW0603", "B027", "S603", "PLR0913", "DTZ005", "ERA001"]
+"src/scripts/**/*.py" = ["T201", "ANN", "PLR0915", "PLR0912", "PLR0911", "C901", "E501", "S608", "PLW0603", "B027", "S603", "PLR0913", "DTZ005", "ERA001"]
 # Reference/external code has different standards
 "reference/**/*.py" = ["ALL"]
-# Backend nodes often have complex methods
-"src/backend/nodes/*.py" = ["PLR0912", "PLR0911", "C901"]
-
-
 [tool.ruff.lint.pycodestyle]
 max-line-length = 88
 

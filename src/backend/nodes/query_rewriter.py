@@ -69,8 +69,9 @@ class QueryRewriter(Node):
         """
         question = shared.get("question", "")
         conversation_history = shared.get("conversation_history")
+        user_id = shared.get("user_id")
         if conversation_history is None:
-            conversation_history = get_memory().get_context(n_turns=5).turns
+            conversation_history = get_memory(user_id).get_context(n_turns=5).turns
             shared["conversation_history"] = conversation_history
 
         get_logger().log_node_start(
@@ -81,6 +82,7 @@ class QueryRewriter(Node):
         return {
             "question": question,
             "conversation_history": conversation_history,
+            "user_id": user_id,
         }
 
     def exec(self, prep_res: dict[str, Any]) -> dict[str, Any]:
@@ -95,7 +97,8 @@ class QueryRewriter(Node):
         question = prep_res["question"]
         conversation_history = prep_res["conversation_history"]
 
-        memory = get_memory()
+        user_id = prep_res.get("user_id")
+        memory = get_memory(user_id)
         rule_based_resolution = memory.extract_references(question)
 
         history_text = self._format_conversation_history(conversation_history)

@@ -7,7 +7,7 @@ from backend.nodes import ClarifyQuery
 def test_clarify_query_clear(mocker) -> None:
     """ClarifyQuery returns clear when LLM says clear."""
     mocker.patch(
-        "backend.nodes.query.call_llm",
+        "src.backend.nodes.query.call_llm",
         return_value="""```yaml
 intent: clear
 reasoning: "Query is specific"
@@ -29,7 +29,7 @@ clarification_questions: []
 def test_clarify_query_ambiguous(mocker) -> None:
     """ClarifyQuery returns ambiguous and stores clarification questions."""
     mocker.patch(
-        "backend.nodes.query.call_llm",
+        "src.backend.nodes.query.call_llm",
         return_value="""```yaml
 intent: ambiguous
 reasoning: "Missing metric definition"

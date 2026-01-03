@@ -25,6 +25,7 @@ def main() -> None:
     shared: dict[str, object] = {
         "question": question,
         "conversation_history": [],
+        "user_id": "cli",
         "total_retries": 0,
         "grader_retries": 0,
         "max_retries": config.resilience.max_retries,
@@ -32,7 +33,7 @@ def main() -> None:
     }
 
     trace_logger = get_logger()
-    trace_id = trace_logger.start_trace(question=question)
+    trace_id = trace_logger.start_trace(question=question, user_id="cli")
 
     analyst_flow = create_analyst_flow()
 

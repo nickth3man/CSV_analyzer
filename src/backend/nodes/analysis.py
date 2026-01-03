@@ -129,7 +129,7 @@ class DataAnalyzer(Node):
         else:
             shared["final_text"] = answer
 
-        self._update_memory(shared, answer)
+        self._update_memory(shared, answer, user_id=shared.get("user_id"))
 
         get_logger().log_node_end(
             "DataAnalyzer",
@@ -209,9 +209,15 @@ class DataAnalyzer(Node):
             return text[:MAX_RESULT_CHARS] + "... [truncated]"
         return text
 
-    def _update_memory(self, shared: dict[str, Any], answer: str) -> None:
+    def _update_memory(
+        self,
+        shared: dict[str, Any],
+        answer: str,
+        *,
+        user_id: str | None,
+    ) -> None:
         """Update conversation memory with the latest turn."""
-        memory = get_memory()
+        memory = get_memory(user_id)
 
         tables_used = shared.get("selected_tables", [])
         sub_query_tables = shared.get("sub_query_tables", {})

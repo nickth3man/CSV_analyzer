@@ -46,18 +46,29 @@ async def step_run_analysis(question: str, settings: dict) -> dict | None:
         os.environ["OPENROUTER_MODEL"] = model
 
     config = get_config()
-    memory = get_memory()
+    session_user = cl.user_session.get("user")
+    session_id = cl.user_session.get("id")
+    user_id = None
+    if session_user is not None:
+        if hasattr(session_user, "identifier"):
+            user_id = session_user.identifier
+        elif isinstance(session_user, dict):
+            user_id = session_user.get("identifier")
+    user_id = user_id or session_id or "anonymous"
+
+    memory = get_memory(user_id)
 
     shared = {
         "question": question,
         "conversation_history": memory.get_context(n_turns=5).turns,
+        "user_id": user_id,
         "total_retries": 0,
         "grader_retries": 0,
         "max_retries": config.resilience.max_retries,
     }
 
     trace_logger = get_logger()
-    trace_id = trace_logger.start_trace(question=question)
+    trace_id = trace_logger.start_trace(question=question, user_id=user_id)
 
     try:
         analyst_flow = create_analyst_flow()

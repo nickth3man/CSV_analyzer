@@ -27,6 +27,7 @@ class LogContext:
     trace_id: str = ""
     node_name: str = ""
     start_time: float = 0.0
+    user_id: str = ""
 
 
 class StructuredLogger:
@@ -63,7 +64,7 @@ class StructuredLogger:
             self._contexts[thread_id] = LogContext()
         return self._contexts[thread_id]
 
-    def start_trace(self, question: str = "") -> str:
+    def start_trace(self, question: str = "", user_id: str | None = None) -> str:
         """Start a new execution trace.
 
         Args:
@@ -81,6 +82,7 @@ class StructuredLogger:
         context = self._get_context()
         context.trace_id = trace_id
         context.start_time = time.time()
+        context.user_id = user_id or ""
 
         self._emit_log(
             event="trace_start",
@@ -231,11 +233,13 @@ class StructuredLogger:
         """
         context = self._get_context()
         sql_hash = hashlib.sha256(sql.encode()).hexdigest()[:8]
+        sql_preview = sql if len(sql) <= 500 else sql[:500] + "..."
 
         self._emit_log(
             event="sql_execution",
             trace_id=context.trace_id,
             sql_hash=sql_hash,
+            sql_preview=sql_preview,
             row_count=row_count,
             latency_ms=latency_ms,
             error=error,
@@ -303,6 +307,9 @@ class StructuredLogger:
             "event": event,
             **kwargs,
         }
+        context = self._get_context()
+        if context.user_id and "user_id" not in log_entry:
+            log_entry["user_id"] = context.user_id
 
         try:
             log_json = json.dumps(log_entry, default=str)

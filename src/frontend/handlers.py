@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 
 import chainlit as cl
 from chainlit.input_widget import Select, TextInput
@@ -20,6 +21,12 @@ from src.frontend.steps import (
 
 
 logger = logging.getLogger(__name__)
+
+OPENROUTER_KEY_PATTERN = re.compile(r"^sk-or-(?:v\\d-)?[A-Za-z0-9_-]{16,}$")
+
+
+def is_valid_openrouter_key(api_key: str) -> bool:
+    return bool(OPENROUTER_KEY_PATTERN.match(api_key.strip()))
 
 
 @cl.set_starters  # type: ignore[arg-type]
@@ -72,6 +79,9 @@ async def chat_profile():
 async def on_chat_start() -> None:
     """Initialize the chat session."""
     current_api_key = os.environ.get("OPENROUTER_API_KEY", "")
+    if current_api_key and not is_valid_openrouter_key(current_api_key):
+        logger.warning("OPENROUTER_API_KEY does not match expected format.")
+        current_api_key = ""
     models = fetch_openrouter_models(
         current_api_key,
         filter_models=not bool(current_api_key),
@@ -131,10 +141,17 @@ async def on_settings_update(settings) -> None:
     cl.user_session.set("settings", settings)
 
     api_key = settings.get("api_key", "") or ""
-    if api_key:
+    api_key = api_key.strip()
+    api_key_valid = bool(api_key) and is_valid_openrouter_key(api_key)
+    if api_key_valid:
         os.environ["OPENROUTER_API_KEY"] = api_key
+    else:
+        os.environ.pop("OPENROUTER_API_KEY", None)
 
-    models = fetch_openrouter_models(api_key, filter_models=not bool(api_key))
+    models = fetch_openrouter_models(
+        api_key if api_key_valid else "",
+        filter_models=not api_key_valid,
+    )
 
     model = settings.get("model", "")
     initial_index = 0
@@ -163,12 +180,80 @@ async def on_settings_update(settings) -> None:
         ],
     ).send()
 
-    notice = (
-        "Settings updated!"
-        if api_key
-        else "Settings updated! Add an API key to enable full model access."
-    )
+    if api_key and not api_key_valid:
+        notice = (
+            "Settings updated, but the API key format looks invalid. "
+            "Please double-check it."
+        )
+    else:
+        notice = (
+            "Settings updated!"
+            if api_key
+            else "Settings updated! Add an API key to enable full model access."
+        )
     await cl.Message(content=notice).send()
+
+
+async def _update_progress(progress_msg: cl.Message, content: str) -> None:
+    progress_msg.content = content
+    await progress_msg.update()
+
+
+def _build_sql_block(sql_query: str | None, sub_query_sqls: dict[str, str]) -> str:
+    if sub_query_sqls:
+        return "\n".join(
+            [
+                f"-- {sub_id}\n{sql.strip()}"
+                for sub_id, sql in sub_query_sqls.items()
+            ]
+        )
+    return sql_query.strip() if sql_query else ""
+
+
+def _build_response_parts(shared: dict) -> tuple[str, list[cl.Image]]:
+    answer = shared.get("final_answer") or shared.get("final_text") or ""
+    transparency_note = shared.get("transparency_note")
+    sql_query = shared.get("sql_query")
+    sub_query_sqls = shared.get("sub_query_sqls") or {}
+    chart_path = shared.get("chart_path")
+    chart_caption = shared.get("chart_caption")
+
+    sql_block = _build_sql_block(sql_query, sub_query_sqls)
+
+    response_parts = [answer]
+    if transparency_note:
+        response_parts.append(f"How I found this:\n{transparency_note}")
+    if chart_caption:
+        response_parts.append(f"Chart: {chart_caption}")
+    if sql_block:
+        response_parts.append(f"SQL used:\n```sql\n{sql_block}\n```")
+
+    elements: list[cl.Image] = []
+    if chart_path:
+        elements.append(
+            cl.Image(
+                path=chart_path,
+                name="chart",
+                display="inline",
+                size="large",
+            )
+        )
+
+    final_text = "\n\n".join(part for part in response_parts if part)
+    return final_text, elements
+
+
+async def _run_analysis_pipeline(
+    question: str, settings: dict, progress_msg: cl.Message
+) -> dict | None:
+    await _update_progress(progress_msg, "Loading tables...")
+    await step_load_data()
+
+    await _update_progress(progress_msg, "Analyzing schema...")
+    await step_schema()
+
+    await _update_progress(progress_msg, "Running analysis...")
+    return await step_run_analysis(question, settings or {})
 
 
 @cl.on_message
@@ -184,7 +269,7 @@ async def on_message(message: cl.Message) -> None:
     settings = cl.user_session.get("settings", {})
     api_key = settings.get("api_key", os.environ.get("OPENROUTER_API_KEY", ""))
 
-    if not api_key or not api_key.startswith("sk-or-"):
+    if not api_key or not is_valid_openrouter_key(api_key):
         await cl.Message(
             content="Please set a valid OpenRouter API key in settings (top right).",
         ).send()
@@ -200,54 +285,18 @@ async def on_message(message: cl.Message) -> None:
     progress_msg = await cl.Message(content="Starting analysis...").send()
 
     try:
-        progress_msg.content = "Loading tables..."
-        await progress_msg.update()
-        await step_load_data()
-
-        progress_msg.content = "Analyzing schema..."
-        await progress_msg.update()
-        await step_schema()
-
-        progress_msg.content = "Running analysis..."
-        await progress_msg.update()
-        shared = await step_run_analysis(question, settings or {})
+        shared = await _run_analysis_pipeline(question, settings, progress_msg)
 
         if not shared:
-            progress_msg.content = "Analysis failed."
-            await progress_msg.update()
+            await _update_progress(progress_msg, "Analysis failed.")
             await cl.Message(content="No response was generated.").send()
             return
 
-        progress_msg.content = "Analysis complete."
-        await progress_msg.update()
-
-        answer = shared.get("final_answer") or shared.get("final_text") or ""
-        transparency_note = shared.get("transparency_note")
-        sql_query = shared.get("sql_query")
-        sub_query_sqls = shared.get("sub_query_sqls") or {}
-
-        sql_block = ""
-        if sub_query_sqls:
-            sql_block = "\n".join(
-                [
-                    f"-- {sub_id}\n{sql.strip()}"
-                    for sub_id, sql in sub_query_sqls.items()
-                ]
-            )
-        elif sql_query:
-            sql_block = sql_query.strip()
-
-        response_parts = [answer]
-        if transparency_note:
-            response_parts.append(f"How I found this:\n{transparency_note}")
-        if sql_block:
-            response_parts.append(f"SQL used:\n```sql\n{sql_block}\n```")
-
-        final_text = "\n\n".join(part for part in response_parts if part)
-        await display_result_with_streaming(final_text)
+        await _update_progress(progress_msg, "Analysis complete.")
+        final_text, elements = _build_response_parts(shared)
+        await display_result_with_streaming(final_text, elements=elements or None)
 
     except Exception as exc:
         logger.exception("Analysis failed with unexpected error")
-        progress_msg.content = "Analysis failed."
-        await progress_msg.update()
+        await _update_progress(progress_msg, "Analysis failed.")
         await cl.Message(content=f"Unexpected error: {exc!s}").send()

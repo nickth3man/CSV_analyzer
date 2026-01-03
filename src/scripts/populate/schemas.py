@@ -22,7 +22,14 @@ from enum import Enum
 from typing import Any
 
 import pandas as pd
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 
 # =============================================================================
@@ -125,11 +132,31 @@ class NBABaseModel(BaseModel):
 class Player(NBABaseModel):
     """Player entity schema."""
 
-    id: int = Field(..., alias="player_id", ge=1, description="NBA player ID")
+    person_id: int = Field(
+        ...,
+        validation_alias=AliasChoices("person_id", "player_id", "id"),
+        ge=1,
+        description="NBA player ID",
+    )
     full_name: str = Field(..., min_length=1, description="Full player name")
     first_name: str | None = Field(None, description="First name")
     last_name: str | None = Field(None, description="Last name")
     is_active: bool = Field(True, description="Whether player is currently active")
+
+    @model_validator(mode="before")
+    @classmethod
+    def populate_full_name(cls, data: Any) -> Any:
+        """Populate full_name from first/last when missing."""
+        if isinstance(data, dict):
+            full_name = data.get("full_name")
+            if not full_name:
+                first = data.get("first_name")
+                last = data.get("last_name")
+                if first or last:
+                    data["full_name"] = " ".join(
+                        part for part in [first, last] if part
+                    ).strip()
+        return data
 
     @field_validator("full_name", mode="before")
     @classmethod
@@ -138,6 +165,11 @@ class Player(NBABaseModel):
         if v is None or (isinstance(v, str) and not v.strip()):
             raise ValueError("Player name cannot be empty")
         return str(v).strip()
+
+    @property
+    def player_id(self) -> int:
+        """Backward-compatible accessor for person_id."""
+        return self.person_id
 
 
 class CommonPlayerInfo(NBABaseModel):
@@ -469,8 +501,8 @@ class DraftHistory(NBABaseModel):
     player_name: str = Field(..., alias="PLAYER_NAME")
     season: str = Field(..., alias="SEASON")
     round_number: int = Field(..., alias="ROUND_NUMBER", ge=1, le=2)
-    round_pick: int = Field(..., alias="ROUND_PICK", ge=1)
-    overall_pick: int = Field(..., alias="OVERALL_PICK", ge=1)
+    round_pick: int = Field(..., alias="ROUND_PICK", gt=0)
+    overall_pick: int = Field(..., alias="OVERALL_PICK", gt=0)
     team_id: int = Field(..., alias="TEAM_ID", ge=1)
     team_name: str | None = Field(None, alias="TEAM_NAME")
     team_abbreviation: str | None = Field(None, alias="TEAM_ABBREVIATION")
@@ -545,6 +577,15 @@ def validate_with_schema(
         details about each failed validation
     """
     return schema.validate_dataframe(df, raise_on_error=raise_on_error)
+
+
+def validate_dataframe(
+    df: pd.DataFrame,
+    schema: type[NBABaseModel],
+    raise_on_error: bool = False,
+) -> tuple[pd.DataFrame, list[dict[str, Any]]]:
+    """Validate a DataFrame using a Pydantic schema."""
+    return validate_with_schema(df, schema, raise_on_error=raise_on_error)
 
 
 def get_schema_for_table(table_name: str) -> type[NBABaseModel] | None:

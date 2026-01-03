@@ -76,67 +76,98 @@ def circuit_breaker(
 
         @functools.wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            current_time = time.time()
             with state.lock:
-                current_time = time.time()
-
-                if state.state == CircuitState.OPEN:
-                    if current_time - state.last_failure_time >= recovery:
-                        state.state = CircuitState.HALF_OPEN
-                        state.half_open_calls = 0
-                        logger.info(
-                            f"Circuit breaker for {func.__name__} entering half-open state"
-                        )
-                    else:
-                        raise CircuitBreakerError(
-                            f"Circuit breaker is open for {func.__name__}. "
-                            f"Recovery in {recovery - (current_time - state.last_failure_time):.1f}s"
-                        )
-
-                if (
-                    state.state == CircuitState.HALF_OPEN
-                    and state.half_open_calls >= half_open_max
-                ):
-                    raise CircuitBreakerError(
-                        f"Circuit breaker for {func.__name__} is in half-open state, "
-                        "waiting for test result"
-                    )
-
-                if state.state == CircuitState.HALF_OPEN:
-                    state.half_open_calls += 1
+                _prepare_circuit_for_call(
+                    state,
+                    func.__name__,
+                    current_time,
+                    recovery,
+                    half_open_max,
+                )
 
             try:
                 result = func(*args, **kwargs)
-                with state.lock:
-                    if state.state == CircuitState.HALF_OPEN:
-                        state.state = CircuitState.CLOSED
-                        state.failure_count = 0
-                        logger.info(
-                            f"Circuit breaker for {func.__name__} closed (recovered)"
-                        )
-                    elif state.failure_count > 0:
-                        state.failure_count = 0
-                return result
             except Exception:
                 with state.lock:
-                    state.failure_count += 1
-                    state.last_failure_time = current_time
-
-                    if state.state == CircuitState.HALF_OPEN:
-                        state.state = CircuitState.OPEN
-                        logger.warning(
-                            f"Circuit breaker for {func.__name__} re-opened after failed recovery"
-                        )
-                    elif state.failure_count >= threshold:
-                        state.state = CircuitState.OPEN
-                        logger.warning(
-                            f"Circuit breaker for {func.__name__} opened after "
-                            f"{state.failure_count} failures"
-                        )
+                    _record_circuit_failure(
+                        state,
+                        func.__name__,
+                        current_time,
+                        threshold,
+                    )
                 raise
+
+            with state.lock:
+                _record_circuit_success(state, func.__name__)
+            return result
 
         return wrapper
 
     return decorator
+
+
+def _prepare_circuit_for_call(
+    state: CircuitBreakerState,
+    func_name: str,
+    current_time: float,
+    recovery: int,
+    half_open_max: int,
+) -> None:
+    if state.state == CircuitState.OPEN:
+        if current_time - state.last_failure_time >= recovery:
+            state.state = CircuitState.HALF_OPEN
+            state.half_open_calls = 0
+            logger.info(
+                "Circuit breaker for %s entering half-open state",
+                func_name,
+            )
+        else:
+            raise CircuitBreakerError(
+                f"Circuit breaker is open for {func_name}. "
+                f"Recovery in {recovery - (current_time - state.last_failure_time):.1f}s"
+            )
+
+    if state.state == CircuitState.HALF_OPEN:
+        if state.half_open_calls >= half_open_max:
+            raise CircuitBreakerError(
+                f"Circuit breaker for {func_name} is in half-open state, "
+                "waiting for test result"
+            )
+        state.half_open_calls += 1
+
+
+def _record_circuit_success(state: CircuitBreakerState, func_name: str) -> None:
+    if state.state == CircuitState.HALF_OPEN:
+        state.state = CircuitState.CLOSED
+        state.failure_count = 0
+        logger.info("Circuit breaker for %s closed (recovered)", func_name)
+    elif state.failure_count > 0:
+        state.failure_count = 0
+
+
+def _record_circuit_failure(
+    state: CircuitBreakerState,
+    func_name: str,
+    current_time: float,
+    threshold: int,
+) -> None:
+    state.failure_count += 1
+    state.last_failure_time = current_time
+
+    if state.state == CircuitState.HALF_OPEN:
+        state.state = CircuitState.OPEN
+        logger.warning(
+            "Circuit breaker for %s re-opened after failed recovery",
+            func_name,
+        )
+    elif state.failure_count >= threshold:
+        state.state = CircuitState.OPEN
+        logger.warning(
+            "Circuit breaker for %s opened after %d failures",
+            func_name,
+            state.failure_count,
+        )
 
 
 @dataclass

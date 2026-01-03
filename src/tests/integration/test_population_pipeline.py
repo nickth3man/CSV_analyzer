@@ -11,18 +11,15 @@ Tests use in-memory DuckDB for fast execution and mock API responses
 to avoid hitting external services.
 """
 
-import json
-import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import duckdb
 import pandas as pd
 import pytest
 
-from src.scripts.populate.base import BasePopulator, PopulationMetrics, ProgressTracker
+from src.scripts.populate.base import PopulationMetrics, ProgressTracker
 from src.scripts.populate.database import DatabaseManager
 from src.scripts.populate.validation import DataValidator
 

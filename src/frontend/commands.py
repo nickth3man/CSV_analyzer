@@ -16,6 +16,7 @@ async def handle_command(message_content: str) -> bool:
     """Handle slash commands from the user."""
     content = message_content.strip()
     lower = content.lower()
+    handled = True
 
     if lower == "/tables":
         tables = get_table_names()
@@ -24,32 +25,23 @@ async def handle_command(message_content: str) -> bool:
         else:
             msg = "No tables found in the DuckDB database."
         await cl.Message(content=msg).send()
-        return True
-
-    if lower.startswith("/preview "):
+    elif lower.startswith("/preview "):
         table_name = content[9:].strip()
         await display_table_preview(table_name)
-        return True
-
-    if lower.startswith("/schema "):
+    elif lower.startswith("/schema "):
         table_name = content[8:].strip()
         schema = get_table_schema(table_name)
         await cl.Message(content=f"## Table Schema\n\n{schema}").send()
-        return True
-
-    if lower == "/schema":
+    elif lower == "/schema":
         schema = get_schema_info()
         await cl.Message(content=f"## Data Schema\n\n{schema}").send()
-        return True
-
-    if lower == "/help":
+    elif lower == "/help":
         await cl.Message(content=HELP_TEXT).send()
-        return True
-
-    if lower.startswith("/preview-md "):
+    elif lower.startswith("/preview-md "):
         table_name = content[12:].strip()
         preview = preview_table(table_name)
         await cl.Message(content=f"## Preview: {table_name}\n\n{preview}").send()
-        return True
+    else:
+        handled = False
 
-    return False
+    return handled

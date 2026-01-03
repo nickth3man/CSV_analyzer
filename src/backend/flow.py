@@ -9,6 +9,7 @@ from pocketflow import BatchFlow, Flow
 
 from src.backend.nodes import (
     AskUser,
+    ChartGenerator,
     ClarifyQuery,
     CombineResults,
     DataAnalyzer,
@@ -70,6 +71,7 @@ def create_analyst_flow() -> Flow:
     selector = TableSelector()
     sql_gen = SQLGenerator()
     sql_exec = SQLExecutor()
+    chart_gen = ChartGenerator()
     analyzer = DataAnalyzer()
     grader = ResponseGrader()
     combiner = CombineResults()
@@ -93,11 +95,12 @@ def create_analyst_flow() -> Flow:
 
     _ = selector >> sql_gen
     _ = sql_gen - "valid" >> sql_exec
-    _ = sql_gen - "fallback" >> analyzer
-    _ = sql_exec - "success" >> analyzer
+    _ = sql_gen - "fallback" >> chart_gen
+    _ = sql_exec - "success" >> chart_gen
     _ = sql_exec - "error" >> sql_gen
 
-    _ = sub_flow >> combiner >> analyzer
+    _ = chart_gen >> analyzer
+    _ = sub_flow >> combiner >> chart_gen
 
     _ = analyzer - "default" >> grader
     _ = grader - "fail" >> sql_gen
