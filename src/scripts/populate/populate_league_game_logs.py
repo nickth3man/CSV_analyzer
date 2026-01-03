@@ -20,12 +20,11 @@ from src.scripts.populate.config import (
     LEAGUE_GAME_LOG_FIELDS,
     get_db_path,
 )
+from src.scripts.populate.helpers import configure_logging, resolve_season_types
+from src.scripts.populate.transform_utils import ensure_columns
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+configure_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -155,13 +154,6 @@ AWAY_COLUMN_MAP = {
 }
 
 
-def _ensure_columns(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
-    for col in columns:
-        if col not in df.columns:
-            df[col] = None
-    return df
-
-
 class LeagueGameLogPopulator(BasePopulator):
     """Populate the raw game table using LeagueGameLog (team-level)."""
 
@@ -220,7 +212,7 @@ class LeagueGameLogPopulator(BasePopulator):
             return df
 
         df = df.copy()
-        df = _ensure_columns(df, LEAGUE_GAME_LOG_FIELDS + ["_season_type"])
+        df = ensure_columns(df, LEAGUE_GAME_LOG_FIELDS + ["_season_type"])
         df["IS_HOME"] = df["MATCHUP"].astype(str).str.contains(
             r"\bvs\.?\b",
             case=False,
@@ -315,11 +307,11 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    season_types = DEFAULT_SEASON_TYPES
-    if args.regular_only:
-        season_types = ["Regular Season"]
-    elif args.playoffs_only:
-        season_types = ["Playoffs"]
+    season_types = resolve_season_types(
+        DEFAULT_SEASON_TYPES,
+        regular_only=args.regular_only,
+        playoffs_only=args.playoffs_only,
+    )
 
     result = populate_league_game_logs(
         db_path=args.db,

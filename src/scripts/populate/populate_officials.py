@@ -63,19 +63,19 @@ Potential Data Sources:
 """
 
 import argparse
-import logging
 import sys
+from typing import Any, NoReturn
+
+
+from src.scripts.populate.helpers import configure_logging
+from src.scripts.populate.placeholders import log_placeholder_banner, raise_not_implemented
 
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+configure_logging()
 
 
-def populate_officials(*args, **kwargs):
+def populate_officials(*args: Any, **kwargs: Any) -> NoReturn:
     """Populate the officials_directory table with referee records and game linkages.
 
     Intended to fetch current (and optionally historical) NBA referee data, store biographical
@@ -85,15 +85,10 @@ def populate_officials(*args, **kwargs):
     Raises:
         NotImplementedError: Function is a placeholder; implementation planned per docs/roadmap.md Phase 4.3.
     """
-    logger.error("Officials population not yet implemented")
-    logger.info("TODO: See docs/roadmap.md Phase 4.3 for implementation requirements")
-    raise NotImplementedError(
-        "Officials population is planned but not yet implemented. "
-        "See docs/roadmap.md Phase 4.3 for requirements."
-    )
+    raise_not_implemented("Officials", "4.3")
 
 
-def main():
+def main() -> None:
     """Command-line entry point that reports the placeholder status for officials population.
 
     Parses the command-line options --include-historical, --seasons, and --with-games, emits a series of warning messages describing that officials population is not yet implemented and listing required decisions, references docs/roadmap.md Phase 4.3, and exits the process with status code 1.
@@ -113,20 +108,17 @@ def main():
 
     _args = parser.parse_args()
 
-    logger.warning("=" * 70)
-    logger.warning("OFFICIALS POPULATION - NOT YET IMPLEMENTED")
-    logger.warning("=" * 70)
-    logger.warning("This script is a placeholder for future development.")
-    logger.warning("See docs/roadmap.md Phase 4.3 for implementation requirements.")
-    logger.warning("")
-    logger.warning("Current officials_directory table status: 0 rows")
-    logger.warning("")
-    logger.warning("Key Decisions Needed:")
-    logger.warning("1. Data source (NBA official roster, game boxscores)")
-    logger.warning("2. Schema for game-official linkage")
-    logger.warning("3. What referee statistics to track")
-    logger.warning("4. How to handle historical officials (retired)")
-    logger.warning("=" * 70)
+    log_placeholder_banner(
+        "Officials",
+        "4.3",
+        status="Current officials_directory table status: 0 rows",
+        decisions=[
+            "Data source (NBA official roster, game boxscores)",
+            "Schema for game-official linkage",
+            "What referee statistics to track",
+            "How to handle historical officials (retired)",
+        ],
+    )
 
     sys.exit(1)
 

@@ -208,6 +208,13 @@ class NBAClient:
                 "nba_api package is required. Install with: pip install nba_api",
             ) from e
 
+    @staticmethod
+    def _non_empty_frame(df: pd.DataFrame) -> pd.DataFrame | None:
+        """Return the DataFrame when non-empty, otherwise None."""
+        if df.empty:
+            return None
+        return df
+
     # -------------------------------------------------------------------------
     # STATIC DATA (NO API CALLS)
     # -------------------------------------------------------------------------
@@ -366,11 +373,7 @@ class NBAClient:
         )
 
         df = log.get_data_frames()[0]
-
-        if df.empty:
-            return None
-
-        return df
+        return self._non_empty_frame(df)
 
     @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
     def get_player_game_logs(
@@ -416,11 +419,7 @@ class NBAClient:
         )
 
         df = logs.get_data_frames()[0]
-
-        if df.empty:
-            return None
-
-        return df
+        return self._non_empty_frame(df)
 
     @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
     def get_league_game_log(
@@ -454,11 +453,7 @@ class NBAClient:
         )
 
         df = log.get_data_frames()[0]
-
-        if df.empty:
-            return None
-
-        return df
+        return self._non_empty_frame(df)
 
     @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
     def get_player_career_stats(
@@ -523,11 +518,7 @@ class NBAClient:
         )
 
         df = info.common_player_info.get_data_frame()
-
-        if df.empty:
-            return None
-
-        return df
+        return self._non_empty_frame(df)
 
     @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
     def get_team_info_common(
@@ -605,11 +596,7 @@ class NBAClient:
         )
 
         df = log.team_game_log.get_data_frame()
-
-        if df.empty:
-            return None
-
-        return df
+        return self._non_empty_frame(df)
 
     @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
     def get_draft_history(
@@ -640,9 +627,7 @@ class NBAClient:
         )
 
         df = history.draft_history.get_data_frame()
-        if df.empty:
-            return None
-        return df
+        return self._non_empty_frame(df)
 
     @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
     def get_draft_combine_stats(self, season: str) -> pd.DataFrame | None:
@@ -658,9 +643,7 @@ class NBAClient:
         )
 
         df = stats.draft_combine_stats.get_data_frame()
-        if df.empty:
-            return None
-        return df
+        return self._non_empty_frame(df)
 
     @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
     def get_league_game_finder(
@@ -736,10 +719,7 @@ class NBAClient:
         finder = leaguegamefinder.LeagueGameFinder(**params)
         df = finder.league_game_finder_results.get_data_frame()
 
-        if df.empty:
-            return None
-
-        return df
+        return self._non_empty_frame(df)
 
     @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
     def get_boxscore_traditional(
@@ -848,11 +828,7 @@ class NBAClient:
         )
 
         df = pbp.play_by_play.get_data_frame()
-
-        if df.empty:
-            return None
-
-        return df
+        return self._non_empty_frame(df)
 
     @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
     def get_shot_chart_detail(
@@ -897,11 +873,7 @@ class NBAClient:
         shot_chart = shotchartdetail.ShotChartDetail(**params)
 
         df = shot_chart.shot_chart_detail.get_data_frame()
-
-        if df.empty:
-            return None
-
-        return df
+        return self._non_empty_frame(df)
 
     @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
     def get_league_standings(
@@ -932,11 +904,7 @@ class NBAClient:
         )
 
         df = standings.standings.get_data_frame()
-
-        if df.empty:
-            return None
-
-        return df
+        return self._non_empty_frame(df)
 
     @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
     def get_player_tracking_stats(
@@ -975,11 +943,7 @@ class NBAClient:
         )
 
         df = tracking.league_dash_pt_stats.get_data_frame()
-
-        if df.empty:
-            return None
-
-        return df
+        return self._non_empty_frame(df)
 
     @with_retry(max_retries=3, backoff_factor=2.0, base_delay=0.6)
     def get_hustle_stats(

@@ -54,19 +54,19 @@ Data to Track:
 """
 
 import argparse
-import logging
 import sys
+from typing import Any, NoReturn
+
+
+from src.scripts.populate.helpers import configure_logging
+from src.scripts.populate.placeholders import log_placeholder_banner, raise_not_implemented
 
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+configure_logging()
 
 
-def populate_franchises(*args, **kwargs):
+def populate_franchises(*args: Any, **kwargs: Any) -> NoReturn:
     """Populate the franchises table with complete franchise history and lineage data.
 
     This function is intended to ingest franchise history (relocations, name changes, eras),
@@ -76,15 +76,10 @@ def populate_franchises(*args, **kwargs):
     Raises:
         NotImplementedError: Always raised until the population logic required by docs/roadmap.md Phase 4.2 is implemented.
     """
-    logger.error("Franchises population not yet implemented")
-    logger.info("TODO: See docs/roadmap.md Phase 4.2 for implementation requirements")
-    raise NotImplementedError(
-        "Franchises population is planned but not yet implemented. "
-        "See docs/roadmap.md Phase 4.2 for requirements."
-    )
+    raise_not_implemented("Franchises", "4.2")
 
 
-def main():
+def main() -> None:
     """CLI entry point that reports the franchises-population feature is not implemented and exits.
 
     Logs warning messages describing the placeholder status and required roadmap decisions, then terminates the process with exit code 1.
@@ -99,18 +94,16 @@ def main():
 
     _args = parser.parse_args()
 
-    logger.warning("=" * 70)
-    logger.warning("FRANCHISES POPULATION - NOT YET IMPLEMENTED")
-    logger.warning("=" * 70)
-    logger.warning("This script is a placeholder for future development.")
-    logger.warning("See docs/roadmap.md Phase 4.2 for implementation requirements.")
-    logger.warning("")
-    logger.warning("Key Decisions Needed:")
-    logger.warning("1. Data source for franchise history")
-    logger.warning("2. How to handle complex franchise lineages (Charlotte)")
-    logger.warning("3. Schema for tracking relocations and name changes")
-    logger.warning("4. How to attribute championships (location vs franchise)")
-    logger.warning("=" * 70)
+    log_placeholder_banner(
+        "Franchises",
+        "4.2",
+        decisions=[
+            "Data source for franchise history",
+            "How to handle complex franchise lineages (Charlotte)",
+            "Schema for tracking relocations and name changes",
+            "How to attribute championships (location vs franchise)",
+        ],
+    )
 
     sys.exit(1)
 

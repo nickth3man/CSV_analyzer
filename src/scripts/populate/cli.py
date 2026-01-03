@@ -33,6 +33,7 @@ from typing import Any
 from src.scripts.populate.config import (
     DEFAULT_SEASON_TYPES,
 )
+from src.scripts.populate.helpers import configure_logging, resolve_season_types
 from src.scripts.utils.ui import (
     console,
     print_error,
@@ -45,10 +46,7 @@ from src.scripts.utils.ui import (
 
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
+configure_logging()
 
 logger = logging.getLogger(__name__)
 
@@ -241,11 +239,11 @@ def cmd_player_games(args):
     )
 
     print_step("Fetching Player Game Stats (Bulk)")
-    season_types = DEFAULT_SEASON_TYPES
-    if args.regular_only:
-        season_types = ["Regular Season"]
-    elif args.playoffs_only:
-        season_types = ["Playoffs"]
+    season_types = resolve_season_types(
+        DEFAULT_SEASON_TYPES,
+        regular_only=args.regular_only,
+        playoffs_only=args.playoffs_only,
+    )
 
     result = populate_player_game_stats_v2(
         db_path=args.db,
@@ -266,11 +264,11 @@ def cmd_league_games(args):
     )
 
     print_step("Fetching League Game Logs")
-    season_types = DEFAULT_SEASON_TYPES
-    if args.regular_only:
-        season_types = ["Regular Season"]
-    elif args.playoffs_only:
-        season_types = ["Playoffs"]
+    season_types = resolve_season_types(
+        DEFAULT_SEASON_TYPES,
+        regular_only=args.regular_only,
+        playoffs_only=args.playoffs_only,
+    )
 
     result = populate_league_game_logs(
         db_path=args.db,
@@ -291,11 +289,11 @@ def cmd_player_games_legacy(args):
     )
 
     print_step("Fetching Player Game Stats (Legacy)")
-    season_types = DEFAULT_SEASON_TYPES
-    if args.regular_only:
-        season_types = ["Regular Season"]
-    elif args.playoffs_only:
-        season_types = ["Playoffs"]
+    season_types = resolve_season_types(
+        DEFAULT_SEASON_TYPES,
+        regular_only=args.regular_only,
+        playoffs_only=args.playoffs_only,
+    )
 
     result = populate_player_game_stats(
         db_path=args.db,

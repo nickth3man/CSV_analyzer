@@ -8,6 +8,10 @@ Modules:
     database: Database utilities for DuckDB operations
     validation: Data validation and quality checks
     base: Base class for population scripts with common functionality
+    helpers: Shared logging/progress utilities
+    transform_utils: Shared transformation helpers
+    schema_utils: Shared schema helpers
+    placeholders: Shared placeholder helpers for roadmap scripts
     init_db: Database initialization and schema creation
     cli: Unified command-line interface for all population operations
     populate_nba_data: Main comprehensive population script

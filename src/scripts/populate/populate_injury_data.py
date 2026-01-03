@@ -58,19 +58,19 @@ Data Sources to Consider:
 """
 
 import argparse
-import logging
 import sys
+from typing import Any, NoReturn
+
+
+from src.scripts.populate.helpers import configure_logging
+from src.scripts.populate.placeholders import log_placeholder_banner, raise_not_implemented
 
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+configure_logging()
 
 
-def populate_injury_data(*args, **kwargs):
+def populate_injury_data(*args: Any, **kwargs: Any) -> NoReturn:
     """Placeholder for populating NBA player injury and availability data.
 
     This function is not yet implemented and serves as a stub for the planned Phase 3.5 feature to ingest and track player injuries, timelines, and games missed. Calling this function will raise a NotImplementedError directing to docs/roadmap.md Phase 3.5.
@@ -78,15 +78,10 @@ def populate_injury_data(*args, **kwargs):
     Raises:
         NotImplementedError: Indicates the injury data population feature is not implemented; see docs/roadmap.md Phase 3.5 for requirements.
     """
-    logger.error("Injury data population not yet implemented")
-    logger.info("TODO: See docs/roadmap.md Phase 3.5 for implementation requirements")
-    raise NotImplementedError(
-        "Injury data population is planned but not yet implemented. "
-        "See docs/roadmap.md Phase 3.5 for requirements."
-    )
+    raise_not_implemented("Injury data", "3.5")
 
 
-def main():
+def main() -> None:
     """CLI entry point that prints placeholder warnings about unimplemented injury data population and then exits.
 
     Logs a series of warning messages describing that the feature is not yet implemented and lists key decisions required (see docs/roadmap.md Phase 3.5), then terminates the process with exit code 1.
@@ -103,18 +98,16 @@ def main():
 
     _args = parser.parse_args()
 
-    logger.warning("=" * 70)
-    logger.warning("INJURY DATA POPULATION - NOT YET IMPLEMENTED")
-    logger.warning("=" * 70)
-    logger.warning("This script is a placeholder for future development.")
-    logger.warning("See docs/roadmap.md Phase 3.5 for implementation requirements.")
-    logger.warning("")
-    logger.warning("Key Decisions Needed:")
-    logger.warning("1. Select primary data source (NBA official, ESPN, RotoWire)")
-    logger.warning("2. Define schema for injury tracking (dates, types, severity)")
-    logger.warning("3. Decide how to handle 'load management' vs injury")
-    logger.warning("4. Implement linking to games missed")
-    logger.warning("=" * 70)
+    log_placeholder_banner(
+        "Injury data",
+        "3.5",
+        decisions=[
+            "Select primary data source (NBA official, ESPN, RotoWire)",
+            "Define schema for injury tracking (dates, types, severity)",
+            "Decide how to handle 'load management' vs injury",
+            "Implement linking to games missed",
+        ],
+    )
 
     sys.exit(1)
 

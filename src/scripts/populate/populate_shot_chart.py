@@ -39,19 +39,19 @@ Usage (planned):
 """
 
 import argparse
-import logging
 import sys
+from typing import Any, NoReturn
+
+
+from src.scripts.populate.helpers import configure_logging
+from src.scripts.populate.placeholders import log_placeholder_banner, raise_not_implemented
 
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+configure_logging()
 
 
-def populate_shot_chart(*args, **kwargs):
+def populate_shot_chart(*args: Any, **kwargs: Any) -> NoReturn:
     """Populate the shot_chart_detail table from NBA API data.
 
     This function is a placeholder and is not yet implemented; it will, when implemented, fetch shot chart data from the NBA API, transform it to the shot_chart_detail schema, insert records with deduplication, and support resumable progress tracking per docs/roadmap.md Phase 3.2.
@@ -59,15 +59,10 @@ def populate_shot_chart(*args, **kwargs):
     Raises:
         NotImplementedError: Always raised; implementation planned per docs/roadmap.md Phase 3.2.
     """
-    logger.error("Shot chart population not yet implemented")
-    logger.info("TODO: See docs/roadmap.md Phase 3.2 for implementation requirements")
-    raise NotImplementedError(
-        "Shot chart population is planned but not yet implemented. "
-        "See docs/roadmap.md Phase 3.2 for requirements."
-    )
+    raise_not_implemented("Shot chart", "3.2")
 
 
-def main():
+def main() -> None:
     """CLI entry point for shot chart population.
 
     Parses command-line options (--player-id, --games, --seasons, --all-players), logs warnings that the feature is not yet implemented and refers to docs/roadmap.md Phase 3.2, then terminates the process with exit code 1.
@@ -82,12 +77,7 @@ def main():
 
     _args = parser.parse_args()
 
-    logger.warning("=" * 70)
-    logger.warning("SHOT CHART POPULATION - NOT YET IMPLEMENTED")
-    logger.warning("=" * 70)
-    logger.warning("This script is a placeholder for future development.")
-    logger.warning("See docs/roadmap.md Phase 3.2 for implementation requirements.")
-    logger.warning("=" * 70)
+    log_placeholder_banner("Shot chart", "3.2")
 
     sys.exit(1)
 

@@ -10,15 +10,13 @@ from typing import TYPE_CHECKING, Any
 from src.scripts.populate.api_client import get_client
 from src.scripts.populate.base import BasePopulator
 from src.scripts.populate.config import get_db_path
+from src.scripts.populate.helpers import configure_logging
 
 
 if TYPE_CHECKING:
     import pandas as pd
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+configure_logging()
 logger = logging.getLogger(__name__)
 
 

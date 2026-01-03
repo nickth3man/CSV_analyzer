@@ -12,12 +12,10 @@ import pandas as pd
 from src.scripts.populate.api_client import get_client
 from src.scripts.populate.base import BasePopulator
 from src.scripts.populate.config import ALL_SEASONS, get_db_path
+from src.scripts.populate.helpers import configure_logging
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+configure_logging()
 logger = logging.getLogger(__name__)
 
 

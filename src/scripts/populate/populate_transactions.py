@@ -50,19 +50,19 @@ Transaction Types to Track:
 """
 
 import argparse
-import logging
 import sys
+from typing import Any, NoReturn
+
+
+from src.scripts.populate.helpers import configure_logging
+from src.scripts.populate.placeholders import log_placeholder_banner, raise_not_implemented
 
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+configure_logging()
 
 
-def populate_transactions(*args, **kwargs):
+def populate_transactions(*args: Any, **kwargs: Any) -> NoReturn:
     """Populate the transactions table with NBA player transaction records.
 
     This placeholder outlines planned behavior — ingest transaction data, parse transaction types (including multi-player trades), associate players and teams, and record draft picks — but is not implemented. See docs/roadmap.md Phase 3.4 for requirements.
@@ -70,15 +70,10 @@ def populate_transactions(*args, **kwargs):
     Raises:
         NotImplementedError: always raised until the function is implemented.
     """
-    logger.error("Transactions population not yet implemented")
-    logger.info("TODO: See docs/roadmap.md Phase 3.4 for implementation requirements")
-    raise NotImplementedError(
-        "Transactions population is planned but not yet implemented. "
-        "See docs/roadmap.md Phase 3.4 for requirements."
-    )
+    raise_not_implemented("Transactions", "3.4")
 
 
-def main():
+def main() -> None:
     """CLI entry point that reports the transactions-population feature is not implemented and terminates the process.
 
     Parses the supported command-line options (`--seasons`, `--teams`, `--player-id`, `--all-seasons`), logs warnings describing required design decisions and refers to ROADMAP Phase 3.4, and exits the process with status code 1.
@@ -95,17 +90,15 @@ def main():
 
     _args = parser.parse_args()
 
-    logger.warning("=" * 70)
-    logger.warning("TRANSACTIONS POPULATION - NOT YET IMPLEMENTED")
-    logger.warning("=" * 70)
-    logger.warning("This script is a placeholder for future development.")
-    logger.warning("See docs/roadmap.md Phase 3.4 for implementation requirements.")
-    logger.warning("")
-    logger.warning("Key Decisions Needed:")
-    logger.warning("1. Identify reliable data source (NBA API endpoint or scraping)")
-    logger.warning("2. Define schema for complex trades (multi-player, multi-team)")
-    logger.warning("3. Decide how to track draft picks in trades")
-    logger.warning("=" * 70)
+    log_placeholder_banner(
+        "Transactions",
+        "3.4",
+        decisions=[
+            "Identify reliable data source (NBA API endpoint or scraping)",
+            "Define schema for complex trades (multi-player, multi-team)",
+            "Decide how to track draft picks in trades",
+        ],
+    )
 
     sys.exit(1)
 

@@ -50,19 +50,19 @@ Note: Salary data may require web scraping or external API access
 """
 
 import argparse
-import logging
 import sys
+from typing import Any, NoReturn
+
+
+from src.scripts.populate.helpers import configure_logging
+from src.scripts.populate.placeholders import log_placeholder_banner, raise_not_implemented
 
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+configure_logging()
 
 
-def populate_salaries(*args, **kwargs):
+def populate_salaries(*args: Any, **kwargs: Any) -> NoReturn:
     """Placeholder for populating the NBA salaries table.
 
     This function is not implemented and will raise NotImplementedError directing implementers to docs/roadmap.md Phase 3.3 for requirements, data source options, and implementation notes.
@@ -70,15 +70,17 @@ def populate_salaries(*args, **kwargs):
     Raises:
         NotImplementedError: Always raised with a message pointing to docs/roadmap.md Phase 3.3.
     """
-    logger.error("Salary population not yet implemented")
-    logger.info("TODO: See docs/roadmap.md Phase 3.3 for implementation requirements")
-    raise NotImplementedError(
-        "Salary population is planned but not yet implemented. "
-        "See docs/roadmap.md Phase 3.3 for requirements and data source options."
+    raise_not_implemented(
+        "Salary",
+        "3.3",
+        message=(
+            "Salary population is planned but not yet implemented. "
+            "See docs/roadmap.md Phase 3.3 for requirements and data source options."
+        ),
     )
 
 
-def main():
+def main() -> None:
     """Command-line entry point that outlines salary population options and exits because the feature is unimplemented.
 
     Parses command-line options for seasons, teams, an all-seasons flag, and a data-source choice; logs roadmap notes and key implementation decisions required, then terminates the process with exit status 1. See docs/roadmap.md Phase 3.3 for implementation requirements.
@@ -100,19 +102,15 @@ def main():
 
     _args = parser.parse_args()
 
-    logger.warning("=" * 70)
-    logger.warning("SALARY POPULATION - NOT YET IMPLEMENTED")
-    logger.warning("=" * 70)
-    logger.warning("This script is a placeholder for future development.")
-    logger.warning("See docs/roadmap.md Phase 3.3 for implementation requirements.")
-    logger.warning("")
-    logger.warning("Key Decisions Needed:")
-    logger.warning(
-        "1. Select primary data source (Basketball Reference, HoopsHype, Spotrac)"
+    log_placeholder_banner(
+        "Salary",
+        "3.3",
+        decisions=[
+            "Select primary data source (Basketball Reference, HoopsHype, Spotrac)",
+            "Implement web scraping or API integration",
+            "Define schema for contract details (options, guarantees, etc.)",
+        ],
     )
-    logger.warning("2. Implement web scraping or API integration")
-    logger.warning("3. Define schema for contract details (options, guarantees, etc.)")
-    logger.warning("=" * 70)
 
     sys.exit(1)
 

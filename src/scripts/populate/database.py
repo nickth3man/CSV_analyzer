@@ -52,7 +52,7 @@ class DatabaseManager:
         """Context manager entry."""
         return self.connect()
 
-    def __exit__(self, _exc_type, _exc_val, _exc_tb):
+    def __exit__(self, _exc_type, _exc_val, _exc_tb) -> None:
         """Context manager exit."""
         self.close()
 
@@ -100,6 +100,21 @@ class DatabaseManager:
                 )
             except Exception:
                 pass  # Index may already exist or table doesn't exist yet
+
+    def table_exists(self, table_name: str) -> bool:
+        """Check whether a table exists in the database."""
+        conn = self.connect()
+        return (
+            conn.execute(
+                """
+                SELECT count(*)
+                FROM information_schema.tables
+                WHERE table_name = ?
+                """,
+                [table_name],
+            ).fetchone()[0]
+            > 0
+        )
 
     def _create_players_table(self, conn: duckdb.DuckDBPyConnection) -> None:
         """Create players table with integrity constraints."""
@@ -561,14 +576,7 @@ class DatabaseManager:
 
         try:
             # Check if table exists, create if not
-            table_exists = (
-                conn.execute(
-                    f"SELECT count(*) FROM information_schema.tables WHERE table_name = '{table_name}'"
-                ).fetchone()[0]
-                > 0
-            )
-
-            if not table_exists:
+            if not self.table_exists(table_name):
                 logger.info(
                     f"Table {table_name} does not exist. Creating from DataFrame."
                 )

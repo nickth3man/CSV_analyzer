@@ -13,12 +13,10 @@ import pandas as pd
 from src.scripts.populate.api_client import get_client
 from src.scripts.populate.base import BasePopulator
 from src.scripts.populate.config import get_db_path
+from src.scripts.populate.helpers import configure_logging, format_duration
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+configure_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -58,15 +56,6 @@ EXPECTED_COLUMNS = [
     "greatest_75_flag",
     "filename",
 ]
-
-
-def _format_duration(seconds: float) -> str:
-    total_seconds = max(0, int(seconds))
-    minutes, secs = divmod(total_seconds, 60)
-    if minutes < 60:
-        return f"{minutes}m{secs:02d}s" if minutes else f"{secs}s"
-    hours, minutes = divmod(minutes, 60)
-    return f"{hours}h{minutes:02d}m{secs:02d}s"
 
 
 class CommonPlayerInfoPopulator(BasePopulator):
@@ -170,7 +159,7 @@ class CommonPlayerInfoPopulator(BasePopulator):
         )
         logger.info(
             "Estimated minimum runtime (delay only): %s",
-            _format_duration(total_requests * self.client.config.request_delay),
+            format_duration(total_requests * self.client.config.request_delay),
         )
 
         start_time = time.monotonic()
@@ -194,8 +183,8 @@ class CommonPlayerInfoPopulator(BasePopulator):
                 fetched,
                 skipped,
                 errors,
-                _format_duration(elapsed),
-                _format_duration(remaining),
+                format_duration(elapsed),
+                format_duration(remaining),
             )
 
         for idx, player_id in enumerate(player_ids, start=1):

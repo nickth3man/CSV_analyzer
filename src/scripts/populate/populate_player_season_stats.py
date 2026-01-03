@@ -31,19 +31,17 @@ import argparse
 import logging
 import sys
 from datetime import datetime
-from typing import Any
+from typing import Any, TypedDict
 
 import duckdb
 
 # Import shared modules from the populate package
 from src.scripts.populate.config import get_db_path
+from src.scripts.populate.helpers import configure_logging
 
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+configure_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -183,10 +181,17 @@ def populate_player_season_stats(
     logger.info("Connecting to database...")
     conn = duckdb.connect(db_path)
 
-    stats: dict[str, Any] = {
+    class SeasonStatsResult(TypedDict):
+        start_time: str
+        end_time: str | None
+        records_created: int
+        errors: list[str]
+
+    stats: SeasonStatsResult = {
         "start_time": datetime.now().isoformat(),
         "records_created": 0,
         "errors": [],
+        "end_time": None,
     }
 
     try:

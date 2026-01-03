@@ -35,13 +35,12 @@ Usage:
 """
 
 import argparse
-import json
 import logging
 import sys
 import time
 import traceback
 from datetime import datetime
-from typing import Any, cast
+from typing import Any, TypedDict, cast
 
 import duckdb
 import pandas as pd
@@ -51,16 +50,22 @@ from src.scripts.populate.api_client import NBAClient, get_client
 # Import shared modules from the populate package
 from src.scripts.populate.config import (
     CACHE_DIR,
-    ensure_cache_dir,
     get_db_path,
+)
+from src.scripts.populate.helpers import (
+    configure_logging,
+    format_duration,
+    load_json_file,
+    save_json_file,
+)
+from src.scripts.populate.schema_utils import (
+    PLAY_BY_PLAY_COLUMNS,
+    ensure_play_by_play_schema,
 )
 
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+configure_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -69,33 +74,6 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 PROGRESS_FILE = CACHE_DIR / "play_by_play_progress.json"
-
-PLAY_BY_PLAY_COLUMNS = [
-    "game_id",
-    "action_number",
-    "clock",
-    "period",
-    "team_id",
-    "team_tricode",
-    "person_id",
-    "player_name",
-    "player_name_i",
-    "x_legacy",
-    "y_legacy",
-    "shot_distance",
-    "shot_result",
-    "is_field_goal",
-    "score_home",
-    "score_away",
-    "points_total",
-    "location",
-    "description",
-    "action_type",
-    "sub_type",
-    "video_available",
-    "shot_value",
-    "action_id",
-]
 
 # Column mapping from NBA API (v3) to our schema
 COLUMN_MAPPING = {
@@ -126,56 +104,13 @@ COLUMN_MAPPING = {
 }
 
 
-def ensure_play_by_play_schema(conn: duckdb.DuckDBPyConnection) -> None:
-    """Ensure play_by_play table matches the PlayByPlayV3 schema."""
-    expected = PLAY_BY_PLAY_COLUMNS
-    try:
-        cols = conn.execute("PRAGMA table_info('play_by_play')").fetchall()
-        existing = [col[1] for col in cols]
-        pk_cols = [
-            col[1]
-            for col in sorted(
-                ((col[5], col[1]) for col in cols if col[5]),
-                key=lambda item: item[0],
-            )
-        ]
-    except Exception:
-        existing = []
-        pk_cols = []
+class PlayByPlayProgress(TypedDict):
+    """Progress payload for play-by-play population."""
 
-    if existing != expected or pk_cols != ["game_id", "action_number"]:
-        conn.execute("DROP TABLE IF EXISTS play_by_play")
-        conn.execute(
-            """
-            CREATE TABLE play_by_play (
-                game_id BIGINT NOT NULL,
-                action_number BIGINT NOT NULL,
-                clock VARCHAR,
-                period INTEGER,
-                team_id BIGINT,
-                team_tricode VARCHAR,
-                person_id BIGINT,
-                player_name VARCHAR,
-                player_name_i VARCHAR,
-                x_legacy DOUBLE,
-                y_legacy DOUBLE,
-                shot_distance DOUBLE,
-                shot_result VARCHAR,
-                is_field_goal INTEGER,
-                score_home VARCHAR,
-                score_away VARCHAR,
-                points_total INTEGER,
-                location VARCHAR,
-                description VARCHAR,
-                action_type VARCHAR,
-                sub_type VARCHAR,
-                video_available INTEGER,
-                shot_value INTEGER,
-                action_id INTEGER,
-                PRIMARY KEY (game_id, action_number)
-            )
-        """,
-        )
+    completed_games: list[str]
+    no_data_games: list[str]
+    last_game_id: str | None
+    errors: list[dict[str, Any]]
 
 
 # =============================================================================
@@ -195,15 +130,13 @@ def load_progress() -> dict[str, Any]:
             - last_game_id (Optional[str]): the most recently processed game ID or None.
             - errors (List[Any]): recorded errors encountered during processing.
     """
-    if PROGRESS_FILE.exists():
-        with open(PROGRESS_FILE) as f:
-            return json.load(f)
-    return {
+    default: PlayByPlayProgress = {
         "completed_games": [],
         "no_data_games": [],
         "last_game_id": None,
         "errors": [],
     }
+    return load_json_file(PROGRESS_FILE, default)
 
 
 def save_progress(progress: dict[str, Any]) -> None:
@@ -215,18 +148,11 @@ def save_progress(progress: dict[str, Any]) -> None:
             - "last_game_id" (str|None): most recently processed game ID.
             - "errors" (list): recorded error entries.
     """
-    ensure_cache_dir()
-    with open(PROGRESS_FILE, "w") as f:
-        json.dump(progress, f, indent=2)
+    save_json_file(PROGRESS_FILE, progress)
 
 
 def _format_duration(seconds: float) -> str:
-    total_seconds = max(0, int(seconds))
-    minutes, secs = divmod(total_seconds, 60)
-    if minutes < 60:
-        return f"{minutes}m{secs:02d}s" if minutes else f"{secs}s"
-    hours, minutes = divmod(minutes, 60)
-    return f"{hours}h{minutes:02d}m{secs:02d}s"
+    return format_duration(seconds)
 
 
 def process_play_by_play_data(df: pd.DataFrame, game_id: int | None) -> pd.DataFrame:
@@ -282,8 +208,8 @@ def insert_play_by_play(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame) -> in
 
     try:
         conn.register("temp_pbp", df)
-
-        conn.execute("""
+        conn.execute(
+            """
             INSERT OR IGNORE INTO play_by_play (
                 game_id, action_number, clock, period, team_id, team_tricode,
                 person_id, player_name, player_name_i, x_legacy, y_legacy,
@@ -292,14 +218,17 @@ def insert_play_by_play(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame) -> in
                 video_available, shot_value, action_id
             )
             SELECT * FROM temp_pbp
-        """)
-
-        conn.unregister("temp_pbp")
+            """
+        )
         return len(df)
-
     except Exception as e:
         logger.exception(f"Insert error: {e}")
         return 0
+    finally:
+        try:
+            conn.unregister("temp_pbp")
+        except Exception:
+            pass
 
 
 # =============================================================================
@@ -356,7 +285,7 @@ def populate_play_by_play(
     logger.info("Connecting to database...")
     conn = duckdb.connect(db_path)
 
-    ensure_play_by_play_schema(conn)
+    ensure_play_by_play_schema(conn, drop_if_mismatch=True)
 
     # Get initial count
     try:

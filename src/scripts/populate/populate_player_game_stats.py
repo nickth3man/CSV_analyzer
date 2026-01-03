@@ -32,35 +32,43 @@ Usage:
     python scripts/populate/populate_player_game_stats.py --delay 1.0
 """
 
+from __future__ import annotations
+
 import argparse
-import json
 import logging
 import sys
-import traceback
-from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import duckdb
 import pandas as pd
 
 from src.scripts.populate.api_client import NBAClient, get_client
-
-# Import shared modules from the populate package
+from src.scripts.populate.base import (
+    BasePopulator,
+    ProgressMixin,
+    ProgressTracker,
+    SeasonIteratorMixin,
+)
 from src.scripts.populate.config import (
     ALL_SEASONS,
-    CACHE_DIR,
     DEFAULT_SEASON_TYPES,
     PLAYER_GAME_STATS_COLUMNS,
-    ensure_cache_dir,
     get_db_path,
 )
+from src.scripts.populate.helpers import configure_logging, resolve_season_types
+from src.scripts.populate.transform_utils import parse_minutes
+from src.scripts.utils.ui import (
+    create_progress_bar,
+    print_step,
+    print_summary_table,
+)
+
+
+if TYPE_CHECKING:
+    from src.scripts.populate.constants import SeasonType
 
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+configure_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -68,104 +76,91 @@ logger = logging.getLogger(__name__)
 # CONFIGURATION
 # =============================================================================
 
-PROGRESS_FILE = CACHE_DIR / "player_game_stats_progress.json"
 TABLE_NAME = "player_game_stats_raw"
+KEY_COLUMNS = ["game_id", "player_id"]
 
 
 # =============================================================================
-# HELPER FUNCTIONS
+# TYPE DEFINITIONS
 # =============================================================================
 
 
-def load_progress() -> dict[str, Any]:
-    """Load progress from file."""
-    if PROGRESS_FILE.exists():
-        with open(PROGRESS_FILE) as f:
-            return json.load(f)
-    return {"completed_players": [], "last_player_id": None, "errors": []}
+class PlayerInfo:
+    """Player information container."""
+
+    __slots__ = ("full_name", "id")
+
+    def __init__(self, player_id: int, full_name: str) -> None:
+        """Initialize player info."""
+        self.id = player_id
+        self.full_name = full_name
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> PlayerInfo:
+        """Create PlayerInfo from dictionary."""
+        return cls(
+            player_id=data["id"],
+            full_name=data.get("full_name", ""),
+        )
 
 
-def save_progress(progress: dict[str, Any]) -> None:
-    """Save progress to file."""
-    ensure_cache_dir()
-    with open(PROGRESS_FILE, "w") as f:
-        json.dump(progress, f, indent=2)
+# =============================================================================
+# TRANSFORMATION FUNCTIONS
+# =============================================================================
 
 
-def parse_minutes(min_str) -> str | None:
-    """Parse minutes string (could be MM:SS or just MM)."""
-    if pd.isna(min_str) or min_str is None:
-        return None
-    if isinstance(min_str, (int, float)):
-        return str(int(min_str))
-    return str(min_str)
-
-
-def transform_game_log(df: pd.DataFrame, player_info: dict) -> pd.DataFrame:
+def transform_game_log(df: pd.DataFrame, player_info: PlayerInfo) -> pd.DataFrame:
     """Transform NBA API game log to our schema.
 
     Args:
-        df: Raw DataFrame from NBA API
-        player_info: Player information dictionary
+        df: Raw DataFrame from NBA API.
+        player_info: Player information.
 
     Returns:
-        Transformed DataFrame matching player_game_stats_raw schema
+        Transformed DataFrame matching player_game_stats_raw schema.
     """
     if df is None or df.empty:
+        return pd.DataFrame()
+
+    # Check for game_id column (mixed case from API)
+    if "Game_ID" not in df.columns and "GAME_ID" not in df.columns:
         return pd.DataFrame()
 
     # Make a copy to avoid modifying original
     df_work = df.copy()
 
-    # Create output DataFrame with exact schema expected by player_game_stats_raw table
+    # Build output DataFrame with exact schema
     output = pd.DataFrame()
 
-    # game_id - Handle mixed case from API (Game_ID)
-    if "Game_ID" in df_work.columns:
-        output["game_id"] = pd.Series(
-            pd.to_numeric(df_work["Game_ID"], errors="coerce")
-        ).astype(
-            "Int64",
-        )
-    elif "GAME_ID" in df_work.columns:
-        output["game_id"] = pd.Series(
-            pd.to_numeric(df_work["GAME_ID"], errors="coerce")
-        ).astype(
-            "Int64",
-        )
-    else:
-        output["game_id"] = pd.Series(dtype="Int64")
+    # game_id - Handle mixed case from API
+    game_id_col = "Game_ID" if "Game_ID" in df_work.columns else "GAME_ID"
+    output["game_id"] = pd.to_numeric(df_work[game_id_col], errors="coerce").astype(
+        "Int64"
+    )
 
-    # team_id - Try to extract from MATCHUP (e.g., "LAL vs. GSW" or "LAL @ GSW")
-    # Note: NBA API PlayerGameLog doesn't return TEAM_ID directly
+    # team_id - Not available in PlayerGameLog endpoint
     output["team_id"] = pd.Series(dtype="Int64")
 
-    # player_id - from API (Player_ID) or from player_info
+    # player_id - from API or player_info
     if "Player_ID" in df_work.columns:
-        output["player_id"] = pd.Series(
-            pd.to_numeric(
-                df_work["Player_ID"],
-                errors="coerce",
-            )
+        output["player_id"] = pd.to_numeric(
+            df_work["Player_ID"], errors="coerce"
         ).astype("Int64")
     else:
-        output["player_id"] = player_info.get("id")
+        output["player_id"] = player_info.id
 
-    # player_name - from player_info
-    output["player_name"] = player_info.get("full_name", "")
+    # player_name
+    output["player_name"] = player_info.full_name
 
     # start_position, comment - not in game log API
     output["start_position"] = None
     output["comment"] = None
 
     # min - minutes played (can be "MM:SS" or just "MM")
-    if "MIN" in df_work.columns:
-        output["min"] = df_work["MIN"].apply(parse_minutes)
-    else:
-        output["min"] = None
+    output["min"] = df_work["MIN"].apply(parse_minutes) if "MIN" in df_work.columns else None
 
-    # Counting stats - integers
-    int_cols = [
+    # Integer counting stats
+    int_col_mappings = [
         ("FGM", "fgm"),
         ("FGA", "fga"),
         ("FG3M", "fg3m"),
@@ -182,96 +177,275 @@ def transform_game_log(df: pd.DataFrame, player_info: dict) -> pd.DataFrame:
         ("PF", "pf"),
         ("PTS", "pts"),
     ]
-    for api_col, our_col in int_cols:
+    for api_col, our_col in int_col_mappings:
         if api_col in df_work.columns:
-            output[our_col] = pd.Series(
-                pd.to_numeric(df_work[api_col], errors="coerce")
-            ).astype(
-                "Int64",
+            output[our_col] = pd.to_numeric(df_work[api_col], errors="coerce").astype(
+                "Int64"
             )
         else:
             output[our_col] = pd.Series(dtype="Int64")
 
-    # Percentage stats - floats
-    pct_cols = [
+    # Percentage stats (floats)
+    pct_col_mappings = [
         ("FG_PCT", "fg_pct"),
         ("FG3_PCT", "fg3_pct"),
         ("FT_PCT", "ft_pct"),
     ]
-    for api_col, our_col in pct_cols:
+    for api_col, our_col in pct_col_mappings:
         if api_col in df_work.columns:
             output[our_col] = pd.to_numeric(df_work[api_col], errors="coerce")
         else:
             output[our_col] = None
 
-    # plus_minus - float
+    # plus_minus
     if "PLUS_MINUS" in df_work.columns:
         output["plus_minus"] = pd.to_numeric(df_work["PLUS_MINUS"], errors="coerce")
     else:
         output["plus_minus"] = None
 
-    # Reorder columns to match table schema
-    final_cols = PLAYER_GAME_STATS_COLUMNS
-
-    # Ensure all columns exist
-    for col in final_cols:
+    # Ensure all expected columns exist and reorder
+    for col in PLAYER_GAME_STATS_COLUMNS:
         if col not in output.columns:
             output[col] = pd.Series(dtype="object")
 
-    # Explicitly cast to DataFrame to satisfy type checker
-    res = output[final_cols]
-    if isinstance(res, pd.Series):
-        return pd.DataFrame(res).T
-    return res
-
-
-def insert_game_logs(conn: duckdb.DuckDBPyConnection, df: pd.DataFrame) -> int:
-    """Insert game logs into database, handling duplicates.
-
-    Args:
-        conn: DuckDB connection
-        df: DataFrame to insert
-
-    Returns:
-        Number of rows inserted
-    """
-    if df.empty:
-        return 0
-
-    # Get existing game_id + player_id combinations to avoid duplicates
-    existing = set()
-    try:
-        result = conn.execute(
-            f"""
-            SELECT game_id, player_id FROM {TABLE_NAME}
-        """
-        ).fetchall()
-        existing = {(r[0], r[1]) for r in result}
-    except Exception:
-        pass  # Table might be empty
-
-    # Filter out existing records
-    df_new = df[~df.apply(lambda r: (r["game_id"], r["player_id"]) in existing, axis=1)]
-
-    if df_new.empty:
-        return 0
-
-    # Insert new records
-    try:
-        conn.execute(
-            f"""
-            INSERT INTO {TABLE_NAME}
-            SELECT * FROM df_new
-        """
-        )
-        return len(df_new)
-    except Exception as e:
-        logger.exception(f"Insert error: {e}")
-        return 0
+    return output[PLAYER_GAME_STATS_COLUMNS]
 
 
 # =============================================================================
-# MAIN POPULATION FUNCTION
+# POPULATOR CLASS
+# =============================================================================
+
+
+class PlayerGameStatsPopulator(ProgressMixin, SeasonIteratorMixin, BasePopulator):
+    """Populates player_game_stats_raw from per-player game log API.
+
+    This populator fetches game logs for each player individually,
+    which allows for fine-grained progress tracking but is slower
+    than the bulk league-level endpoints.
+
+    Use this populator when:
+    - You need data for specific players only
+    - You need to resume from a specific player
+    - The league-level endpoints are not available
+
+    Prefer populate_player_game_stats_v2.py for bulk population.
+    """
+
+    def __init__(
+        self,
+        db_path: str | None = None,
+        client: NBAClient | None = None,
+        batch_size: int = 1000,
+    ) -> None:
+        """Initialize the populator.
+
+        Args:
+            db_path: Path to DuckDB database.
+            client: NBA API client.
+            batch_size: Records per batch for database operations.
+        """
+        super().__init__(db_path, client, batch_size)
+
+        # Override progress tracker name
+        self.progress = ProgressTracker("player_game_stats")
+
+        # Player processing state
+        self._players: list[dict[str, Any]] = []
+        self._player_games_buffer: list[pd.DataFrame] = []
+
+    def get_table_name(self) -> str:
+        """Return target table name."""
+        return TABLE_NAME
+
+    def get_key_columns(self) -> list[str]:
+        """Return primary key columns."""
+        return KEY_COLUMNS
+
+    def get_expected_columns(self) -> list[str]:
+        """Return expected columns for validation."""
+        return PLAYER_GAME_STATS_COLUMNS
+
+    def get_data_type(self) -> str:
+        """Return data type for validation."""
+        return "player_game_stats"
+
+    def fetch_data(self, **kwargs: Any) -> pd.DataFrame | None:
+        """Fetch data by iterating over players and seasons.
+
+        This implementation fetches data player-by-player rather than
+        in bulk, enabling fine-grained progress tracking.
+
+        Args:
+            **kwargs: Population parameters including:
+                - seasons: List of seasons to fetch
+                - season_types: List of season types
+                - active_only: Whether to fetch only active players
+                - limit: Maximum number of players
+                - resume_from: Player ID to resume from
+                - resume: Whether to resume from progress
+                - dry_run: Whether this is a dry run
+
+        Returns:
+            Combined DataFrame of all fetched game logs.
+        """
+        seasons = kwargs.get("seasons") or ALL_SEASONS
+        season_types = kwargs.get("season_types") or DEFAULT_SEASON_TYPES
+        active_only = kwargs.get("active_only", False)
+        limit = kwargs.get("limit")
+        resume_from = kwargs.get("resume_from")
+        resume = kwargs.get("resume", True)
+        dry_run = kwargs.get("dry_run", False)
+
+        # Resolve season types to enum
+        resolved_types = self.resolve_season_types(season_types)
+
+        # Fetch player list
+        logger.info("Fetching player list...")
+        if active_only:
+            self._players = self.client.get_active_players()
+        else:
+            self._players = self.client.get_all_players()
+
+        # Sort by ID for consistent ordering
+        self._players = sorted(self._players, key=lambda x: x["id"])
+        logger.info(f"Found {len(self._players)} players")
+
+        # Handle resume from specific player
+        if resume_from:
+            self._players = [p for p in self._players if p["id"] >= resume_from]
+            logger.info(f"After resume filter: {len(self._players)} players")
+
+        # Apply limit
+        if limit:
+            self._players = self._players[:limit]
+            logger.info(f"After limit: {len(self._players)} players")
+
+        # Process players
+        all_games: list[pd.DataFrame] = []
+        total_players = len(self._players)
+
+        with create_progress_bar() as progress:
+            task = progress.add_task("Processing players", total=total_players)
+
+            for idx, player_data in enumerate(self._players):
+                player = PlayerInfo.from_dict(player_data)
+                progress_key = f"player_{player.id}"
+
+                # Check if already completed
+                if resume and self.progress.is_completed(progress_key):
+                    progress.update(task, advance=1)
+                    continue
+
+                # Process this player's seasons
+                player_games = self._fetch_player_games(
+                    player=player,
+                    seasons=seasons,
+                    season_types=resolved_types,
+                )
+
+                if not player_games.empty:
+                    all_games.append(player_games)
+                    logger.info(
+                        f"[{idx + 1}/{total_players}] {player.full_name}: "
+                        f"+{len(player_games)} games"
+                    )
+
+                # Mark completed
+                if not dry_run:
+                    self.progress.mark_completed(progress_key)
+
+                    # Periodic save
+                    if (idx + 1) % 10 == 0:
+                        self.progress.save()
+
+                progress.update(task, advance=1)
+
+        # Combine all games
+        if all_games:
+            return pd.concat(all_games, ignore_index=True)
+        return pd.DataFrame()
+
+    def _fetch_player_games(
+        self,
+        player: PlayerInfo,
+        seasons: list[str],
+        season_types: list[SeasonType],
+    ) -> pd.DataFrame:
+        """Fetch game logs for a single player across seasons.
+
+        Args:
+            player: Player information.
+            seasons: List of seasons to fetch.
+            season_types: List of season types.
+
+        Returns:
+            Combined DataFrame of player's games.
+        """
+        player_games: list[pd.DataFrame] = []
+
+        for season in seasons:
+            for season_type in season_types:
+                try:
+                    df = self.client.get_player_game_log(
+                        player_id=player.id,
+                        season=season,
+                        season_type=season_type.value,
+                    )
+                    self.metrics.api_calls += 1
+
+                    if df is not None and not df.empty:
+                        transformed = transform_game_log(df, player)
+                        if not transformed.empty:
+                            player_games.append(transformed)
+
+                except Exception as e:
+                    self.record_item_error(
+                        f"player_{player.id}_{season}",
+                        e,
+                        log_error=True,
+                    )
+
+        if player_games:
+            return pd.concat(player_games, ignore_index=True)
+        return pd.DataFrame()
+
+    def transform_data(self, df: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
+        """Transform data (already done in fetch_data for this populator)."""
+        # Transformation happens per-player in fetch_data
+        # Just ensure column types are correct
+        if df.empty:
+            return df
+
+        # Ensure integer columns are nullable int
+        int_cols = [
+            "game_id",
+            "team_id",
+            "player_id",
+            "fgm",
+            "fga",
+            "fg3m",
+            "fg3a",
+            "ftm",
+            "fta",
+            "oreb",
+            "dreb",
+            "reb",
+            "ast",
+            "stl",
+            "blk",
+            "tov",
+            "pf",
+            "pts",
+        ]
+        for col in int_cols:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
+
+        return df
+
+
+# =============================================================================
+# PUBLIC API
 # =============================================================================
 
 
@@ -284,190 +458,49 @@ def populate_player_game_stats(
     delay: float = 0.6,
     season_types: list[str] | None = None,
     client: NBAClient | None = None,
+    reset: bool = False,
+    dry_run: bool = False,
 ) -> dict[str, Any]:
     """Main function to populate player_game_stats_raw table.
 
+    This is the public API that wraps the PlayerGameStatsPopulator class.
+
     Args:
-        db_path: Path to DuckDB database
-        seasons: List of seasons to fetch (e.g., ["2023-24", "2022-23"])
-        active_only: If True, only fetch active players
-        limit: Maximum number of players to process
-        resume_from: Resume from a specific player ID
-        delay: Delay between API requests in seconds
-        season_types: List of season types (e.g., ["Regular Season", "Playoffs"])
-        client: NBAClient instance (creates default if None)
+        db_path: Path to DuckDB database.
+        seasons: List of seasons to fetch (e.g., ["2023-24", "2022-23"]).
+        active_only: If True, only fetch active players.
+        limit: Maximum number of players to process.
+        resume_from: Resume from a specific player ID.
+        delay: Delay between API requests in seconds.
+        season_types: List of season types (e.g., ["Regular Season", "Playoffs"]).
+        client: NBAClient instance (creates default if None).
+        reset: Whether to reset progress before starting.
+        dry_run: If True, don't write to database.
 
     Returns:
-        Dictionary with statistics about the population process
+        Dictionary with statistics about the population process.
     """
-    db_path = db_path or str(get_db_path())
-    seasons = seasons or ALL_SEASONS
-    season_types = season_types or DEFAULT_SEASON_TYPES
-    client = client or get_client()
-
-    # Update client delay
+    # Create client with configured delay
+    if client is None:
+        client = get_client()
     client.config.request_delay = delay
 
-    logger.info("=" * 70)
-    logger.info("NBA PLAYER GAME STATS POPULATION SCRIPT")
-    logger.info("=" * 70)
-    logger.info(f"Database: {db_path}")
-    logger.info(f"Seasons: {len(seasons)} ({seasons[0]} to {seasons[-1]})")
-    logger.info(f"Season Types: {season_types}")
-    logger.info(f"Active Players Only: {active_only}")
-    logger.info(f"Request Delay: {delay}s")
-    if limit:
-        logger.info(f"Player Limit: {limit}")
-    if resume_from:
-        logger.info(f"Resume From Player ID: {resume_from}")
+    # Create and run populator
+    populator = PlayerGameStatsPopulator(
+        db_path=db_path or str(get_db_path()),
+        client=client,
+    )
 
-    # Connect to database
-    logger.info("Connecting to database...")
-    conn = duckdb.connect(db_path)
-
-    # Get initial count
-    initial_count = conn.execute(f"SELECT COUNT(*) FROM {TABLE_NAME}").fetchone()[0]
-    logger.info(f"Initial row count: {initial_count:,}")
-
-    # Get players using the API client
-    logger.info("Fetching player list...")
-    if active_only:
-        all_players = client.get_active_players()
-    else:
-        all_players = client.get_all_players()
-    logger.info(f"Total players: {len(all_players)}")
-
-    # Sort by ID for consistent ordering
-    all_players = sorted(all_players, key=lambda x: x["id"])
-
-    # Handle resume
-    if resume_from:
-        all_players = [p for p in all_players if p["id"] >= resume_from]
-        logger.info(f"After resume filter: {len(all_players)} players")
-
-    # Apply limit
-    if limit:
-        all_players = all_players[:limit]
-        logger.info(f"After limit: {len(all_players)} players")
-
-    # Statistics
-    stats: dict[str, Any] = {
-        "start_time": datetime.now().isoformat(),
-        "players_processed": 0,
-        "players_with_data": 0,
-        "total_games_added": 0,
-        "errors": [],
-        "skipped": [],
-    }
-
-    # Load progress
-    progress = load_progress()
-
-    logger.info("=" * 70)
-    logger.info("STARTING POPULATION")
-    logger.info("=" * 70)
-
-    try:
-        for idx, player in enumerate(all_players, 1):
-            player_id = player["id"]
-            player_name = player["full_name"]
-
-            # Skip if already completed in this run
-            if player_id in progress.get("completed_players", []):
-                continue
-
-            logger.info(f"[{idx}/{len(all_players)}] {player_name} (ID: {player_id})")
-
-            player_games_added = 0
-
-            for season in seasons:
-                for season_type in season_types:
-                    # Fetch game log using API client
-                    df = client.get_player_game_log(
-                        player_id=player_id,
-                        season=season,
-                        season_type=season_type,
-                    )
-
-                    if df is None or df.empty:
-                        continue
-
-                    # Transform data
-                    df_transformed = transform_game_log(df, player)
-
-                    if df_transformed.empty:
-                        continue
-
-                    # Insert into database
-                    games_added = insert_game_logs(conn, df_transformed)
-
-                    if games_added > 0:
-                        player_games_added += games_added
-                        logger.info(f"    {season} {season_type}: +{games_added} games")
-
-            # Update statistics
-            stats["players_processed"] += 1
-            if player_games_added > 0:
-                stats["players_with_data"] += 1
-                stats["total_games_added"] += player_games_added
-                logger.info(f"  Total: +{player_games_added} games")
-
-            # Save progress
-            progress["completed_players"].append(player_id)
-            progress["last_player_id"] = player_id
-
-            # Commit periodically
-            if idx % 10 == 0:
-                conn.commit()
-                save_progress(progress)
-                current_count = conn.execute(
-                    f"SELECT COUNT(*) FROM {TABLE_NAME}",
-                ).fetchone()[0]
-                logger.info(
-                    f"  [Progress: {idx}/{len(all_players)} players, {current_count:,} total rows]",
-                )
-
-    except KeyboardInterrupt:
-        logger.info("*** INTERRUPTED BY USER ***")
-        logger.info(
-            f"Progress saved. Resume with: --resume-from {progress.get('last_player_id')}",
-        )
-
-    except Exception as e:
-        logger.exception(f"*** ERROR: {e} ***")
-        traceback.print_exc()
-        stats["errors"].append(str(e))
-
-    finally:
-        # Final commit
-        conn.commit()
-        save_progress(progress)
-
-        # Get final count
-        final_count = conn.execute(f"SELECT COUNT(*) FROM {TABLE_NAME}").fetchone()[0]
-
-        # Close connection
-        conn.close()
-
-    # Update stats
-    stats["end_time"] = datetime.now().isoformat()
-    stats["final_row_count"] = final_count
-    stats["rows_added"] = final_count - initial_count
-
-    # Print summary
-    logger.info("=" * 70)
-    logger.info("POPULATION COMPLETE")
-    logger.info("=" * 70)
-    logger.info(f"Players Processed: {stats['players_processed']}")
-    logger.info(f"Players With Data: {stats['players_with_data']}")
-    logger.info(f"Total Games Added: {stats['total_games_added']}")
-    logger.info(f"Final Row Count: {final_count:,}")
-    logger.info(f"Net Rows Added: {stats['rows_added']:,}")
-
-    if stats["errors"]:
-        logger.info(f"Errors encountered: {len(stats['errors'])}")
-
-    return stats
+    return populator.run(
+        resume=not reset,
+        reset_progress=reset,
+        dry_run=dry_run,
+        seasons=seasons,
+        season_types=season_types,
+        active_only=active_only,
+        limit=limit,
+        resume_from=resume_from,
+    )
 
 
 # =============================================================================
@@ -475,38 +508,39 @@ def populate_player_game_stats(
 # =============================================================================
 
 
-def main() -> None:
+def main() -> int:
+    """CLI entry point."""
     parser = argparse.ArgumentParser(
         description="Populate player_game_stats_raw table from NBA API",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   # Full population (all players, all seasons) - TAKES MANY HOURS
-  python scripts/populate/populate_player_game_stats.py
+  python -m src.scripts.populate.populate_player_game_stats
 
   # Recent seasons only (faster)
-  python scripts/populate/populate_player_game_stats.py --seasons 2024-25 2023-24 2022-23
+  python -m src.scripts.populate.populate_player_game_stats --seasons 2024-25 2023-24
 
   # Active players only
-  python scripts/populate/populate_player_game_stats.py --active-only --seasons 2024-25 2023-24
+  python -m src.scripts.populate.populate_player_game_stats --active-only --seasons 2024-25
 
   # Test with 5 players
-  python scripts/populate/populate_player_game_stats.py --limit 5 --seasons 2023-24
+  python -m src.scripts.populate.populate_player_game_stats --limit 5 --seasons 2023-24
 
   # Resume interrupted run
-  python scripts/populate/populate_player_game_stats.py --resume-from 2544
+  python -m src.scripts.populate.populate_player_game_stats --resume-from 2544
         """,
     )
 
     parser.add_argument(
         "--db",
         default=None,
-        help="Path to DuckDB database (default: src/backend/data/nba.duckdb)",
+        help="Path to DuckDB database (default: from config)",
     )
     parser.add_argument(
         "--seasons",
         nargs="+",
-        help="Seasons to fetch (e.g., 2023-24 2022-23). Default: all seasons back to 1996-97",
+        help="Seasons to fetch (e.g., 2023-24 2022-23). Default: all seasons",
     )
     parser.add_argument(
         "--active-only",
@@ -530,7 +564,7 @@ Examples:
         help="Delay between API requests in seconds (default: 0.6)",
     )
     parser.add_argument(
-        "--regular-season-only",
+        "--regular-only",
         action="store_true",
         help="Only fetch regular season games (skip playoffs)",
     )
@@ -539,18 +573,32 @@ Examples:
         action="store_true",
         help="Only fetch playoff games",
     )
+    parser.add_argument(
+        "--reset",
+        action="store_true",
+        help="Reset progress and start fresh",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Don't write to database",
+    )
 
     args = parser.parse_args()
 
+    print_step("Initializing player game stats population")
+
     # Determine season types
-    season_types = DEFAULT_SEASON_TYPES
-    if args.regular_season_only:
-        season_types = ["Regular Season"]
-    elif args.playoffs_only:
-        season_types = ["Playoffs"]
+    season_types = resolve_season_types(
+        DEFAULT_SEASON_TYPES,
+        regular_only=args.regular_only,
+        playoffs_only=args.playoffs_only,
+    )
+
+    print_step("Running population")
 
     # Run population
-    stats = populate_player_game_stats(
+    result = populate_player_game_stats(
         db_path=args.db,
         seasons=args.seasons,
         active_only=args.active_only,
@@ -558,12 +606,16 @@ Examples:
         resume_from=args.resume_from,
         delay=args.delay,
         season_types=season_types,
+        reset=args.reset,
+        dry_run=args.dry_run,
     )
 
+    print_step("Complete")
+    print_summary_table("Player Game Stats Population", result)
+
     # Exit with error code if there were errors
-    if stats.get("errors"):
-        sys.exit(1)
+    return 1 if result.get("error_count", 0) > 0 else 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

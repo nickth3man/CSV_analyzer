@@ -54,19 +54,19 @@ Potential Data Sources:
 """
 
 import argparse
-import logging
 import sys
+from typing import Any, NoReturn
+
+
+from src.scripts.populate.helpers import configure_logging
+from src.scripts.populate.placeholders import log_placeholder_banner, raise_not_implemented
 
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+configure_logging()
 
 
-def populate_arenas(*args, **kwargs):
+def populate_arenas(*args: Any, **kwargs: Any) -> NoReturn:
     """TODO: ROADMAP Phase 4.1 (see docs/roadmap.md for requirements).
 
     Populate the arenas table with comprehensive NBA venue data (placeholder - not implemented).
@@ -76,15 +76,10 @@ def populate_arenas(*args, **kwargs):
     Raises:
         NotImplementedError: Function is a placeholder and not yet implemented; see docs/roadmap.md Phase 4.1 for requirements.
     """
-    logger.error("Arenas population not yet implemented")
-    logger.info("TODO: See docs/roadmap.md Phase 4.1 for implementation requirements")
-    raise NotImplementedError(
-        "Arenas population is planned but not yet implemented. "
-        "See docs/roadmap.md Phase 4.1 for requirements."
-    )
+    raise_not_implemented("Arenas", "4.1")
 
 
-def main():
+def main() -> None:
     """CLI entry point that parses command-line options and exits indicating the feature is not implemented.
 
     Parses the optional `--teams` and `--include-historical` arguments, emits warning logs describing that arena population is a placeholder and listing key design decisions, and then exits the process with status code 1.
@@ -101,20 +96,17 @@ def main():
 
     _args = parser.parse_args()
 
-    logger.warning("=" * 70)
-    logger.warning("ARENAS POPULATION - NOT YET IMPLEMENTED")
-    logger.warning("=" * 70)
-    logger.warning("This script is a placeholder for future development.")
-    logger.warning("See docs/roadmap.md Phase 4.1 for implementation requirements.")
-    logger.warning("")
-    logger.warning("Current arenas table status: 0 rows")
-    logger.warning("")
-    logger.warning("Key Decisions Needed:")
-    logger.warning("1. Data source (NBA API, Wikipedia, manual entry)")
-    logger.warning("2. Schema for arena-team relationships (with date ranges)")
-    logger.warning("3. How to track arena name changes over time")
-    logger.warning("4. Geographical coordinate source")
-    logger.warning("=" * 70)
+    log_placeholder_banner(
+        "Arenas",
+        "4.1",
+        status="Current arenas table status: 0 rows",
+        decisions=[
+            "Data source (NBA API, Wikipedia, manual entry)",
+            "Schema for arena-team relationships (with date ranges)",
+            "How to track arena name changes over time",
+            "Geographical coordinate source",
+        ],
+    )
 
     sys.exit(1)
 

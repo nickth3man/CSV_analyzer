@@ -21,8 +21,10 @@ import pandas as pd
 
 from src.scripts.populate.base import BasePopulator
 from src.scripts.populate.exceptions import DataNotFoundError, TransientError
+from src.scripts.populate.helpers import configure_logging
 
 
+configure_logging()
 logger = logging.getLogger(__name__)
 
 

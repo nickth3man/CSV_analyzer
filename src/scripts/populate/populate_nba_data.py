@@ -47,12 +47,11 @@ Data Types:
 """
 
 import argparse
-import json
 import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 import pandas as pd
 
@@ -66,16 +65,13 @@ from src.scripts.populate.config import (
     DEFAULT_SEASON_TYPES,
     PROGRESS_FILE,
     SEASON_TYPES,
-    ensure_cache_dir,
     get_api_config,
 )
+from src.scripts.populate.helpers import configure_logging, load_json_file, save_json_file
 
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+configure_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -92,16 +88,20 @@ class PopulationManager:
         self.progress_file = PROGRESS_FILE
         self.progress = self._load_progress()
 
+    class ProgressState(TypedDict):
+        """Typed progress payload for the population manager."""
+
+        started_at: str | None
+        completed_at: str | None
+        data_types_completed: dict[str, dict[str, Any]]
+        seasons_completed: dict[str, Any]
+        players_completed: list[int]
+        games_completed: list[str]
+        errors: list[dict[str, Any]]
+
     def _load_progress(self) -> dict[str, Any]:
         """Load progress from cache file."""
-        if self.progress_file.exists():
-            try:
-                with open(self.progress_file) as f:
-                    return json.load(f)
-            except (json.JSONDecodeError, FileNotFoundError):
-                logger.warning("Could not load progress file, starting fresh")
-
-        return {
+        default: PopulationManager.ProgressState = {
             "started_at": None,
             "completed_at": None,
             "data_types_completed": {},
@@ -110,12 +110,11 @@ class PopulationManager:
             "games_completed": [],
             "errors": [],
         }
+        return load_json_file(self.progress_file, default)
 
     def _save_progress(self) -> None:
         """Save progress to cache file."""
-        ensure_cache_dir()
-        with open(self.progress_file, "w") as f:
-            json.dump(self.progress, f, indent=2)
+        save_json_file(self.progress_file, self.progress)
 
     def _mark_data_type_completed(self, data_type: str, season: str) -> None:
         """Mark a data type as completed for a season."""

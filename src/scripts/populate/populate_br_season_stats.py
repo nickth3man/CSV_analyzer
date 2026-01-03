@@ -22,6 +22,7 @@ import pandas as pd
 from src.scripts.populate.base import PopulationMetrics, ProgressTracker
 from src.scripts.populate.br_client import get_br_client
 from src.scripts.populate.config import get_db_path
+from src.scripts.populate.helpers import configure_logging
 
 
 logger = logging.getLogger(__name__)
@@ -449,9 +450,6 @@ def populate_br_season_stats(
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    )
+    configure_logging()
     # Test with 2 seasons
     populate_br_season_stats(seasons=[1995, 1994])

@@ -43,13 +43,12 @@ from src.scripts.populate.config import (
     PLAYER_GAME_STATS_COLUMNS,
     get_db_path,
 )
+from src.scripts.populate.helpers import configure_logging, resolve_season_types
+from src.scripts.populate.transform_utils import parse_minutes
 
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+configure_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -228,7 +227,7 @@ class PlayerGameStatsPopulator(BasePopulator):
 
         # Minutes - already in correct format from PlayerGameLogs
         if "MIN" in df.columns:
-            output["min"] = df["MIN"].apply(self._parse_minutes)
+            output["min"] = df["MIN"].apply(parse_minutes)
         else:
             output["min"] = None
 
@@ -284,21 +283,6 @@ class PlayerGameStatsPopulator(BasePopulator):
                 output[col] = None
 
         return cast("pd.DataFrame", output[PLAYER_GAME_STATS_COLUMNS])
-
-    def _parse_minutes(self, min_val) -> str | None:
-        """Convert a minutes value to a normalized string or return None for missing values.
-
-        Parameters:
-            min_val: The minutes value from source data (may be int, float, str, or NA).
-
-        Returns:
-            A string representation of the minutes, with numeric values converted to integers before stringification (e.g., 35.0 -> "35"), or `None` if `min_val` is NA or `None`.
-        """
-        if pd.isna(min_val) or min_val is None:
-            return None
-        if isinstance(min_val, (int, float)):
-            return str(int(min_val))
-        return str(min_val)
 
     def pre_run_hook(self, **kwargs) -> None:
         """Reset fetched keys for this run."""
@@ -444,11 +428,11 @@ Examples:
     args = parser.parse_args()
 
     # Determine season types
-    season_types = DEFAULT_SEASON_TYPES
-    if args.regular_season_only:
-        season_types = ["Regular Season"]
-    elif args.playoffs_only:
-        season_types = ["Playoffs"]
+    season_types = resolve_season_types(
+        DEFAULT_SEASON_TYPES,
+        regular_only=args.regular_season_only,
+        playoffs_only=args.playoffs_only,
+    )
 
     try:
         stats = populate_player_game_stats_v2(

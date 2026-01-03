@@ -8,6 +8,7 @@ for all population scripts including:
 - Batch insertion with upsert support
 - Logging and metrics collection
 - Rate limiting coordination
+- Season/season-type iteration patterns
 
 Usage:
     class MyPopulator(BasePopulator):
@@ -27,25 +28,51 @@ Usage:
 
     populator = MyPopulator()
     populator.run(seasons=["2025-26"])
+
+    # Using SeasonIteratorMixin:
+    class MySeasonPopulator(SeasonIteratorMixin, BasePopulator):
+        def process_season(self, season, season_type, **kwargs):
+            # Process a single season/season_type combination
+            pass
 """
 
-import json
+from __future__ import annotations
+
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Generator, Iterable
+from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, TypedDict
 
 import duckdb
 import pandas as pd
 
 from src.scripts.maintenance.check_integrity import check_integrity
 from src.scripts.populate.api_client import NBAClient, get_client
-from src.scripts.populate.config import CACHE_DIR, ensure_cache_dir, get_db_path
+from src.scripts.populate.config import (
+    ALL_SEASONS,
+    CACHE_DIR,
+    CURRENT_SEASON,
+    ensure_cache_dir,
+    get_db_path,
+)
+from src.scripts.populate.constants import SEASON_TYPE_MAP, SeasonType
 from src.scripts.populate.database import DatabaseManager
+from src.scripts.populate.helpers import load_json_file, save_json_file
 from src.scripts.populate.validation import DataValidator
 
 
 logger = logging.getLogger(__name__)
+
+
+class ProgressState(TypedDict):
+    """Typed structure for progress tracking payloads."""
+
+    completed_items: list[str]
+    last_item: str | None
+    last_run: str | None
+    errors: list[dict[str, Any]]
 
 
 class PopulationMetrics:
@@ -189,26 +216,19 @@ class ProgressTracker:
                 - "last_run" (str | None): Timestamp of the last save/run (ISO string) or `None`.
                 - "errors" (list): Recorded error entries.
         """
-        if self.progress_file.exists():
-            try:
-                with open(self.progress_file) as f:
-                    data: dict[str, Any] = json.load(f)
-                    return data
-            except (OSError, json.JSONDecodeError):
-                logger.warning(f"Could not load progress file: {self.progress_file}")
-        return {
+        default: ProgressState = {
             "completed_items": [],
             "last_item": None,
             "last_run": None,
             "errors": [],
         }
+        return load_json_file(self.progress_file, default)
 
     def save(self) -> None:
         """Save progress to file."""
         ensure_cache_dir()
         self._progress["last_run"] = datetime.now(tz=UTC).isoformat()
-        with open(self.progress_file, "w") as f:
-            json.dump(self._progress, f, indent=2)
+        save_json_file(self.progress_file, self._progress)
 
     def mark_completed(self, item: str) -> None:
         """Mark the given item as completed and record it as the last processed item.
@@ -267,6 +287,389 @@ class ProgressTracker:
                 "error": error,
                 "timestamp": datetime.now(tz=UTC).isoformat(),
             },
+        )
+
+
+# =============================================================================
+# DATACLASSES FOR STRUCTURED ITERATION
+# =============================================================================
+
+
+@dataclass
+class SeasonIterationContext:
+    """Context for a single season/season_type iteration.
+
+    Attributes:
+        season: Season string (e.g., "2023-24").
+        season_type: Season type enum value.
+        progress_key: Unique key for progress tracking.
+        is_completed: Whether this iteration was already completed.
+        index: Zero-based index in the iteration sequence.
+        total: Total number of iterations.
+    """
+
+    season: str
+    season_type: SeasonType
+    progress_key: str
+    is_completed: bool = False
+    index: int = 0
+    total: int = 0
+
+    @property
+    def season_type_str(self) -> str:
+        """Return the season type as API-compatible string."""
+        return self.season_type.value
+
+
+@dataclass
+class IterationResult:
+    """Result of processing a single iteration.
+
+    Attributes:
+        success: Whether the iteration succeeded.
+        records_processed: Number of records processed.
+        error: Error message if failed, None otherwise.
+        data: Optional DataFrame result from the iteration.
+    """
+
+    success: bool
+    records_processed: int = 0
+    error: str | None = None
+    data: pd.DataFrame | None = None
+
+
+@dataclass
+class BatchIterationConfig:
+    """Configuration for batch iteration over items.
+
+    Attributes:
+        items: List of items to iterate over.
+        key_func: Function to generate progress key from item.
+        resume: Whether to skip completed items.
+        save_interval: Save progress every N items.
+        deferred_progress: If True, mark progress after successful processing.
+    """
+
+    items: list[Any]
+    key_func: Any  # Callable[[Any], str]
+    resume: bool = True
+    save_interval: int = 10
+    deferred_progress: bool = False
+
+
+# =============================================================================
+# MIXINS FOR COMMON PATTERNS
+# =============================================================================
+
+
+class ProgressMixin:
+    """Mixin providing common progress tracking patterns.
+
+    This mixin consolidates progress tracking patterns used across populators:
+    - Checking if items are completed
+    - Marking items as completed with optional deferral
+    - Batch progress saving
+    - Error recording
+
+    Requires the class to have a `progress` attribute (ProgressTracker).
+    """
+
+    progress: ProgressTracker
+    metrics: PopulationMetrics
+
+    def should_skip_item(self, item_key: str, *, resume: bool = True) -> bool:
+        """Check if an item should be skipped based on resume mode and completion status.
+
+        Args:
+            item_key: Unique identifier for the item.
+            resume: Whether resume mode is enabled.
+
+        Returns:
+            True if the item should be skipped, False otherwise.
+        """
+        if not resume:
+            return False
+        return self.progress.is_completed(item_key)
+
+    def mark_item_completed(
+        self,
+        item_key: str,
+        *,
+        save: bool = False,
+        dry_run: bool = False,
+    ) -> None:
+        """Mark an item as completed in progress tracking.
+
+        Args:
+            item_key: Unique identifier for the item.
+            save: Whether to immediately save progress to disk.
+            dry_run: If True, skip marking (for dry-run mode).
+        """
+        if dry_run:
+            return
+
+        self.progress.mark_completed(item_key)
+        if save:
+            self.progress.save()
+
+    def record_item_error(
+        self,
+        item_key: str,
+        error: str | Exception,
+        *,
+        log_error: bool = True,
+    ) -> None:
+        """Record an error for an item.
+
+        Args:
+            item_key: Unique identifier for the item.
+            error: Error message or exception.
+            log_error: Whether to also log the error.
+        """
+        error_str = str(error)
+        self.progress.add_error(item_key, error_str)
+        self.metrics.add_error(error_str, {"item": item_key})
+
+        if log_error:
+            logger.error(f"Error processing {item_key}: {error_str}")
+
+    def iter_with_progress(
+        self,
+        config: BatchIterationConfig,
+    ) -> Generator[tuple[Any, str, bool], None, None]:
+        """Iterate over items with progress tracking.
+
+        Yields tuples of (item, progress_key, should_skip).
+
+        Args:
+            config: Configuration for the batch iteration.
+
+        Yields:
+            Tuple of (item, progress_key, should_skip_flag).
+        """
+        for idx, item in enumerate(config.items):
+            key = config.key_func(item)
+            should_skip = self.should_skip_item(key, resume=config.resume)
+
+            yield item, key, should_skip
+
+            # Periodic save
+            if (idx + 1) % config.save_interval == 0:
+                self.progress.save()
+
+
+class SeasonIteratorMixin:
+    """Mixin providing season/season_type iteration patterns.
+
+    This mixin consolidates the common pattern of iterating over seasons
+    and season types, which is repeated across many populators:
+    - populate_league_game_logs.py
+    - populate_player_game_stats_v2.py
+    - populate_team_info_common.py
+    - etc.
+
+    Requires the class to have `progress` and `metrics` attributes.
+    """
+
+    progress: ProgressTracker
+    metrics: PopulationMetrics
+
+    @staticmethod
+    def resolve_seasons(
+        seasons: list[str] | None = None,
+        *,
+        default_current: bool = True,
+        default_all: bool = False,
+    ) -> list[str]:
+        """Resolve season list from input or defaults.
+
+        Args:
+            seasons: Explicit list of seasons, or None for defaults.
+            default_current: If True and seasons is None, use current season.
+            default_all: If True and seasons is None, use all seasons.
+
+        Returns:
+            List of season strings.
+        """
+        if seasons:
+            return seasons
+
+        if default_all:
+            return list(ALL_SEASONS)
+
+        if default_current:
+            return [CURRENT_SEASON]
+
+        return []
+
+    @staticmethod
+    def resolve_season_types(
+        season_types: list[str] | None = None,
+        *,
+        default_regular: bool = True,
+        include_playoffs: bool = False,
+    ) -> list[SeasonType]:
+        """Resolve season types from input or defaults.
+
+        Args:
+            season_types: List of season type strings, or None for defaults.
+            default_regular: If True and None, include Regular Season.
+            include_playoffs: If True and None, also include Playoffs.
+
+        Returns:
+            List of SeasonType enum values.
+        """
+        if season_types:
+            result = []
+            for st in season_types:
+                st_lower = st.lower()
+                if st_lower in SEASON_TYPE_MAP:
+                    # Map string to enum
+                    st_value = SEASON_TYPE_MAP[st_lower]
+                    result.append(SeasonType(st_value))
+                else:
+                    # Try direct enum lookup
+                    try:
+                        result.append(SeasonType(st))
+                    except ValueError:
+                        logger.warning(f"Unknown season type: {st}")
+            return result
+
+        result = []
+        if default_regular:
+            result.append(SeasonType.REGULAR)
+        if include_playoffs:
+            result.append(SeasonType.PLAYOFFS)
+        return result
+
+    def iter_seasons(
+        self,
+        seasons: list[str] | None = None,
+        season_types: list[str] | None = None,
+        *,
+        resume: bool = True,
+        key_format: str = "{season}_{season_type}",
+    ) -> Generator[SeasonIterationContext, None, None]:
+        """Iterate over season/season_type combinations with progress tracking.
+
+        Args:
+            seasons: List of seasons to iterate, or None for defaults.
+            season_types: List of season types, or None for defaults.
+            resume: Whether to check progress and skip completed items.
+            key_format: Format string for progress key. Supports {season} and {season_type}.
+
+        Yields:
+            SeasonIterationContext for each combination.
+
+        Example:
+            for ctx in self.iter_seasons(seasons, season_types, resume=resume):
+                if ctx.is_completed:
+                    logger.info(f"Skipping {ctx.progress_key}")
+                    continue
+                # Process season/season_type
+                self.mark_item_completed(ctx.progress_key)
+        """
+        resolved_seasons = self.resolve_seasons(seasons)
+        resolved_types = self.resolve_season_types(season_types)
+
+        # Calculate total iterations
+        total = len(resolved_seasons) * len(resolved_types)
+        index = 0
+
+        for season in resolved_seasons:
+            for season_type in resolved_types:
+                # Generate progress key
+                progress_key = key_format.format(
+                    season=season,
+                    season_type=season_type.value.replace(" ", "_"),
+                )
+
+                # Check if completed
+                is_completed = resume and self.progress.is_completed(progress_key)
+
+                yield SeasonIterationContext(
+                    season=season,
+                    season_type=season_type,
+                    progress_key=progress_key,
+                    is_completed=is_completed,
+                    index=index,
+                    total=total,
+                )
+
+                index += 1
+
+    def process_seasons(
+        self,
+        seasons: list[str] | None = None,
+        season_types: list[str] | None = None,
+        *,
+        resume: bool = True,
+        dry_run: bool = False,
+        process_func: Any = None,  # Callable[[SeasonIterationContext], IterationResult]
+        **kwargs: Any,
+    ) -> list[IterationResult]:
+        """Process all season/season_type combinations using a callback.
+
+        Args:
+            seasons: List of seasons to process.
+            season_types: List of season types to process.
+            resume: Whether to skip completed items.
+            dry_run: Whether this is a dry run.
+            process_func: Callback function that processes each context.
+            **kwargs: Additional arguments passed to process_func.
+
+        Returns:
+            List of IterationResult for each processed combination.
+        """
+        results = []
+
+        for ctx in self.iter_seasons(seasons, season_types, resume=resume):
+            if ctx.is_completed:
+                logger.info(f"Skipping completed: {ctx.progress_key}")
+                self.metrics.records_skipped += 1
+                continue
+
+            logger.info(f"Processing {ctx.progress_key} ({ctx.index + 1}/{ctx.total})")
+
+            try:
+                if process_func:
+                    result = process_func(ctx, **kwargs)
+                else:
+                    # Default implementation calls process_season if defined
+                    result = self.process_season(ctx, **kwargs)
+
+                results.append(result)
+
+                if result.success and not dry_run:
+                    self.progress.mark_completed(ctx.progress_key)
+                    self.progress.save()
+
+            except Exception as e:
+                logger.exception(f"Error processing {ctx.progress_key}: {e}")
+                self.progress.add_error(ctx.progress_key, str(e))
+                self.metrics.add_error(str(e), {"context": ctx.progress_key})
+                results.append(IterationResult(success=False, error=str(e)))
+
+        return results
+
+    def process_season(
+        self,
+        ctx: SeasonIterationContext,
+        **kwargs: Any,
+    ) -> IterationResult:
+        """Process a single season/season_type combination.
+
+        Override this method in subclasses to implement season processing logic.
+
+        Args:
+            ctx: The iteration context containing season info.
+            **kwargs: Additional processing arguments.
+
+        Returns:
+            IterationResult indicating success/failure.
+        """
+        raise NotImplementedError(
+            "Subclasses must implement process_season() or provide process_func"
         )
 
 
@@ -412,6 +815,11 @@ class BasePopulator(ABC):
 
             self._db_manager = DatabaseManager(db_path=Path(self.db_path))
         return self._db_manager
+
+    def _iter_batches(self, df: pd.DataFrame) -> Iterable[pd.DataFrame]:
+        """Yield DataFrame slices according to batch size."""
+        for i in range(0, len(df), self.batch_size):
+            yield df.iloc[i : i + self.batch_size]
 
     def get_raw_table_name(self) -> str:
         """Get the raw table name with '_raw' suffix.
@@ -586,19 +994,20 @@ class BasePopulator(ABC):
                     total=len(df),
                 )
 
-                for i in range(0, len(df), self.batch_size):
-                    batch = df.iloc[i : i + self.batch_size]
-                    inserted, updated = self.upsert_batch(batch)
-                    total_inserted += inserted
-                    total_updated += updated
+            for idx, batch in enumerate(self._iter_batches(df), start=1):
+                inserted, updated = self.upsert_batch(batch)
+                total_inserted += inserted
+                total_updated += updated
 
-                    progress.update(task, advance=len(batch))
+                progress.update(task, advance=len(batch))
 
-                    if (i + self.batch_size) % 5000 == 0:
-                        self.connect().commit()
-                        logger.info(
-                            f"Progress: {i + self.batch_size:,}/{len(df):,} records",
-                        )
+                if (idx * self.batch_size) % 5000 == 0:
+                    self.connect().commit()
+                    logger.info(
+                        "Progress: %s/%s records",
+                        min(idx * self.batch_size, len(df)),
+                        len(df),
+                    )
 
             # Final commit
             self.connect().commit()

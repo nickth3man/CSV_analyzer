@@ -34,14 +34,20 @@ from typing import Any
 import duckdb
 
 from src.scripts.populate.config import get_db_path
+from src.scripts.populate.helpers import configure_logging
+from src.scripts.populate.schema_utils import (
+    PLAY_BY_PLAY_COLUMNS as _PLAY_BY_PLAY_COLUMNS,
+    PLAY_BY_PLAY_SCHEMA_SQL,
+    ensure_play_by_play_schema,
+)
 
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+configure_logging()
 logger = logging.getLogger(__name__)
+
+# Backward-compatible alias for callers importing from init_db
+PLAY_BY_PLAY_COLUMNS = list(_PLAY_BY_PLAY_COLUMNS)
 
 
 # Schema definitions
@@ -241,35 +247,7 @@ SCHEMA_DEFINITIONS = {
             PRIMARY KEY (game_id, player_id)
         )
     """,
-    "play_by_play": """
-        CREATE TABLE IF NOT EXISTS play_by_play (
-            game_id BIGINT NOT NULL,
-            action_number BIGINT NOT NULL,
-            clock VARCHAR,
-            period INTEGER,
-            team_id BIGINT,
-            team_tricode VARCHAR,
-            person_id BIGINT,
-            player_name VARCHAR,
-            player_name_i VARCHAR,
-            x_legacy DOUBLE,
-            y_legacy DOUBLE,
-            shot_distance DOUBLE,
-            shot_result VARCHAR,
-            is_field_goal INTEGER,
-            score_home VARCHAR,
-            score_away VARCHAR,
-            points_total INTEGER,
-            location VARCHAR,
-            description VARCHAR,
-            action_type VARCHAR,
-            sub_type VARCHAR,
-            video_available INTEGER,
-            shot_value INTEGER,
-            action_id INTEGER,
-            PRIMARY KEY (game_id, action_number)
-        )
-    """,
+    "play_by_play": PLAY_BY_PLAY_SCHEMA_SQL,
     "common_player_info_raw": """
         CREATE TABLE IF NOT EXISTS common_player_info_raw (
             person_id BIGINT PRIMARY KEY,
@@ -390,33 +368,6 @@ TABLE_ALIASES = {
     "draft_combine_stats": "draft_combine_stats_raw",
 }
 
-PLAY_BY_PLAY_COLUMNS = [
-    "game_id",
-    "action_number",
-    "clock",
-    "period",
-    "team_id",
-    "team_tricode",
-    "person_id",
-    "player_name",
-    "player_name_i",
-    "x_legacy",
-    "y_legacy",
-    "shot_distance",
-    "shot_result",
-    "is_field_goal",
-    "score_home",
-    "score_away",
-    "points_total",
-    "location",
-    "description",
-    "action_type",
-    "sub_type",
-    "video_available",
-    "shot_value",
-    "action_id",
-]
-
 
 # Indexes to create for performance
 INDEX_DEFINITIONS = [
@@ -530,38 +481,6 @@ def init_database(
 
     return results
 
-
-def ensure_play_by_play_schema(
-    conn: duckdb.DuckDBPyConnection,
-    force: bool = False,
-) -> str | None:
-    """Ensure play_by_play matches the V3 schema, recreating when safe."""
-    try:
-        existing_cols = [
-            row[1]
-            for row in conn.execute("PRAGMA table_info('play_by_play')").fetchall()
-        ]
-    except duckdb.CatalogException:
-        existing_cols = []
-
-    if not existing_cols:
-        conn.execute(SCHEMA_DEFINITIONS["play_by_play"])
-        return "created"
-
-    if existing_cols == PLAY_BY_PLAY_COLUMNS:
-        return "ok"
-
-    row_count = conn.execute("SELECT COUNT(*) FROM play_by_play").fetchone()[0]
-    if row_count == 0 or force:
-        logger.info("Recreating play_by_play to match PlayByPlayV3 schema.")
-        conn.execute("DROP TABLE IF EXISTS play_by_play")
-        conn.execute(SCHEMA_DEFINITIONS["play_by_play"])
-        return "recreated"
-
-    logger.warning(
-        "play_by_play schema mismatch with existing data; skipping auto-migration.",
-    )
-    return "mismatch"
 
 
 def get_database_info(db_path: str | None = None) -> dict[str, Any]:
