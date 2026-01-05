@@ -83,6 +83,12 @@ from src.scripts.populate.populate_player_season_stats import (
 )
 from src.scripts.populate.populate_team_details import populate_team_details
 from src.scripts.populate.populate_team_info_common import populate_team_info_common
+from src.scripts.populate.reconciliation import (
+    DataReconciler,
+    Discrepancy,
+    ReconciliationSummary,
+    Severity,
+)
 from src.scripts.populate.validation import DataValidator
 
 
@@ -95,12 +101,16 @@ __all__ = [
     "RECENT_SEASONS",
     "SEASON_TYPES",
     "BasePopulator",
+    "DataReconciler",
     "DataValidator",
     "DatabaseManager",
+    "Discrepancy",
     "NBAClient",
     "PopulationManager",
     "PopulationMetrics",
     "ProgressTracker",
+    "ReconciliationSummary",
+    "Severity",
     "ensure_cache_dir",
     "get_api_config",
     "get_client",

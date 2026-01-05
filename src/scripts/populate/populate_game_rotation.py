@@ -1,37 +1,44 @@
 #!/usr/bin/env python3
-"""Populate shot_chart_detail table from NBA API.
+"""Populate game_rotation table from NBA API.
 
-This script fetches detailed shot chart data for games and populates
-the shot_chart_detail table. Shot chart data includes:
-- Spatial coordinates: LOC_X, LOC_Y
-- Shot details: SHOT_DISTANCE, SHOT_TYPE, SHOT_ZONE_BASIC, SHOT_ZONE_AREA, SHOT_ZONE_RANGE
-- Context: PERIOD, MINUTES_REMAINING, SECONDS_REMAINING
-- Results: SHOT_MADE_FLAG, PTS_TYPE, EVENT_TYPE
+This script fetches game rotation data (player substitution patterns, stint durations)
+for games and populates the game_rotation table. Rotation data includes:
+- Player in/out times (IN_TIME_REAL, OUT_TIME_REAL) in tenths of seconds
+- Stint duration calculated from in/out times
+- Points scored during stint (PLAYER_PTS)
+- Point differential during stint (PT_DIFF)
+- Usage percentage during stint (USG_PCT)
+
+Note: The GameRotation API endpoint does NOT provide full box score stats
+(AST, REB, STL, BLK, etc.) per stint. For detailed per-stint stats, you would
+need to correlate with play-by-play data.
 
 Use Cases:
-- Shot distribution analysis
-- Hot zones and cold zones
-- Shooting efficiency by location
-- Player shooting tendencies
+- Player rotation analysis
+- Lineup combination research
+- Minutes distribution patterns
+- Fatigue and rest analysis
+- Substitution pattern optimization
+- Usage rate analysis per stint
 
 Usage:
-    # Populate shot chart for recent seasons
-    python scripts/populate/populate_shot_chart.py --seasons 2024-25 2023-24
+    # Populate rotation data for recent seasons
+    python scripts/populate/populate_game_rotation.py --seasons 2024-25 2023-24
 
     # Specific games
-    python scripts/populate/populate_shot_chart.py --games 0022400001 0022400002
-
-    # For specific players
-    python scripts/populate/populate_shot_chart.py --player-id 2544 --seasons 2023-24
+    python scripts/populate/populate_game_rotation.py --games 0022400001 0022400002
 
     # For specific teams
-    python scripts/populate/populate_shot_chart.py --team-id 1610612747 --seasons 2023-24
+    python scripts/populate/populate_game_rotation.py --team-id 1610612747 --seasons 2023-24
 
     # Dry run (no database writes)
-    python scripts/populate/populate_shot_chart.py --dry-run --seasons 2024-25
+    python scripts/populate/populate_game_rotation.py --dry-run --seasons 2024-25
 
     # With custom delay for rate limiting
-    python scripts/populate/populate_shot_chart.py --delay 1.0 --limit 100
+    python scripts/populate/populate_game_rotation.py --delay 1.0 --limit 100
+
+    # Reset progress and start fresh
+    python scripts/populate/populate_game_rotation.py --reset-progress --seasons 2024-25
 """
 
 from __future__ import annotations
@@ -73,55 +80,60 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 # Progress file for tracking completed games
-SHOT_CHART_PROGRESS_FILE = CACHE_DIR / "shot_chart_progress.json"
+GAME_ROTATION_PROGRESS_FILE = CACHE_DIR / "game_rotation_progress.json"
 
-# Expected columns in the shot_chart_detail table
-SHOT_CHART_COLUMNS = [
+# Expected columns in the game_rotation table
+# Note: The GameRotation API endpoint provides limited stats per stint:
+# - Timing: IN_TIME_REAL, OUT_TIME_REAL
+# - Points: PLAYER_PTS (points during stint)
+# - Point differential: PT_DIFF
+# - Usage: USG_PCT
+# It does NOT provide full box score stats (AST, REB, etc.) per stint
+GAME_ROTATION_COLUMNS = [
     "game_id",
     "team_id",
+    "team_city",
     "team_name",
-    "player_id",
+    "person_id",
+    "player_first",
+    "player_last",
     "player_name",
-    "period",
-    "minutes_remaining",
-    "seconds_remaining",
-    "event_type",
-    "action_type",
-    "shot_type",
-    "shot_zone_basic",
-    "shot_zone_area",
-    "shot_zone_range",
-    "shot_distance",
-    "loc_x",
-    "loc_y",
-    "shot_made_flag",
+    "in_time_real",
+    "out_time_real",
+    "stint_duration",
+    "stint_number",
+    "player_pts",
+    "pt_diff",
+    "usg_pct",
     "game_date",
     "season_id",
     "season_type",
-    "grid_type",
     "filename",
 ]
 
-# Key columns for deduplication (unique identifier for each shot)
+# Key columns for deduplication (unique identifier for each rotation entry)
 KEY_COLUMNS = [
     "game_id",
-    "player_id",
-    "period",
-    "minutes_remaining",
-    "seconds_remaining",
-    "event_type",
+    "team_id",
+    "person_id",
+    "stint_number",
 ]
 
 
 # =============================================================================
-# PYDANTIC SCHEMA FOR SHOT CHART VALIDATION
+# PYDANTIC SCHEMA FOR GAME ROTATION VALIDATION
 # =============================================================================
 
 
-class ShotChartRecord(NBABaseModel):
-    """Pydantic schema for shot chart detail records.
+class GameRotationRecord(NBABaseModel):
+    """Pydantic schema for game rotation records.
 
-    Validates individual shot records from the NBA API ShotChartDetail endpoint.
+    Validates individual rotation records from the NBA API GameRotation endpoint.
+    Note: The GameRotation endpoint provides limited stats per stint:
+    - Timing: IN_TIME_REAL, OUT_TIME_REAL
+    - Points: PLAYER_PTS (points scored during stint)
+    - Point differential: PT_DIFF (team point differential during stint)
+    - Usage: USG_PCT (usage percentage during stint)
     """
 
     # Primary identifiers
@@ -132,123 +144,71 @@ class ShotChartRecord(NBABaseModel):
         max_length=10,
         description="10-digit game ID",
     )
-    player_id: int = Field(
+    team_id: int = Field(
         ...,
-        alias="PLAYER_ID",
-        ge=1,
-        description="NBA player ID",
-    )
-    player_name: str | None = Field(
-        None,
-        alias="PLAYER_NAME",
-        description="Player display name",
-    )
-    team_id: int | None = Field(
-        None,
         alias="TEAM_ID",
         ge=1,
         description="Team ID",
+    )
+    team_city: str | None = Field(
+        None,
+        alias="TEAM_CITY",
+        description="Team city name",
     )
     team_name: str | None = Field(
         None,
         alias="TEAM_NAME",
         description="Team name",
     )
-
-    # Time context
-    period: int = Field(
+    person_id: int = Field(
         ...,
-        alias="PERIOD",
+        alias="PERSON_ID",
         ge=1,
-        le=10,
-        description="Game period (1-4, or OT periods 5+)",
+        description="NBA player ID",
     )
-    minutes_remaining: int = Field(
-        ...,
-        alias="MINUTES_REMAINING",
+    player_first: str | None = Field(
+        None,
+        alias="PLAYER_FIRST",
+        description="Player first name",
+    )
+    player_last: str | None = Field(
+        None,
+        alias="PLAYER_LAST",
+        description="Player last name",
+    )
+
+    # Timing data
+    in_time_real: float | None = Field(
+        None,
+        alias="IN_TIME_REAL",
         ge=0,
-        le=20,
-        description="Minutes remaining in period",
+        description="Time player entered the game (in tenths of seconds from game start)",
     )
-    seconds_remaining: int = Field(
-        ...,
-        alias="SECONDS_REMAINING",
+    out_time_real: float | None = Field(
+        None,
+        alias="OUT_TIME_REAL",
         ge=0,
-        le=59,
-        description="Seconds remaining in minute",
+        description="Time player exited the game (in tenths of seconds from game start)",
     )
 
-    # Shot classification
-    event_type: str | None = Field(
+    # Stint statistics
+    player_pts: int | None = Field(
         None,
-        alias="EVENT_TYPE",
-        description="Event type (Made Shot, Missed Shot)",
-    )
-    action_type: str | None = Field(
-        None,
-        alias="ACTION_TYPE",
-        description="Action type (Jump Shot, Layup, Dunk, etc.)",
-    )
-    shot_type: str | None = Field(
-        None,
-        alias="SHOT_TYPE",
-        description="2PT Field Goal or 3PT Field Goal",
-    )
-
-    # Shot zone details
-    shot_zone_basic: str | None = Field(
-        None,
-        alias="SHOT_ZONE_BASIC",
-        description="Basic zone (Restricted Area, Mid-Range, etc.)",
-    )
-    shot_zone_area: str | None = Field(
-        None,
-        alias="SHOT_ZONE_AREA",
-        description="Zone area (Left Side, Right Side, Center, etc.)",
-    )
-    shot_zone_range: str | None = Field(
-        None,
-        alias="SHOT_ZONE_RANGE",
-        description="Distance range (Less Than 8 ft., 8-16 ft., etc.)",
-    )
-    shot_distance: int | None = Field(
-        None,
-        alias="SHOT_DISTANCE",
+        alias="PLAYER_PTS",
         ge=0,
-        le=100,
-        description="Shot distance in feet",
+        description="Points scored during this stint",
     )
-
-    # Spatial coordinates
-    loc_x: int | None = Field(
+    pt_diff: int | None = Field(
         None,
-        alias="LOC_X",
-        ge=-250,
-        le=250,
-        description="X coordinate on court (tenths of feet from center)",
+        alias="PT_DIFF",
+        description="Team point differential during this stint",
     )
-    loc_y: int | None = Field(
+    usg_pct: float | None = Field(
         None,
-        alias="LOC_Y",
-        ge=-50,
-        le=900,
-        description="Y coordinate on court (tenths of feet from baseline)",
-    )
-
-    # Shot result
-    shot_made_flag: int | None = Field(
-        None,
-        alias="SHOT_MADE_FLAG",
+        alias="USG_PCT",
         ge=0,
         le=1,
-        description="1 if made, 0 if missed",
-    )
-
-    # Grid type
-    grid_type: str | None = Field(
-        None,
-        alias="GRID_TYPE",
-        description="Grid type for visualization",
+        description="Player usage percentage during this stint",
     )
 
     @field_validator("game_id", mode="before")
@@ -263,34 +223,36 @@ class ShotChartRecord(NBABaseModel):
         return game_id_str
 
     @model_validator(mode="after")
-    def validate_shot_consistency(self) -> ShotChartRecord:
-        """Validate shot data consistency."""
-        # If event_type is 'Made Shot', shot_made_flag should be 1
-        if self.event_type == "Made Shot" and self.shot_made_flag == 0:
+    def validate_timing_consistency(self) -> GameRotationRecord:
+        """Validate timing data consistency."""
+        if (
+            self.in_time_real is not None
+            and self.out_time_real is not None
+            and self.out_time_real < self.in_time_real
+        ):
             logger.warning(
-                "Inconsistent shot data: event_type='Made Shot' but shot_made_flag=0"
-            )
-        if self.event_type == "Missed Shot" and self.shot_made_flag == 1:
-            logger.warning(
-                "Inconsistent shot data: event_type='Missed Shot' but shot_made_flag=1"
+                "Inconsistent timing data: out_time (%s) < in_time (%s) for player %s",
+                self.out_time_real,
+                self.in_time_real,
+                self.person_id,
             )
         return self
 
 
 # =============================================================================
-# SHOT CHART POPULATOR CLASS
+# GAME ROTATION POPULATOR CLASS
 # =============================================================================
 
 
-class ShotChartPopulator(BasePopulator):
-    """Populator for shot_chart_detail table.
+class GameRotationPopulator(BasePopulator):
+    """Populator for game_rotation table.
 
-    Fetches shot chart data from the NBA API ShotChartDetail endpoint
+    Fetches game rotation data from the NBA API GameRotation endpoint
     for each game in the specified seasons.
     """
 
     def __init__(self, **kwargs: Any) -> None:
-        """Initialize the shot chart populator.
+        """Initialize the game rotation populator.
 
         Args:
             **kwargs: Arguments passed to BasePopulator.
@@ -301,7 +263,7 @@ class ShotChartPopulator(BasePopulator):
 
     def get_table_name(self) -> str:
         """Return the target table name."""
-        return "shot_chart_detail"
+        return "game_rotation"
 
     def get_key_columns(self) -> list[str]:
         """Return primary key columns for deduplication."""
@@ -309,18 +271,17 @@ class ShotChartPopulator(BasePopulator):
 
     def get_expected_columns(self) -> list[str]:
         """Return expected columns for validation."""
-        return SHOT_CHART_COLUMNS
+        return GAME_ROTATION_COLUMNS
 
     def get_data_type(self) -> str:
         """Return data type identifier for validation."""
-        return "shot_chart"
+        return "game_rotation"
 
     def _load_game_ids_from_db(
         self,
         seasons: list[str] | None = None,
         season_types: list[str] | None = None,
         team_id: int | None = None,
-        player_id: int | None = None,
     ) -> list[str]:
         """Load game IDs from the database based on filters.
 
@@ -328,7 +289,6 @@ class ShotChartPopulator(BasePopulator):
             seasons: List of seasons to filter (e.g., ["2024-25", "2023-24"]).
             season_types: List of season types to filter.
             team_id: Optional team ID filter.
-            player_id: Optional player ID filter.
 
         Returns:
             List of game IDs to process.
@@ -367,7 +327,7 @@ class ShotChartPopulator(BasePopulator):
                 # Season filter
                 if seasons and "season_id" in cols:
                     # Convert season format to season_id format
-                    # e.g., "2024-25" -> extract last 4 digits of first year
+                    # e.g., "2024-25" -> "22024" (Regular Season)
                     season_ids = []
                     for season in seasons:
                         # Format: "2024-25" -> "22024" (Regular Season)
@@ -476,14 +436,64 @@ class ShotChartPopulator(BasePopulator):
             "last_game_id": None,
             "errors": [],
         }
-        return load_json_file(SHOT_CHART_PROGRESS_FILE, default)
+        return load_json_file(GAME_ROTATION_PROGRESS_FILE, default)
 
     def _save_progress(self, progress: dict[str, Any]) -> None:
         """Save progress to file."""
-        save_json_file(SHOT_CHART_PROGRESS_FILE, progress)
+        save_json_file(GAME_ROTATION_PROGRESS_FILE, progress)
+
+    def _assign_stint_numbers(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Assign stint numbers to rotation entries.
+
+        Each player's stints within a game are numbered sequentially by in_time.
+
+        Args:
+            df: DataFrame with rotation data.
+
+        Returns:
+            DataFrame with stint_number column added.
+        """
+        if df.empty or "IN_TIME_REAL" not in df.columns:
+            df["stint_number"] = 0
+            return df
+
+        # Sort by player and in_time, then assign stint numbers
+        df = df.sort_values(["GAME_ID", "TEAM_ID", "PERSON_ID", "IN_TIME_REAL"]).copy()
+
+        # Group by game, team, player and assign sequential stint numbers
+        df["stint_number"] = (
+            df.groupby(["GAME_ID", "TEAM_ID", "PERSON_ID"]).cumcount() + 1
+        )
+
+        return df
+
+    def _calculate_stint_duration(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Calculate stint duration from in/out times.
+
+        Args:
+            df: DataFrame with IN_TIME_REAL and OUT_TIME_REAL columns.
+
+        Returns:
+            DataFrame with stint_duration column added.
+        """
+        if df.empty:
+            df["stint_duration"] = None
+            return df
+
+        # Calculate duration (times are in tenths of seconds)
+        # Duration = OUT_TIME - IN_TIME, converted to seconds
+        if "IN_TIME_REAL" in df.columns and "OUT_TIME_REAL" in df.columns:
+            df["stint_duration"] = (
+                pd.to_numeric(df["OUT_TIME_REAL"], errors="coerce")
+                - pd.to_numeric(df["IN_TIME_REAL"], errors="coerce")
+            ) / 10.0  # Convert from tenths of seconds to seconds
+        else:
+            df["stint_duration"] = None
+
+        return df
 
     def fetch_data(self, **kwargs: Any) -> pd.DataFrame | None:
-        """Fetch shot chart data for all games in the specified parameters.
+        """Fetch game rotation data for all games in the specified parameters.
 
         Args:
             **kwargs: Population parameters including:
@@ -491,12 +501,11 @@ class ShotChartPopulator(BasePopulator):
                 - seasons: List of seasons to fetch.
                 - season_types: List of season types to fetch.
                 - team_id: Optional team ID filter.
-                - player_id: Optional player ID filter.
                 - limit: Maximum number of games to process.
                 - resume: Whether to skip completed games.
 
         Returns:
-            DataFrame with all shot chart data, or None if no data found.
+            DataFrame with all game rotation data, or None if no data found.
         """
         games: list[str] | None = kwargs.get("games")
         seasons: list[str] | None = kwargs.get("seasons") or ALL_SEASONS[:3]
@@ -504,7 +513,6 @@ class ShotChartPopulator(BasePopulator):
             kwargs.get("season_types") or DEFAULT_SEASON_TYPES
         )
         team_id: int | None = kwargs.get("team_id")
-        player_id: int | None = kwargs.get("player_id")
         limit: int | None = kwargs.get("limit")
         resume: bool = kwargs.get("resume", True)
 
@@ -516,7 +524,6 @@ class ShotChartPopulator(BasePopulator):
                 seasons=seasons,
                 season_types=season_types,
                 team_id=team_id,
-                player_id=player_id,
             )
 
         if not games_to_process:
@@ -552,7 +559,7 @@ class ShotChartPopulator(BasePopulator):
             return None
 
         logger.info(
-            "Fetching shot chart data for %d games...",
+            "Fetching game rotation data for %d games...",
             len(remaining_games),
         )
 
@@ -580,33 +587,51 @@ class ShotChartPopulator(BasePopulator):
                         format_duration(eta),
                     )
 
-                # Fetch shot chart data
-                df = self.client.get_shot_chart_detail(
-                    game_id=game_id,
-                    team_id=team_id or 0,
-                    player_id=player_id or 0,
-                )
+                # Fetch game rotation data
+                rotation_data = self.client.get_game_rotation(game_id=game_id)
 
-                if df is not None and not df.empty:
-                    # Add metadata
-                    df["_game_id"] = game_id
-                    metadata = self._game_metadata.get(game_id, {})
-                    df["_game_date"] = metadata.get("game_date")
-                    df["_season_id"] = metadata.get("season_id")
-                    df["_season_type"] = metadata.get("season_type")
+                if rotation_data is not None:
+                    home_df = rotation_data.get("home_team", pd.DataFrame())
+                    away_df = rotation_data.get("away_team", pd.DataFrame())
 
-                    all_data.append(df)
-                    games_with_data += 1
-                    self._fetched_game_keys.append(game_id)
-                    self.metrics.api_calls += 1
-
-                    logger.debug(
-                        "  Game %s: %d shots",
-                        game_id,
-                        len(df),
+                    # Combine home and away rotations
+                    combined_df = pd.concat(
+                        [home_df, away_df],
+                        ignore_index=True,
                     )
+
+                    if not combined_df.empty:
+                        # Add game_id if not present
+                        if "GAME_ID" not in combined_df.columns:
+                            combined_df["GAME_ID"] = game_id
+
+                        # Assign stint numbers and calculate duration
+                        combined_df = self._assign_stint_numbers(combined_df)
+                        combined_df = self._calculate_stint_duration(combined_df)
+
+                        # Add metadata
+                        combined_df["_game_id"] = game_id
+                        metadata = self._game_metadata.get(game_id, {})
+                        combined_df["_game_date"] = metadata.get("game_date")
+                        combined_df["_season_id"] = metadata.get("season_id")
+                        combined_df["_season_type"] = metadata.get("season_type")
+
+                        all_data.append(combined_df)
+                        games_with_data += 1
+                        self._fetched_game_keys.append(game_id)
+                        self.metrics.api_calls += 1
+
+                        logger.debug(
+                            "  Game %s: %d rotation entries",
+                            game_id,
+                            len(combined_df),
+                        )
+                    else:
+                        logger.debug("  Game %s: no rotation data", game_id)
+                        no_data_games.add(game_id)
+                        games_no_data += 1
                 else:
-                    logger.debug("  Game %s: no data", game_id)
+                    logger.debug("  Game %s: no data returned", game_id)
                     no_data_games.add(game_id)
                     games_no_data += 1
 
@@ -651,15 +676,15 @@ class ShotChartPopulator(BasePopulator):
         )
 
         if not all_data:
-            logger.info("No shot chart data fetched")
+            logger.info("No game rotation data fetched")
             return None
 
         combined_df = pd.concat(all_data, ignore_index=True)
-        logger.info("Total shots fetched: %d", len(combined_df))
+        logger.info("Total rotation entries fetched: %d", len(combined_df))
         return combined_df
 
     def transform_data(self, df: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
-        """Transform shot chart data to match the database schema.
+        """Transform game rotation data to match the database schema.
 
         Args:
             df: Raw DataFrame from the API.
@@ -677,75 +702,82 @@ class ShotChartPopulator(BasePopulator):
         output["game_id"] = df.get("GAME_ID", df.get("_game_id")).apply(
             lambda x: str(x).zfill(10) if pd.notna(x) else None
         )
-        output["team_id"] = pd.to_numeric(df.get("TEAM_ID"), errors="coerce").astype(
+        output["team_id"] = pd.to_numeric(df["TEAM_ID"], errors="coerce").astype(
             "Int64"
         )
+        output["team_city"] = df.get("TEAM_CITY", "")
         output["team_name"] = df.get("TEAM_NAME", "")
-        output["player_id"] = pd.to_numeric(
-            df.get("PLAYER_ID"), errors="coerce"
-        ).astype("Int64")
-        output["player_name"] = df.get("PLAYER_NAME", "")
-
-        # Time context
-        output["period"] = pd.to_numeric(df.get("PERIOD"), errors="coerce").astype(
-            "Int64"
-        )
-        output["minutes_remaining"] = pd.to_numeric(
-            df.get("MINUTES_REMAINING"), errors="coerce"
-        ).astype("Int64")
-        output["seconds_remaining"] = pd.to_numeric(
-            df.get("SECONDS_REMAINING"), errors="coerce"
-        ).astype("Int64")
-
-        # Shot classification
-        output["event_type"] = df.get("EVENT_TYPE", "")
-        output["action_type"] = df.get("ACTION_TYPE", "")
-        output["shot_type"] = df.get("SHOT_TYPE", "")
-
-        # Shot zone details
-        output["shot_zone_basic"] = df.get("SHOT_ZONE_BASIC", "")
-        output["shot_zone_area"] = df.get("SHOT_ZONE_AREA", "")
-        output["shot_zone_range"] = df.get("SHOT_ZONE_RANGE", "")
-        output["shot_distance"] = pd.to_numeric(
-            df.get("SHOT_DISTANCE"), errors="coerce"
-        ).astype("Int64")
-
-        # Spatial coordinates
-        output["loc_x"] = pd.to_numeric(df.get("LOC_X"), errors="coerce").astype(
-            "Int64"
-        )
-        output["loc_y"] = pd.to_numeric(df.get("LOC_Y"), errors="coerce").astype(
+        output["person_id"] = pd.to_numeric(df["PERSON_ID"], errors="coerce").astype(
             "Int64"
         )
 
-        # Shot result
-        output["shot_made_flag"] = pd.to_numeric(
-            df.get("SHOT_MADE_FLAG"), errors="coerce"
-        ).astype("Int64")
+        # Player name fields (API provides PLAYER_FIRST and PLAYER_LAST)
+        player_first = (
+            df["PLAYER_FIRST"].fillna("")
+            if "PLAYER_FIRST" in df.columns
+            else pd.Series([""] * len(df))
+        )
+        player_last = (
+            df["PLAYER_LAST"].fillna("")
+            if "PLAYER_LAST" in df.columns
+            else pd.Series([""] * len(df))
+        )
+        output["player_first"] = player_first
+        output["player_last"] = player_last
+        # Create combined player_name for convenience
+        output["player_name"] = (player_first + " " + player_last).str.strip()
 
-        # Game metadata (from our added columns or API)
+        # Timing data
+        output["in_time_real"] = pd.to_numeric(df["IN_TIME_REAL"], errors="coerce")
+        output["out_time_real"] = pd.to_numeric(df["OUT_TIME_REAL"], errors="coerce")
+        output["stint_duration"] = (
+            pd.to_numeric(df["stint_duration"], errors="coerce")
+            if "stint_duration" in df.columns
+            else None
+        )
+        output["stint_number"] = (
+            pd.to_numeric(df["stint_number"], errors="coerce").astype("Int64")
+            if "stint_number" in df.columns
+            else 1
+        )
+
+        # Stint statistics (actual fields from GameRotation API)
+        output["player_pts"] = (
+            pd.to_numeric(df["PLAYER_PTS"], errors="coerce").astype("Int64")
+            if "PLAYER_PTS" in df.columns
+            else None
+        )
+        output["pt_diff"] = (
+            pd.to_numeric(df["PT_DIFF"], errors="coerce").astype("Int64")
+            if "PT_DIFF" in df.columns
+            else None
+        )
+        output["usg_pct"] = (
+            pd.to_numeric(df["USG_PCT"], errors="coerce")
+            if "USG_PCT" in df.columns
+            else None
+        )
+
+        # Game metadata
         output["game_date"] = df.get("GAME_DATE", df.get("_game_date"))
         output["season_id"] = df.get("_season_id")
         output["season_type"] = df.get("_season_type")
 
-        # Grid type
-        output["grid_type"] = df.get("GRID_TYPE", "Shot Chart Detail")
-
         # Filename for tracking
-        output["filename"] = "nba_api.shotchartdetail"
+        output["filename"] = "nba_api.gamerotation"
 
         # Ensure all expected columns exist
-        for col in SHOT_CHART_COLUMNS:
+        for col in GAME_ROTATION_COLUMNS:
             if col not in output.columns:
                 output[col] = None
 
         # Reorder columns
-        output = output[SHOT_CHART_COLUMNS]
+        output = output[GAME_ROTATION_COLUMNS]
 
         # Drop duplicates based on key columns
         output = output.drop_duplicates(subset=KEY_COLUMNS, keep="first")
 
-        logger.info("Transformed %d shot records", len(output))
+        logger.info("Transformed %d rotation records", len(output))
         return output
 
     def pre_run_hook(self, **kwargs: Any) -> None:
@@ -774,19 +806,18 @@ class ShotChartPopulator(BasePopulator):
 # =============================================================================
 
 
-def populate_shot_chart(
+def populate_game_rotation(
     db_path: str | None = None,
     games: list[str] | None = None,
     seasons: list[str] | None = None,
     season_types: list[str] | None = None,
     team_id: int | None = None,
-    player_id: int | None = None,
     limit: int | None = None,
     delay: float = 0.6,
     reset_progress: bool = False,
     dry_run: bool = False,
 ) -> dict[str, Any]:
-    """Main function to populate shot_chart_detail table.
+    """Main function to populate game_rotation table.
 
     Args:
         db_path: Path to DuckDB database.
@@ -794,7 +825,6 @@ def populate_shot_chart(
         seasons: List of seasons to fetch (e.g., ["2024-25", "2023-24"]).
         season_types: List of season types (e.g., ["Regular Season", "Playoffs"]).
         team_id: Optional team ID filter.
-        player_id: Optional player ID filter.
         limit: Maximum number of games to process.
         delay: Delay between API requests in seconds.
         reset_progress: Reset progress tracking before starting.
@@ -812,7 +842,7 @@ def populate_shot_chart(
     client.config.request_delay = delay
 
     logger.info("=" * 70)
-    logger.info("NBA SHOT CHART DETAIL POPULATION")
+    logger.info("NBA GAME ROTATION POPULATION")
     logger.info("=" * 70)
     logger.info(f"Database: {db_path}")
     logger.info(f"Seasons: {seasons}")
@@ -821,14 +851,12 @@ def populate_shot_chart(
         logger.info(f"Games: {len(games)} specified")
     if team_id:
         logger.info(f"Team ID Filter: {team_id}")
-    if player_id:
-        logger.info(f"Player ID Filter: {player_id}")
     if limit:
         logger.info(f"Limit: {limit} games")
     logger.info(f"Request Delay: {delay}s")
 
     # Create and run populator
-    populator = ShotChartPopulator(
+    populator = GameRotationPopulator(
         db_path=db_path,
         client=client,
     )
@@ -838,7 +866,6 @@ def populate_shot_chart(
         seasons=seasons,
         season_types=season_types,
         team_id=team_id,
-        player_id=player_id,
         limit=limit,
         reset_progress=reset_progress,
         dry_run=dry_run,
@@ -851,41 +878,38 @@ def populate_shot_chart(
 
 
 def main() -> None:
-    """Parse command-line arguments and run the shot chart population process."""
+    """Parse command-line arguments and run the game rotation population process."""
     parser = argparse.ArgumentParser(
-        description="Populate shot_chart_detail table from NBA API",
+        description="Populate game_rotation table from NBA API",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   # Full population (last 3 seasons)
-  python scripts/populate/populate_shot_chart.py
+  python scripts/populate/populate_game_rotation.py
 
   # Specific seasons only
-  python scripts/populate/populate_shot_chart.py --seasons 2024-25 2023-24
+  python scripts/populate/populate_game_rotation.py --seasons 2024-25 2023-24
 
   # Specific games
-  python scripts/populate/populate_shot_chart.py --games 0022400001 0022400002
-
-  # For a specific player
-  python scripts/populate/populate_shot_chart.py --player-id 2544 --seasons 2023-24
+  python scripts/populate/populate_game_rotation.py --games 0022400001 0022400002
 
   # For a specific team
-  python scripts/populate/populate_shot_chart.py --team-id 1610612747 --seasons 2023-24
+  python scripts/populate/populate_game_rotation.py --team-id 1610612747 --seasons 2023-24
 
   # Regular season only
-  python scripts/populate/populate_shot_chart.py --regular-season-only
+  python scripts/populate/populate_game_rotation.py --regular-season-only
 
   # Playoffs only
-  python scripts/populate/populate_shot_chart.py --playoffs-only
+  python scripts/populate/populate_game_rotation.py --playoffs-only
 
   # Limit number of games
-  python scripts/populate/populate_shot_chart.py --limit 100
+  python scripts/populate/populate_game_rotation.py --limit 100
 
   # Reset progress and start fresh
-  python scripts/populate/populate_shot_chart.py --reset-progress
+  python scripts/populate/populate_game_rotation.py --reset-progress
 
   # Dry run (no database writes)
-  python scripts/populate/populate_shot_chart.py --dry-run
+  python scripts/populate/populate_game_rotation.py --dry-run
         """,
     )
 
@@ -908,11 +932,6 @@ Examples:
         "--team-id",
         type=int,
         help="Filter by team ID",
-    )
-    parser.add_argument(
-        "--player-id",
-        type=int,
-        help="Filter by player ID",
     )
     parser.add_argument(
         "--limit",
@@ -956,13 +975,12 @@ Examples:
     )
 
     try:
-        stats = populate_shot_chart(
+        stats = populate_game_rotation(
             db_path=args.db,
             games=args.games,
             seasons=args.seasons,
             season_types=season_types,
             team_id=args.team_id,
-            player_id=args.player_id,
             limit=args.limit,
             delay=args.delay,
             reset_progress=args.reset_progress,

@@ -556,6 +556,872 @@ class DraftCombineStats(NBABaseModel):
 
 
 # =============================================================================
+# SYNERGY PLAY TYPE SCHEMAS
+# =============================================================================
+
+
+class SynergyPlayTypeStats(NBABaseModel):
+    """Synergy play type efficiency data."""
+
+    # Required identifiers
+    season_id: str = Field(..., alias="SEASON_ID", description="Season identifier")
+    season_type: str = Field(
+        ...,
+        alias="SEASON_TYPE",
+        description="Season type (Regular Season, Playoffs, etc.)",
+    )
+    entity_type: str = Field(
+        ...,
+        alias="ENTITY_TYPE",
+        description="Entity type (player or team)",
+    )
+    entity_id: int = Field(
+        ...,
+        validation_alias=AliasChoices("ENTITY_ID", "PLAYER_ID", "TEAM_ID"),
+        ge=1,
+        description="Player or team ID",
+    )
+    play_type: str = Field(
+        ...,
+        alias="PLAY_TYPE",
+        description="Type of play (Isolation, PnR Ball Handler, etc.)",
+    )
+    type_grouping: str = Field(
+        ...,
+        alias="TYPE_GROUPING",
+        description="Grouping category (Offensive, Defensive)",
+    )
+
+    # Optional identifiers
+    entity_name: str | None = Field(
+        None,
+        validation_alias=AliasChoices("ENTITY_NAME", "PLAYER_NAME", "TEAM_NAME"),
+    )
+    team_id: int | None = Field(None, alias="TEAM_ID", ge=1)
+    team_abbreviation: str | None = Field(None, alias="TEAM_ABBREVIATION")
+
+    # Efficiency stats
+    ppp: float | None = Field(
+        None,
+        alias="PPP",
+        ge=0.0,
+        le=3.0,
+        description="Points per possession",
+    )
+    percentile: float | None = Field(
+        None,
+        alias="PERCENTILE",
+        ge=0.0,
+        le=100.0,
+        description="League percentile ranking",
+    )
+    possessions: float | None = Field(
+        None, alias="POSS", ge=0, description="Number of possessions"
+    )
+    pts: float | None = Field(None, alias="PTS", ge=0, description="Total points")
+    fgm: float | None = Field(None, alias="FGM", ge=0, description="Field goals made")
+    fga: float | None = Field(
+        None, alias="FGA", ge=0, description="Field goals attempted"
+    )
+    fg_pct: float | None = Field(
+        None,
+        alias="FG_PCT",
+        ge=0.0,
+        le=1.0,
+        description="Field goal percentage",
+    )
+    efg_pct: float | None = Field(
+        None,
+        alias="EFG_PCT",
+        ge=0.0,
+        le=1.0,
+        description="Effective field goal percentage",
+    )
+    freq_pct: float | None = Field(
+        None,
+        alias="FREQ_PCT",
+        ge=0.0,
+        le=1.0,
+        description="Frequency percentage",
+    )
+
+    # Additional stats
+    score_freq: float | None = Field(None, alias="SCORE_FREQ", ge=0.0, le=1.0)
+    to_freq: float | None = Field(None, alias="TO_FREQ", ge=0.0, le=1.0)
+    foul_freq: float | None = Field(None, alias="FOUL_FREQ", ge=0.0, le=1.0)
+    and_one_freq: float | None = Field(None, alias="AND_ONE_FREQ", ge=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def validate_shooting_consistency(self) -> "SynergyPlayTypeStats":
+        """Validate shooting stats are consistent."""
+        if self.fgm is not None and self.fga is not None and self.fga > 0:
+            if self.fgm > self.fga:
+                raise ValueError(f"FGM ({self.fgm}) cannot exceed FGA ({self.fga})")
+        return self
+
+
+# =============================================================================
+# LINEUP SCHEMAS
+# =============================================================================
+
+
+class LineupStats(NBABaseModel):
+    """Lineup combination statistics."""
+
+    # Required identifiers
+    season_id: str = Field(
+        ...,
+        validation_alias=AliasChoices("SEASON_ID", "season_id"),
+        description="Season identifier",
+    )
+    season_type: str = Field(
+        ...,
+        validation_alias=AliasChoices("SEASON_TYPE", "season_type"),
+        description="Season type",
+    )
+    group_id: str = Field(
+        ...,
+        alias="GROUP_ID",
+        description="Unique identifier for the lineup combination",
+    )
+    team_id: int = Field(..., alias="TEAM_ID", ge=1, description="Team ID")
+
+    # Lineup info
+    group_quantity: int = Field(
+        ...,
+        alias="GROUP_QUANTITY",
+        ge=2,
+        le=5,
+        description="Number of players in lineup (2-5)",
+    )
+    team_abbreviation: str | None = Field(None, alias="TEAM_ABBREVIATION")
+    group_name: str | None = Field(None, alias="GROUP_NAME")
+
+    # Playing time
+    minutes: float | None = Field(None, alias="MIN", ge=0, description="Minutes played")
+    gp: int | None = Field(None, alias="GP", ge=0, description="Games played")
+
+    # Record
+    wins: int | None = Field(None, alias="W", ge=0, description="Wins")
+    losses: int | None = Field(None, alias="L", ge=0, description="Losses")
+    w_pct: float | None = Field(None, alias="W_PCT", ge=0.0, le=1.0)
+
+    # Ratings
+    off_rating: float | None = Field(
+        None,
+        alias="OFF_RATING",
+        ge=50.0,
+        le=200.0,
+        description="Offensive rating",
+    )
+    def_rating: float | None = Field(
+        None,
+        alias="DEF_RATING",
+        ge=50.0,
+        le=200.0,
+        description="Defensive rating",
+    )
+    net_rating: float | None = Field(
+        None,
+        alias="NET_RATING",
+        ge=-100.0,
+        le=100.0,
+        description="Net rating",
+    )
+    plus_minus: float | None = Field(None, alias="PLUS_MINUS", description="Plus/minus")
+
+    # Basic stats
+    fgm: float | None = Field(None, alias="FGM", ge=0)
+    fga: float | None = Field(None, alias="FGA", ge=0)
+    fg_pct: float | None = Field(None, alias="FG_PCT", ge=0.0, le=1.0)
+    fg3m: float | None = Field(None, alias="FG3M", ge=0)
+    fg3a: float | None = Field(None, alias="FG3A", ge=0)
+    fg3_pct: float | None = Field(None, alias="FG3_PCT", ge=0.0, le=1.0)
+    ftm: float | None = Field(None, alias="FTM", ge=0)
+    fta: float | None = Field(None, alias="FTA", ge=0)
+    ft_pct: float | None = Field(None, alias="FT_PCT", ge=0.0, le=1.0)
+    oreb: float | None = Field(None, alias="OREB", ge=0)
+    dreb: float | None = Field(None, alias="DREB", ge=0)
+    reb: float | None = Field(None, alias="REB", ge=0)
+    ast: float | None = Field(None, alias="AST", ge=0)
+    tov: float | None = Field(None, alias="TOV", ge=0)
+    stl: float | None = Field(None, alias="STL", ge=0)
+    blk: float | None = Field(None, alias="BLK", ge=0)
+    pf: float | None = Field(None, alias="PF", ge=0)
+    pts: float | None = Field(None, alias="PTS", ge=0)
+
+    @model_validator(mode="after")
+    def validate_net_rating(self) -> "LineupStats":
+        """Validate net rating is consistent with off/def ratings."""
+        if (
+            self.off_rating is not None
+            and self.def_rating is not None
+            and self.net_rating is not None
+        ):
+            expected_net = self.off_rating - self.def_rating
+            if abs(self.net_rating - expected_net) > 1.0:  # Allow small discrepancy
+                raise ValueError(
+                    f"NET_RATING ({self.net_rating}) doesn't match "
+                    f"OFF_RATING ({self.off_rating}) - DEF_RATING ({self.def_rating})"
+                )
+        return self
+
+
+# =============================================================================
+# SHOT CHART SCHEMAS
+# =============================================================================
+
+
+class ShotChartDetail(NBABaseModel):
+    """Shot location data."""
+
+    # Required identifiers
+    game_id: str = Field(..., alias="GAME_ID", min_length=10, max_length=10)
+    player_id: int = Field(..., alias="PLAYER_ID", ge=1)
+    period: int = Field(
+        ...,
+        alias="PERIOD",
+        ge=1,
+        le=10,
+        description="Game period (1-4 regular, 5+ OT)",
+    )
+
+    # Player/Team info
+    player_name: str | None = Field(None, alias="PLAYER_NAME")
+    team_id: int | None = Field(None, alias="TEAM_ID", ge=1)
+    team_name: str | None = Field(None, alias="TEAM_NAME")
+
+    # Game context
+    game_date: date | None = Field(None, alias="GAME_DATE")
+    htm: str | None = Field(None, alias="HTM", description="Home team")
+    vtm: str | None = Field(None, alias="VTM", description="Visiting team")
+
+    # Shot location
+    loc_x: int = Field(
+        ...,
+        alias="LOC_X",
+        ge=-250,
+        le=250,
+        description="X coordinate (-250 to 250)",
+    )
+    loc_y: int = Field(
+        ...,
+        alias="LOC_Y",
+        ge=-50,
+        le=900,
+        description="Y coordinate (-50 to 900)",
+    )
+    shot_distance: int | None = Field(
+        None,
+        alias="SHOT_DISTANCE",
+        ge=0,
+        le=100,
+        description="Distance from basket in feet",
+    )
+
+    # Shot info
+    shot_type: str | None = Field(
+        None,
+        alias="SHOT_TYPE",
+        description="Type of shot (2PT/3PT)",
+    )
+    shot_zone_basic: str | None = Field(
+        None,
+        alias="SHOT_ZONE_BASIC",
+        description="Basic zone (Restricted Area, Paint, etc.)",
+    )
+    shot_zone_area: str | None = Field(
+        None,
+        alias="SHOT_ZONE_AREA",
+        description="Area of court (Center, Left Side, etc.)",
+    )
+    shot_zone_range: str | None = Field(
+        None,
+        alias="SHOT_ZONE_RANGE",
+        description="Distance range",
+    )
+    shot_made_flag: int | None = Field(
+        None,
+        alias="SHOT_MADE_FLAG",
+        ge=0,
+        le=1,
+        description="1 if made, 0 if missed",
+    )
+    action_type: str | None = Field(None, alias="ACTION_TYPE")
+    shot_attempted_flag: int | None = Field(
+        None, alias="SHOT_ATTEMPTED_FLAG", ge=0, le=1
+    )
+
+    # Time context
+    minutes_remaining: int | None = Field(None, alias="MINUTES_REMAINING", ge=0, le=12)
+    seconds_remaining: int | None = Field(None, alias="SECONDS_REMAINING", ge=0, le=59)
+    event_type: str | None = Field(None, alias="EVENT_TYPE")
+    game_event_id: int | None = Field(None, alias="GAME_EVENT_ID")
+
+    @field_validator("game_date", mode="before")
+    @classmethod
+    def parse_game_date(cls, v: Any) -> date | None:
+        """Parse game date from various formats."""
+        if v is None or v == "" or (isinstance(v, float) and pd.isna(v)):
+            return None
+        if isinstance(v, date):
+            return v
+        if isinstance(v, datetime):
+            return v.date()
+        if isinstance(v, str):
+            for fmt in ["%Y-%m-%d", "%Y%m%d", "%b %d, %Y", "%m/%d/%Y"]:
+                try:
+                    return datetime.strptime(v, fmt).date()
+                except ValueError:
+                    continue
+        return None
+
+
+# =============================================================================
+# GAME ROTATION SCHEMAS
+# =============================================================================
+
+
+class GameRotation(NBABaseModel):
+    """Player substitution patterns."""
+
+    # Required identifiers
+    game_id: str = Field(..., alias="GAME_ID", min_length=10, max_length=10)
+    team_id: int = Field(..., alias="TEAM_ID", ge=1)
+    person_id: int = Field(..., alias="PERSON_ID", ge=1)
+    stint_number: int = Field(
+        ...,
+        alias="STINT_NUMBER",
+        ge=1,
+        description="Sequential stint number",
+    )
+
+    # Player/Team info
+    player_name: str | None = Field(None, alias="PLAYER_NAME")
+    team_city: str | None = Field(None, alias="TEAM_CITY")
+    team_name: str | None = Field(None, alias="TEAM_NAME")
+    team_abbreviation: str | None = Field(None, alias="TEAM_ABBREVIATION")
+
+    # Time info (in tenths of seconds from game start)
+    in_time_real: float = Field(
+        ...,
+        alias="IN_TIME_REAL",
+        ge=0,
+        description="Check-in time (tenths of seconds)",
+    )
+    out_time_real: float = Field(
+        ...,
+        alias="OUT_TIME_REAL",
+        ge=0,
+        description="Check-out time (tenths of seconds)",
+    )
+    stint_duration: float | None = Field(
+        None,
+        description="Duration of stint in tenths of seconds",
+    )
+
+    # Period info
+    in_period: int | None = Field(None, alias="IN_PERIOD", ge=1, le=10)
+    out_period: int | None = Field(None, alias="OUT_PERIOD", ge=1, le=10)
+
+    # Stats during stint
+    player_pts: int | None = Field(
+        None,
+        alias="PLAYER_PTS",
+        ge=0,
+        description="Points scored by player during stint",
+    )
+    pt_diff: int | None = Field(
+        None,
+        alias="PT_DIFF",
+        description="Point differential during stint",
+    )
+    player_pts_off_tot: int | None = Field(None, alias="PLAYER_PTS_OFF_TOT", ge=0)
+    player_pts_def_tot: int | None = Field(None, alias="PLAYER_PTS_DEF_TOT", ge=0)
+
+    @model_validator(mode="after")
+    def validate_times(self) -> "GameRotation":
+        """Validate time fields are consistent."""
+        if self.in_time_real > self.out_time_real:
+            raise ValueError(
+                f"in_time_real ({self.in_time_real}) cannot be greater than "
+                f"out_time_real ({self.out_time_real})"
+            )
+        # Calculate stint duration if not provided
+        if self.stint_duration is None:
+            object.__setattr__(
+                self,
+                "stint_duration",
+                self.out_time_real - self.in_time_real,
+            )
+        return self
+
+
+# =============================================================================
+# PLAYER SPLITS SCHEMAS
+# =============================================================================
+
+
+class PlayerSplits(NBABaseModel):
+    """Player dashboard splits data."""
+
+    # Required identifiers
+    season_id: str = Field(
+        ...,
+        validation_alias=AliasChoices("SEASON_ID", "season_id"),
+        description="Season identifier",
+    )
+    season_type: str = Field(
+        ...,
+        validation_alias=AliasChoices("SEASON_TYPE", "season_type"),
+        description="Season type",
+    )
+    player_id: int = Field(..., alias="PLAYER_ID", ge=1)
+    split_type: str = Field(
+        ...,
+        alias="SPLIT_TYPE",
+        description="Type of split (Location, WinsLosses, Month, etc.)",
+    )
+    split_category: str = Field(
+        ...,
+        alias="SPLIT_CATEGORY",
+        description="Category within split type",
+    )
+    split_value: str = Field(
+        ...,
+        alias="SPLIT_VALUE",
+        description="Specific value of the split",
+    )
+
+    # Player info
+    player_name: str | None = Field(None, alias="PLAYER_NAME")
+    team_id: int | None = Field(None, alias="TEAM_ID", ge=1)
+    team_abbreviation: str | None = Field(None, alias="TEAM_ABBREVIATION")
+
+    # Game stats
+    gp: int | None = Field(None, alias="GP", ge=0, description="Games played")
+    wins: int | None = Field(None, alias="W", ge=0, description="Wins")
+    losses: int | None = Field(None, alias="L", ge=0, description="Losses")
+    w_pct: float | None = Field(None, alias="W_PCT", ge=0.0, le=1.0)
+    minutes: float | None = Field(None, alias="MIN", ge=0, description="Minutes played")
+
+    # Scoring stats
+    pts: float | None = Field(None, alias="PTS", ge=0, description="Points per game")
+    ast: float | None = Field(None, alias="AST", ge=0, description="Assists per game")
+    reb: float | None = Field(None, alias="REB", ge=0, description="Rebounds per game")
+    stl: float | None = Field(None, alias="STL", ge=0, description="Steals per game")
+    blk: float | None = Field(None, alias="BLK", ge=0, description="Blocks per game")
+    tov: float | None = Field(None, alias="TOV", ge=0, description="Turnovers per game")
+
+    # Shooting percentages
+    fg_pct: float | None = Field(
+        None, alias="FG_PCT", ge=0.0, le=1.0, description="Field goal percentage"
+    )
+    fg3_pct: float | None = Field(
+        None, alias="FG3_PCT", ge=0.0, le=1.0, description="3-point percentage"
+    )
+    ft_pct: float | None = Field(
+        None, alias="FT_PCT", ge=0.0, le=1.0, description="Free throw percentage"
+    )
+
+    # Additional shooting stats
+    fgm: float | None = Field(None, alias="FGM", ge=0)
+    fga: float | None = Field(None, alias="FGA", ge=0)
+    fg3m: float | None = Field(None, alias="FG3M", ge=0)
+    fg3a: float | None = Field(None, alias="FG3A", ge=0)
+    ftm: float | None = Field(None, alias="FTM", ge=0)
+    fta: float | None = Field(None, alias="FTA", ge=0)
+    oreb: float | None = Field(None, alias="OREB", ge=0)
+    dreb: float | None = Field(None, alias="DREB", ge=0)
+    pf: float | None = Field(None, alias="PF", ge=0)
+    plus_minus: float | None = Field(None, alias="PLUS_MINUS")
+
+
+# =============================================================================
+# ESTIMATED METRICS SCHEMAS
+# =============================================================================
+
+
+class EstimatedMetrics(NBABaseModel):
+    """Estimated player/team metrics."""
+
+    # Required identifiers
+    season_id: str = Field(
+        ...,
+        validation_alias=AliasChoices("SEASON_ID", "season_id"),
+        description="Season identifier",
+    )
+    season_type: str = Field(
+        ...,
+        validation_alias=AliasChoices("SEASON_TYPE", "season_type"),
+        description="Season type",
+    )
+    entity_type: str = Field(
+        ...,
+        alias="ENTITY_TYPE",
+        description="Entity type (player or team)",
+    )
+    entity_id: int = Field(
+        ...,
+        validation_alias=AliasChoices("ENTITY_ID", "PLAYER_ID", "TEAM_ID"),
+        ge=1,
+        description="Player or team ID",
+    )
+
+    # Entity info
+    entity_name: str | None = Field(
+        None,
+        validation_alias=AliasChoices("ENTITY_NAME", "PLAYER_NAME", "TEAM_NAME"),
+    )
+    team_id: int | None = Field(None, alias="TEAM_ID", ge=1)
+    team_abbreviation: str | None = Field(None, alias="TEAM_ABBREVIATION")
+
+    # Estimated metrics
+    e_off_rating: float | None = Field(
+        None,
+        alias="E_OFF_RATING",
+        ge=50.0,
+        le=200.0,
+        description="Estimated offensive rating",
+    )
+    e_def_rating: float | None = Field(
+        None,
+        alias="E_DEF_RATING",
+        ge=50.0,
+        le=200.0,
+        description="Estimated defensive rating",
+    )
+    e_net_rating: float | None = Field(
+        None,
+        alias="E_NET_RATING",
+        ge=-100.0,
+        le=100.0,
+        description="Estimated net rating",
+    )
+    e_pace: float | None = Field(
+        None,
+        alias="E_PACE",
+        ge=80.0,
+        le=130.0,
+        description="Estimated pace",
+    )
+    e_pie: float | None = Field(
+        None,
+        alias="E_PIE",
+        ge=0.0,
+        le=1.0,
+        description="Estimated Player Impact Estimate",
+    )
+
+    # Additional metrics
+    e_ast_ratio: float | None = Field(None, alias="E_AST_RATIO", ge=0)
+    e_oreb_pct: float | None = Field(None, alias="E_OREB_PCT", ge=0.0, le=1.0)
+    e_dreb_pct: float | None = Field(None, alias="E_DREB_PCT", ge=0.0, le=1.0)
+    e_reb_pct: float | None = Field(None, alias="E_REB_PCT", ge=0.0, le=1.0)
+    e_tov_pct: float | None = Field(None, alias="E_TOV_PCT", ge=0.0, le=1.0)
+    e_usg_pct: float | None = Field(None, alias="E_USG_PCT", ge=0.0, le=1.0)
+
+    # Games info
+    gp: int | None = Field(None, alias="GP", ge=0)
+    w: int | None = Field(None, alias="W", ge=0)
+    l: int | None = Field(None, alias="L", ge=0)
+    w_pct: float | None = Field(None, alias="W_PCT", ge=0.0, le=1.0)
+    min: float | None = Field(None, alias="MIN", ge=0)
+
+
+# =============================================================================
+# WIN PROBABILITY SCHEMAS
+# =============================================================================
+
+
+class WinProbability(NBABaseModel):
+    """Win probability data."""
+
+    # Required identifiers
+    game_id: str = Field(..., alias="GAME_ID", min_length=10, max_length=10)
+    event_num: int = Field(
+        ...,
+        alias="EVENT_NUM",
+        ge=0,
+        description="Event sequence number",
+    )
+
+    # Probabilities
+    home_pct: float = Field(
+        ...,
+        alias="HOME_PCT",
+        ge=0.0,
+        le=1.0,
+        description="Home team win probability",
+    )
+    visitor_pct: float = Field(
+        ...,
+        alias="VISITOR_PCT",
+        ge=0.0,
+        le=1.0,
+        description="Visitor team win probability",
+    )
+
+    # Game state
+    period: int | None = Field(None, alias="PERIOD", ge=1, le=10)
+    seconds_remaining: int | None = Field(
+        None,
+        alias="SECONDS_REMAINING",
+        ge=0,
+        description="Seconds remaining in period",
+    )
+    home_pts: int | None = Field(None, alias="HOME_PTS", ge=0)
+    visitor_pts: int | None = Field(None, alias="VISITOR_PTS", ge=0)
+
+    # Team info
+    home_team_id: int | None = Field(None, alias="HOME_TEAM_ID", ge=1)
+    visitor_team_id: int | None = Field(None, alias="VISITOR_TEAM_ID", ge=1)
+    home_team_abbreviation: str | None = Field(None, alias="HOME_TEAM_ABBREVIATION")
+    visitor_team_abbreviation: str | None = Field(
+        None, alias="VISITOR_TEAM_ABBREVIATION"
+    )
+
+    # Event info
+    description: str | None = Field(None, alias="DESCRIPTION")
+    location: str | None = Field(None, alias="LOCATION")
+
+    @model_validator(mode="after")
+    def validate_probabilities(self) -> "WinProbability":
+        """Validate probabilities sum to approximately 1."""
+        total = self.home_pct + self.visitor_pct
+        if abs(total - 1.0) > 0.05:  # Allow 5% tolerance
+            raise ValueError(f"Win probabilities should sum to ~1.0, got {total:.3f}")
+        return self
+
+
+# =============================================================================
+# LEAGUE LEADERS SCHEMAS
+# =============================================================================
+
+
+class LeagueLeaders(NBABaseModel):
+    """League statistical leaders."""
+
+    # Required identifiers
+    season_id: str = Field(
+        ...,
+        validation_alias=AliasChoices("SEASON_ID", "season_id"),
+        description="Season identifier",
+    )
+    season_type: str = Field(
+        ...,
+        validation_alias=AliasChoices("SEASON_TYPE", "season_type"),
+        description="Season type",
+    )
+    stat_category: str = Field(
+        ...,
+        alias="STAT_CATEGORY",
+        description="Statistical category (PTS, AST, REB, etc.)",
+    )
+    player_id: int = Field(..., alias="PLAYER_ID", ge=1)
+
+    # Player info
+    player_name: str | None = Field(None, alias="PLAYER_NAME")
+    team_id: int | None = Field(None, alias="TEAM_ID", ge=1)
+    team_abbreviation: str | None = Field(None, alias="TEAM_ABBREVIATION")
+
+    # Ranking info
+    rank: int = Field(..., alias="RANK", ge=1, description="League rank")
+    stat_value: float = Field(
+        ...,
+        alias="STAT_VALUE",
+        description="Value of the statistic",
+    )
+
+    # Games info
+    games_played: int | None = Field(None, alias="GP", ge=0, description="Games played")
+    minutes: float | None = Field(None, alias="MIN", ge=0, description="Minutes played")
+
+    # Additional context
+    min_per_game: float | None = Field(None, alias="MIN_PG", ge=0)
+    fgm: float | None = Field(None, alias="FGM", ge=0)
+    fga: float | None = Field(None, alias="FGA", ge=0)
+    fg_pct: float | None = Field(None, alias="FG_PCT", ge=0.0, le=1.0)
+    fg3m: float | None = Field(None, alias="FG3M", ge=0)
+    fg3a: float | None = Field(None, alias="FG3A", ge=0)
+    fg3_pct: float | None = Field(None, alias="FG3_PCT", ge=0.0, le=1.0)
+    ftm: float | None = Field(None, alias="FTM", ge=0)
+    fta: float | None = Field(None, alias="FTA", ge=0)
+    ft_pct: float | None = Field(None, alias="FT_PCT", ge=0.0, le=1.0)
+    oreb: float | None = Field(None, alias="OREB", ge=0)
+    dreb: float | None = Field(None, alias="DREB", ge=0)
+    reb: float | None = Field(None, alias="REB", ge=0)
+    ast: float | None = Field(None, alias="AST", ge=0)
+    stl: float | None = Field(None, alias="STL", ge=0)
+    blk: float | None = Field(None, alias="BLK", ge=0)
+    tov: float | None = Field(None, alias="TOV", ge=0)
+    pts: float | None = Field(None, alias="PTS", ge=0)
+    eff: float | None = Field(None, alias="EFF")
+
+
+# =============================================================================
+# FRANCHISE HISTORY SCHEMAS
+# =============================================================================
+
+
+class FranchiseHistory(NBABaseModel):
+    """Franchise history data."""
+
+    # Required identifiers
+    team_id: int = Field(..., alias="TEAM_ID", ge=1)
+    start_year: int = Field(
+        ...,
+        alias="START_YEAR",
+        ge=1946,
+        description="First year of franchise",
+    )
+
+    # Franchise info
+    team_city: str | None = Field(None, alias="TEAM_CITY")
+    team_name: str | None = Field(None, alias="TEAM_NAME")
+    league_id: str | None = Field(None, alias="LEAGUE_ID")
+
+    # Years active
+    end_year: int | None = Field(None, alias="END_YEAR", ge=1946)
+    years_active: int | None = Field(
+        None,
+        alias="YEARS",
+        ge=0,
+        description="Number of years active",
+    )
+
+    # Historical stats
+    games: int | None = Field(None, alias="GAMES", ge=0, description="Total games")
+    wins: int | None = Field(None, alias="WINS", ge=0, description="Total wins")
+    losses: int | None = Field(None, alias="LOSSES", ge=0, description="Total losses")
+    w_pct: float | None = Field(None, alias="WIN_PCT", ge=0.0, le=1.0)
+
+    # Playoff stats
+    po_appearances: int | None = Field(
+        None, alias="PO_APPEARANCES", ge=0, description="Playoff appearances"
+    )
+    div_titles: int | None = Field(
+        None, alias="DIV_TITLES", ge=0, description="Division titles"
+    )
+    conf_titles: int | None = Field(
+        None, alias="CONF_TITLES", ge=0, description="Conference titles"
+    )
+    championships: int | None = Field(
+        None, alias="LEAGUE_TITLES", ge=0, description="Championships won"
+    )
+
+    @model_validator(mode="after")
+    def validate_years(self) -> "FranchiseHistory":
+        """Validate year fields are consistent."""
+        if self.end_year is not None and self.end_year < self.start_year:
+            raise ValueError(
+                f"end_year ({self.end_year}) cannot be before "
+                f"start_year ({self.start_year})"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_record(self) -> "FranchiseHistory":
+        """Validate wins/losses match games."""
+        if self.wins is not None and self.losses is not None and self.games is not None:
+            total = self.wins + self.losses
+            if abs(self.games - total) > 10:  # Allow some tolerance for ties/cancelled
+                raise ValueError(
+                    f"Games ({self.games}) should roughly equal "
+                    f"wins ({self.wins}) + losses ({self.losses})"
+                )
+        return self
+
+
+# =============================================================================
+# BASKETBALL REFERENCE SCHEDULE SCHEMAS
+# =============================================================================
+
+
+class BRSchedule(NBABaseModel):
+    """Basketball Reference schedule data."""
+
+    # Required identifiers
+    game_key: str = Field(
+        ...,
+        alias="game_key",
+        description="Unique game identifier",
+    )
+    season_year: int = Field(
+        ...,
+        alias="season_year",
+        ge=1946,
+        description="Season year",
+    )
+    game_date: date = Field(
+        ...,
+        alias="game_date",
+        description="Date of the game",
+    )
+    home_team: str = Field(
+        ...,
+        alias="home_team",
+        min_length=3,
+        max_length=3,
+        description="Home team abbreviation",
+    )
+    away_team: str = Field(
+        ...,
+        alias="away_team",
+        min_length=3,
+        max_length=3,
+        description="Away team abbreviation",
+    )
+
+    # Scores (optional - may be None for future games)
+    home_team_score: int | None = Field(
+        None,
+        alias="home_team_score",
+        ge=0,
+        le=300,
+        description="Home team final score",
+    )
+    away_team_score: int | None = Field(
+        None,
+        alias="away_team_score",
+        ge=0,
+        le=300,
+        description="Away team final score",
+    )
+
+    # Additional info
+    overtime: str | None = Field(
+        None,
+        alias="overtime",
+        description="OT indicator if game went to overtime",
+    )
+    attendance: int | None = Field(None, alias="attendance", ge=0)
+    arena: str | None = Field(None, alias="arena")
+    game_remarks: str | None = Field(None, alias="game_remarks")
+
+    # Game timing
+    start_time: str | None = Field(None, alias="start_time")
+
+    @field_validator("game_date", mode="before")
+    @classmethod
+    def parse_game_date(cls, v: Any) -> date | None:
+        """Parse game date from various formats."""
+        if v is None or v == "" or (isinstance(v, float) and pd.isna(v)):
+            return None
+        if isinstance(v, date):
+            return v
+        if isinstance(v, datetime):
+            return v.date()
+        if isinstance(v, str):
+            for fmt in ["%Y-%m-%d", "%b %d, %Y", "%m/%d/%Y", "%B %d, %Y"]:
+                try:
+                    return datetime.strptime(v, fmt).date()
+                except ValueError:
+                    continue
+        return None
+
+
+# =============================================================================
 # VALIDATION UTILITIES
 # =============================================================================
 
@@ -598,27 +1464,78 @@ def get_schema_for_table(table_name: str) -> type[NBABaseModel] | None:
         Pydantic schema class or None if no schema defined
     """
     schema_map: dict[str, type[NBABaseModel]] = {
+        # Player schemas
         "player": Player,
         "players": Player,
         "player_silver": Player,
         "common_player_info": CommonPlayerInfo,
         "common_player_info_silver": CommonPlayerInfo,
+        # Game stats schemas
         "player_game_stats": PlayerGameStats,
         "player_game_stats_silver": PlayerGameStats,
         "player_game_stats_raw": PlayerGameStats,
         "team_game_stats": TeamGameStats,
         "team_game_stats_silver": TeamGameStats,
         "team_game_stats_raw": TeamGameStats,
+        # Play by play schemas
         "play_by_play": PlayByPlayAction,
         "play_by_play_silver": PlayByPlayAction,
         "play_by_play_raw": PlayByPlayAction,
+        # Draft schemas
         "draft_history": DraftHistory,
         "draft_history_silver": DraftHistory,
         "draft_history_raw": DraftHistory,
         "draft_combine_stats": DraftCombineStats,
         "draft_combine_stats_silver": DraftCombineStats,
         "draft_combine_stats_raw": DraftCombineStats,
+        # Boxscore schemas
         "boxscores": BoxScorePlayer,
         "boxscores_raw": BoxScorePlayer,
+        # Synergy play type schemas
+        "synergy_playtypes": SynergyPlayTypeStats,
+        "synergy_playtypes_raw": SynergyPlayTypeStats,
+        "synergy_playtypes_silver": SynergyPlayTypeStats,
+        "synergy_play_type_stats": SynergyPlayTypeStats,
+        # Lineup schemas
+        "lineups": LineupStats,
+        "lineups_raw": LineupStats,
+        "lineups_silver": LineupStats,
+        "lineup_stats": LineupStats,
+        # Shot chart schemas
+        "shot_chart": ShotChartDetail,
+        "shot_chart_raw": ShotChartDetail,
+        "shot_chart_silver": ShotChartDetail,
+        "shot_chart_detail": ShotChartDetail,
+        # Game rotation schemas
+        "game_rotations": GameRotation,
+        "game_rotations_raw": GameRotation,
+        "game_rotations_silver": GameRotation,
+        "game_rotation": GameRotation,
+        # Player splits schemas
+        "player_splits": PlayerSplits,
+        "player_splits_raw": PlayerSplits,
+        "player_splits_silver": PlayerSplits,
+        "player_dashboard_splits": PlayerSplits,
+        # Estimated metrics schemas
+        "estimated_metrics": EstimatedMetrics,
+        "estimated_metrics_raw": EstimatedMetrics,
+        "estimated_metrics_silver": EstimatedMetrics,
+        # Win probability schemas
+        "win_probability": WinProbability,
+        "win_probability_raw": WinProbability,
+        "win_probability_silver": WinProbability,
+        # League leaders schemas
+        "league_leaders": LeagueLeaders,
+        "league_leaders_raw": LeagueLeaders,
+        "league_leaders_silver": LeagueLeaders,
+        # Franchise history schemas
+        "franchise_history": FranchiseHistory,
+        "franchise_history_raw": FranchiseHistory,
+        "franchise_history_silver": FranchiseHistory,
+        # Basketball Reference schedule schemas
+        "br_schedule": BRSchedule,
+        "br_schedule_raw": BRSchedule,
+        "br_schedule_silver": BRSchedule,
+        "basketball_reference_schedule": BRSchedule,
     }
     return schema_map.get(table_name.lower())

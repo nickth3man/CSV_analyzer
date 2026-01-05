@@ -77,24 +77,30 @@ class TeamDetailsPopulator(BasePopulator):
             if resume and self.progress.is_completed(str(team_id)):
                 continue
 
-            data = self.client.get_team_details(team_id)
-            details_df = data.get("team_details", pd.DataFrame())
-            if details_df.empty:
+            try:
+                data = self.client.get_team_details(team_id)
+                details_df = data.get("team_details", pd.DataFrame())
+                if details_df.empty:
+                    continue
+
+                row = details_df.iloc[0].to_dict()
+                social_df = data.get("team_social", pd.DataFrame())
+                if not social_df.empty:
+                    social_links = {
+                        str(r.get("ACCOUNTTYPE", "")).strip().lower(): r.get(
+                            "WEBSITE_LINK"
+                        )
+                        for r in social_df.to_dict(orient="records")
+                    }
+                    row["FACEBOOK"] = social_links.get("facebook")
+                    row["INSTAGRAM"] = social_links.get("instagram")
+                    row["TWITTER"] = social_links.get("twitter")
+
+                data_frames.append(pd.DataFrame([row]))
+                self._fetched_keys.append(str(team_id))
+            except Exception as e:
+                logger.error(f"Failed to fetch details for team {team_id}: {e}")
                 continue
-
-            row = details_df.iloc[0].to_dict()
-            social_df = data.get("team_social", pd.DataFrame())
-            if not social_df.empty:
-                social_links = {
-                    str(r.get("ACCOUNTTYPE", "")).strip().lower(): r.get("WEBSITE_LINK")
-                    for r in social_df.to_dict(orient="records")
-                }
-                row["FACEBOOK"] = social_links.get("facebook")
-                row["INSTAGRAM"] = social_links.get("instagram")
-                row["TWITTER"] = social_links.get("twitter")
-
-            data_frames.append(pd.DataFrame([row]))
-            self._fetched_keys.append(str(team_id))
 
         if not data_frames:
             return None

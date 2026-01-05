@@ -1,0 +1,17 @@
+!.reference/
+!*.env
+!.env.example
+!*basketball_reference_web_scraper-4/
+!*nba_api-master/
+!*nba_api/
+!*chainlit/
+!pandas/
+!matplotlib/
+!openai/
+!requests/
+!yaml/
+!numpy/
+!python-dotenv/
+!rich/
+!.reference/nba_api-master/
+!.reference/basketball_reference_web_scraper-4/
